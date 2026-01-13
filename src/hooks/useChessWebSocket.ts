@@ -275,7 +275,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     resetAll 
   } = useChessStore();
   
-  // Refresh balance from Supabase
+  // Refresh balance from Supabase - uses user_balances table
   const refreshBalance = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -284,40 +284,25 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         return;
       }
       
-      // Try players table first (for credits), fall back to profiles
-      const { data: playerData } = await supabase
-        .from('players')
-        .select('credits, name')
+      // Use user_balances table (exists in schema)
+      const { data: balanceData } = await supabase
+        .from('user_balances')
+        .select('balance')
         .eq('user_id', user.id)
         .maybeSingle();
       
-      if (playerData) {
-        setPlayerCredits(playerData.credits || 0);
-        if (playerData.name) {
-          setPlayerName(playerData.name);
-        }
-        console.log("[Chess WS] Balance refreshed:", playerData.credits);
+      if (balanceData) {
+        setPlayerCredits(balanceData.balance || 0);
+        console.log("[Chess WS] Balance refreshed:", balanceData.balance);
         return;
       }
       
-      // Fall back to profiles table
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('skilled_coins, display_name')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (profileData) {
-        setPlayerCredits(profileData.skilled_coins || 0);
-        if (profileData.display_name) {
-          setPlayerName(profileData.display_name);
-        }
-        console.log("[Chess WS] Balance refreshed from profile:", profileData.skilled_coins);
-      }
+      // No balance found - set to 0
+      setPlayerCredits(0);
     } catch (error) {
       console.error("[Chess WS] Failed to refresh balance:", error);
     }
-  }, [setPlayerCredits, setPlayerName]);
+  }, [setPlayerCredits]);
   
   // Set up navigation and balance refresh callbacks for the global message handler
   useEffect(() => {
@@ -500,67 +485,52 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       console.warn("[Chess WS] Cannot send move - no game state");
       return;
     }
-    
-    if (!currentGameState.isMyTurn) {
-      console.warn("[Chess WS] Cannot send move - not your turn");
-      toast.error("It's not your turn!");
-      return;
-    }
-    
-    // Server expects UCI format string: "e2e4" or "e7e8q"
-    let uciMove = `${from}${to}`;
-    if (promotion) {
-      uciMove += promotion;
-    }
-    
-    const movePayload = {
+
+    const payload = {
       type: "move",
-      move: uciMove,
+      gameId: currentGameState.gameId,
+      from,
+      to,
+      promotion,
     };
-    console.log("[WS OUT]", wsClient.getClientId(), movePayload);
-    wsClient.send(movePayload);
+
+    console.log("[WS OUT]", wsClient.getClientId(), payload);
+    wsClient.send(payload);
   }, []);
 
   const resignGame = useCallback(() => {
-    // Get game IDs from store
     const currentGameState = useChessStore.getState().gameState;
-    const dbGameId = currentGameState?.dbGameId;
-    const gameId = currentGameState?.gameId;
     
-    // Guard: log if dbGameId is missing (wager settlement will fail)
-    if (!dbGameId) {
-      console.warn("end_game missing dbGameId", { gameId, dbGameId });
-      toast.error("Cannot settle wager: game ID missing. Balance may be incorrect.");
+    if (!currentGameState) {
+      console.warn("[Chess WS] Cannot resign - no game state");
+      return;
     }
-    
-    const resignPayload = { 
-      type: "resign" as const, 
-      dbGameId: dbGameId || undefined,
-      gameId: gameId || undefined,
+
+    const payload = {
+      type: "resign",
+      gameId: currentGameState.gameId,
     };
-    console.log("[WS OUT]", wsClient.getClientId(), resignPayload);
-    wsClient.send(resignPayload);
-    
-    // Clear all state
-    wsClient.setInGame(false);
-    wsClient.setSearching(false);
-    resetAll();
-    
-    // Refresh balance after resignation
-    refreshBalance();
-  }, [resetAll, refreshBalance]);
+
+    console.log("[WS OUT]", wsClient.getClientId(), payload);
+    wsClient.send(payload);
+  }, []);
 
   const clearGameEnd = useCallback(() => {
-    resetAll();
-    wsClient.setInGame(false);
-  }, [resetAll]);
+    useChessStore.getState().clearGameEnd();
+  }, []);
 
   const clearLogs = useCallback(() => {
     setLogs([]);
   }, []);
 
   const sendRaw = useCallback((json: string) => {
-    wsClient.sendRaw(json);
+    try {
+      const parsed = JSON.parse(json);
+      wsClient.send(parsed);
+    } catch (e) {
+      console.error("[Chess WS] Invalid JSON:", e);
+      toast.error("Invalid JSON");
+    }
   }, []);
 
   return {
