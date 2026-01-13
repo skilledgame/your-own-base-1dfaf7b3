@@ -1,0 +1,31 @@
+project_id = "fgqvdltpyzklzjsizuvo"
+
+[functions.game-server]
+verify_jwt = false
+
+[functions.create-payment]
+verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false
+
+[functions.get-transactions]
+verify_jwt = true
+
+[functions.end-game]
+verify_jwt = true
+
+[functions.join-queue]
+verify_jwt = true
+
+[functions.leave-queue]
+verify_jwt = true
+
+[functions.admin-users]
+verify_jwt = false
+
+[functions.create-lobby]
+verify_jwt = true
+
+[functions.join-lobby]
+verify_jwt = true

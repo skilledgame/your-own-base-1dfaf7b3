@@ -1,0 +1,228 @@
+/**
+ * Live Chess Game Page
+ * 
+ * Uses WebSocket for real-time game state and moves.
+ * Route: /game/live/:gameId
+ * 
+ * Uses Zustand store for GLOBAL state that persists across navigation.
+ */
+
+import { useParams, useNavigate } from 'react-router-dom';
+import { useChessWebSocket } from '@/hooks/useChessWebSocket';
+import { useChessStore } from '@/stores/chessStore';
+import { WSMultiplayerGameView } from '@/components/WSMultiplayerGameView';
+import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
+import { GameResultModal } from '@/components/GameResultModal';
+import { Button } from '@/components/ui/button';
+import { Loader2, ArrowLeft, WifiOff } from 'lucide-react';
+
+export default function LiveGame() {
+  const { gameId } = useParams<{ gameId: string }>();
+  const navigate = useNavigate();
+  
+  // Global state from Zustand store
+  const { phase, gameState, gameEndResult, playerCredits } = useChessStore();
+  
+  // WebSocket connection and actions
+  const {
+    status,
+    connect,
+    disconnect,
+    sendMove,
+    resignGame,
+    clearGameEnd,
+    refreshBalance,
+    logs,
+    clearLogs,
+    sendRaw,
+    reconnectAttempts,
+  } = useChessWebSocket();
+
+  const handleBack = () => {
+    // If in game, resign first
+    if (phase === "in_game") {
+      resignGame();
+    }
+    navigate('/');
+  };
+
+  const handleExit = () => {
+    // Resign and go back to matchmaking
+    resignGame();
+    navigate('/quick-play');
+  };
+
+  const handleSendMove = (from: string, to: string, promotion?: string) => {
+    sendMove(from, to, promotion);
+  };
+
+  const handlePlayAgain = () => {
+    clearGameEnd();
+    refreshBalance();  // Refresh balance when going to play again
+    navigate('/quick-play');
+  };
+
+  const handleGoHome = () => {
+    clearGameEnd();
+    refreshBalance();  // Refresh balance when going home
+    navigate('/');
+  };
+
+  // Loading state (connecting)
+  if (status === "connecting" || status === "reconnecting") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">
+          {status === "connecting" ? "Connecting to game server..." : "Reconnecting..."}
+        </p>
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
+      </div>
+    );
+  }
+
+  // Disconnected state
+  if (status === "disconnected") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <WifiOff className="w-12 h-12 text-destructive" />
+        <p className="text-lg font-semibold">Disconnected from server</p>
+        <p className="text-sm text-muted-foreground">The game may have ended due to connection loss.</p>
+        <div className="flex gap-4">
+          <Button onClick={connect}>Reconnect</Button>
+          <Button variant="outline" onClick={handleBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
+        </div>
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
+      </div>
+    );
+  }
+
+  // Game end modal - show before checking gameState
+  if (phase === "game_over" && gameEndResult) {
+    const tokensChange = gameEndResult.creditsChange || 0;
+    return (
+      <>
+        <GameResultModal
+          isWin={gameEndResult.isWin}
+          tokensChange={tokensChange}
+          newBalance={playerCredits}
+          reason={gameEndResult.message}
+          onPlayAgain={handlePlayAgain}
+          onGoHome={handleGoHome}
+        />
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
+      </>
+    );
+  }
+
+  // No game state - check phase to determine what to show
+  if (!gameState) {
+    // If phase is not in_game, show "no active game"
+    if (phase !== "in_game") {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+          <p className="text-muted-foreground">No active game found</p>
+          <p className="text-sm text-muted-foreground/60">Phase: {phase}</p>
+          <Button onClick={() => navigate('/quick-play')}>
+            Find a Match
+          </Button>
+          <NetworkDebugPanel
+            status={status}
+            logs={logs}
+            reconnectAttempts={reconnectAttempts}
+            onConnect={connect}
+            onDisconnect={disconnect}
+            onSendRaw={sendRaw}
+            onClearLogs={clearLogs}
+          />
+        </div>
+      );
+    }
+    
+    // In game phase but waiting for game state (shouldn't happen normally)
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading game state...</p>
+        <Button variant="outline" onClick={handleBack}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Home
+        </Button>
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
+      </div>
+    );
+  }
+
+  // Verify this is the correct game
+  if (gameId && gameState.gameId !== gameId) {
+    console.warn("[LiveGame] URL gameId mismatch:", gameId, "vs store:", gameState.gameId);
+    // Could redirect to correct game or show error
+  }
+
+  // Convert color from "w"/"b" to "white"/"black"
+  const playerColor = gameState.color === "w" ? "white" : "black";
+
+  return (
+    <>
+      <WSMultiplayerGameView
+        gameId={gameState.gameId}
+        dbGameId={gameState.dbGameId}
+        playerColor={playerColor}
+        playerName={gameState.playerName}
+        playerCredits={playerCredits}
+        opponentName={gameState.opponentName}
+        initialFen={gameState.fen}
+        wager={gameState.wager}
+        currentFen={gameState.fen}
+        isMyTurn={gameState.isMyTurn}
+        onSendMove={handleSendMove}
+        onExit={handleExit}
+        onBack={handleBack}
+      />
+      <NetworkDebugPanel
+        status={status}
+        logs={logs}
+        reconnectAttempts={reconnectAttempts}
+        onConnect={connect}
+        onDisconnect={disconnect}
+        onSendRaw={sendRaw}
+        onClearLogs={clearLogs}
+      />
+    </>
+  );
+}

@@ -1,0 +1,138 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Trophy, Medal, Crown, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { LogoLink } from '@/components/LogoLink';
+
+interface LeaderboardEntry {
+  rank: number;
+  playerName: string;
+  coinsWon: number;
+  gamesWon: number;
+}
+
+const generateFullLeaderboard = (): LeaderboardEntry[] => {
+  const names = [
+    'Marcus_Chen', 'Elena_Rodriguez', 'James_Wilson', 'Sophia_Kim', 'David_Okonkwo',
+    'Emma_Johansson', 'Lucas_Santos', 'Aisha_Patel', 'Ryan_Murphy', 'Yuki_Tanaka',
+    'Oliver_Schmidt', 'Isabella_Costa', 'Noah_Williams', 'Mia_Anderson', 'Ethan_Brown',
+    'Ava_Martinez', 'Liam_Taylor', 'Charlotte_Lee', 'Mason_Garcia', 'Amelia_Davis'
+  ];
+  
+  return names.map((name, index) => ({
+    rank: index + 1,
+    playerName: name,
+    coinsWon: Math.floor(15000 - (index * 600) + Math.random() * 200),
+    gamesWon: Math.floor(80 - (index * 3) + Math.random() * 5),
+  }));
+};
+
+const getRankIcon = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return <Crown className="w-6 h-6 text-yellow-400" />;
+    case 2:
+      return <Medal className="w-6 h-6 text-gray-400" />;
+    case 3:
+      return <Medal className="w-6 h-6 text-amber-600" />;
+    default:
+      return <span className="w-6 h-6 flex items-center justify-center text-sm font-bold text-muted-foreground">{rank}</span>;
+  }
+};
+
+const getRankStyle = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return 'bg-gradient-to-r from-yellow-500/20 to-yellow-600/10 border-yellow-500/30';
+    case 2:
+      return 'bg-gradient-to-r from-gray-400/20 to-gray-500/10 border-gray-400/30';
+    case 3:
+      return 'bg-gradient-to-r from-amber-600/20 to-amber-700/10 border-amber-600/30';
+    default:
+      return 'bg-card border-border';
+  }
+};
+
+const Leaderboard = () => {
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(generateFullLeaderboard());
+  const [daysUntilReset, setDaysUntilReset] = useState(0);
+
+  useEffect(() => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+    setDaysUntilReset(daysUntilMonday);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/50">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <LogoLink className="h-10" />
+          </div>
+          <div className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
+            Resets in {daysUntilReset} day{daysUntilReset !== 1 ? 's' : ''}
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="pt-24 pb-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 mb-8">
+            <Trophy className="w-8 h-8 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Weekly Leaderboard</h1>
+              <p className="text-sm text-muted-foreground">Top 20 players this week</p>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-secondary/50 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <div className="col-span-1">Rank</div>
+              <div className="col-span-5">Player</div>
+              <div className="col-span-3 text-right">Coins Won</div>
+              <div className="col-span-3 text-right">Games Won</div>
+            </div>
+
+            {/* Entries */}
+            <div className="divide-y divide-border">
+              {leaderboard.map((entry) => (
+                <div
+                  key={entry.rank}
+                  className={`grid grid-cols-12 gap-4 px-4 py-4 items-center transition-colors hover:bg-secondary/30 ${getRankStyle(entry.rank)} border-l-2`}
+                >
+                  <div className="col-span-1 flex items-center justify-center">
+                    {getRankIcon(entry.rank)}
+                  </div>
+                  <div className="col-span-5 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                      {entry.playerName[0]}
+                    </div>
+                    <span className="font-medium text-foreground truncate">{entry.playerName.replace('_', ' ')}</span>
+                  </div>
+                  <div className="col-span-3 text-right font-bold text-accent">
+                    {entry.coinsWon.toLocaleString()} SC
+                  </div>
+                  <div className="col-span-3 text-right text-muted-foreground">
+                    {entry.gamesWon}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Leaderboard;
