@@ -99,9 +99,10 @@ export const LandingPage = ({
 
   const fetchBalance = async () => {
     if (!user) return;
-    const { data } = await supabase.from('profiles').select('skilled_coins').eq('user_id', user.id).maybeSingle();
+    // Try user_balances table (exists in schema)
+    const { data } = await supabase.from('user_balances').select('balance').eq('user_id', user.id).maybeSingle();
     if (data) {
-      setBalance(data.skilled_coins);
+      setBalance(data.balance || 0);
     }
   };
 
