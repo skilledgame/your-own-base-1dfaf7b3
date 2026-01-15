@@ -140,6 +140,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "games_black_player_id_fkey"
+            columns: ["black_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "games_white_player_id_fkey"
+            columns: ["white_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "games_winner_id_fkey"
             columns: ["winner_id"]
             isOneToOne: false
@@ -176,6 +190,44 @@ export type Database = {
             columns: ["player_id"]
             isOneToOne: true
             referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_internals: {
+        Row: {
+          created_at: string
+          id: string
+          ipn_callback_url: string | null
+          order_id: string
+          pay_address: string | null
+          payment_id: string
+          transaction_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ipn_callback_url?: string | null
+          order_id: string
+          pay_address?: string | null
+          payment_id: string
+          transaction_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ipn_callback_url?: string | null
+          order_id?: string
+          pay_address?: string | null
+          payment_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_internals_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "crypto_transactions"
             referencedColumns: ["id"]
           },
         ]
