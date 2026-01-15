@@ -44,13 +44,16 @@ export default function Compete() {
       setUser(session.user);
       
       // Get player ID
-      const { data: playerIdData } = await supabase
-        .rpc('get_player_id_for_user', { _user_id: session.user.id });
+      const { data: playerData } = await supabase
+        .from('players')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
       
-      if (playerIdData) {
-        setPlayerId(playerIdData);
-        await fetchMatches(playerIdData);
-        await checkQueueStatus(playerIdData);
+      if (playerData) {
+        setPlayerId(playerData.id);
+        await fetchMatches(playerData.id);
+        await checkQueueStatus(playerData.id);
       }
       
       setLoading(false);

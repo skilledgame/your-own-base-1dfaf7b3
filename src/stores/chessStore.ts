@@ -55,6 +55,8 @@ interface ChessStore {
   // Update FEN and turn from server
   updateFromServer: (fen: string, turn: "w" | "b") => void;
   
+  // Clear game end result
+  clearGameEnd: () => void;
   // Full reset
   resetAll: () => void;
   
@@ -147,6 +149,11 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       gameState: null,
       gameEndResult: null,
     });
+  },
+  
+  clearGameEnd: () => {
+    console.log("[ChessStore] clearGameEnd");
+    set({ gameEndResult: null });
   },
   
   handleMatchFound: ({ gameId, dbGameId, color, fen, playerName, opponentName, wager }) => {

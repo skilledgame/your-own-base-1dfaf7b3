@@ -33,7 +33,7 @@ export const useMultiplayer = () => {
   // Refs for cleanup
   const gameChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Load player for authenticated user - uses user_balances as fallback
+  // Load player for authenticated user
   const loadPlayer = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -41,9 +41,9 @@ export const useMultiplayer = () => {
       return null;
     }
 
-    // Use user_balances table which exists in schema
+    // Use players table
     const { data, error } = await supabase
-      .from('user_balances')
+      .from('players')
       .select('*')
       .eq('user_id', user.id)
       .maybeSingle();
@@ -55,12 +55,11 @@ export const useMultiplayer = () => {
     }
 
     if (data) {
-      // Map user_balances to Player interface
       const playerData: Player = {
-        id: String(data.id),
-        name: user.email?.split('@')[0] || 'Player',
-        credits: data.balance || 0,
-        user_id: data.user_id || user.id,
+        id: data.id,
+        name: data.name,
+        credits: data.credits,
+        user_id: data.user_id,
       };
       setPlayer(playerData);
       setIsLoading(false);
@@ -85,10 +84,10 @@ export const useMultiplayer = () => {
       return existing;
     }
 
-    // Create user_balances entry
+    // Create players entry
     const { data, error } = await supabase
-      .from('user_balances')
-      .insert({ balance: 1000, user_id: user.id })
+      .from('players')
+      .insert({ name, user_id: user.id, credits: 1000 })
       .select()
       .single();
 
@@ -103,10 +102,10 @@ export const useMultiplayer = () => {
     }
 
     const playerData: Player = {
-      id: String(data.id),
-      name,
-      credits: data.balance || 1000,
-      user_id: data.user_id || user.id,
+      id: data.id,
+      name: data.name,
+      credits: data.credits,
+      user_id: data.user_id,
     };
     setPlayer(playerData);
     return playerData;
@@ -188,24 +187,33 @@ export const useMultiplayer = () => {
   const loadGame = async (gameId: string) => {
     console.log('[useMultiplayer] Loading game:', gameId);
     
-    // Games table doesn't exist yet - return mock game for now
-    // This will be replaced when games table is created
-    const mockGame: Game = {
-      id: gameId,
-      white_player_id: '',
-      black_player_id: '',
-      wager: 0,
-      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      white_time: 600,
-      black_time: 600,
-      current_turn: 'w',
-      status: 'active',
-      winner_id: null,
-      game_type: 'chess',
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('id', gameId)
+      .maybeSingle();
+    
+    if (error || !data) {
+      console.error('[useMultiplayer] Error loading game:', error);
+      return null;
+    }
+    
+    const game: Game = {
+      id: data.id,
+      white_player_id: data.white_player_id,
+      black_player_id: data.black_player_id,
+      wager: data.wager,
+      fen: data.fen,
+      white_time: data.white_time,
+      black_time: data.black_time,
+      current_turn: data.current_turn,
+      status: data.status,
+      winner_id: data.winner_id,
+      game_type: data.game_type,
     };
     
-    setCurrentGame(mockGame);
-    return mockGame;
+    setCurrentGame(game);
+    return game;
   };
 
   // Listen for game updates (moves, time, status, and opponent joining lobby)
@@ -218,8 +226,14 @@ export const useMultiplayer = () => {
       return;
     }
 
-    // Game updates disabled until games table exists
-    console.log('[useMultiplayer] Game update listener skipped - games table not available');
+    // Subscribe to game updates
+    gameChannelRef.current = supabase
+      .channel(`game-${currentGame.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${currentGame.id}` }, (payload) => {
+        const updated = payload.new as any;
+        setCurrentGame(prev => prev ? { ...prev, ...updated } : null);
+      })
+      .subscribe();
 
     return () => {
       if (gameChannelRef.current) {
@@ -253,7 +267,14 @@ export const useMultiplayer = () => {
   const updateGame = async (updates: Partial<Game>) => {
     if (!currentGame) return;
     
-    // Games table doesn't exist - just update local state
+    const { error } = await supabase
+      .from('games')
+      .update(updates)
+      .eq('id', currentGame.id);
+    
+    if (error) {
+      console.error('[useMultiplayer] Error updating game:', error);
+    }
     setCurrentGame(prev => prev ? { ...prev, ...updates } : null);
   };
 
