@@ -275,7 +275,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     resetAll 
   } = useChessStore();
   
-  // Refresh balance from Supabase - uses user_balances table
+  // Refresh balance from Supabase - uses profiles table
   const refreshBalance = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -284,16 +284,15 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         return;
       }
       
-      // Use user_balances table (exists in schema)
-      const { data: balanceData } = await supabase
-        .from('user_balances')
-        .select('balance')
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('skilled_coins')
         .eq('user_id', user.id)
         .maybeSingle();
       
-      if (balanceData) {
-        setPlayerCredits(balanceData.balance || 0);
-        console.log("[Chess WS] Balance refreshed:", balanceData.balance);
+      if (profileData) {
+        setPlayerCredits(profileData.skilled_coins || 0);
+        console.log("[Chess WS] Balance refreshed:", profileData.skilled_coins);
         return;
       }
       

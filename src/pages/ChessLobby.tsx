@@ -57,12 +57,12 @@ export default function ChessLobby() {
       // Fetch balance if user is logged in
       if (session?.user) {
         supabase
-          .from('profiles')
-          .select('skilled_coins')
+          .from('players')
+          .select('credits')
           .eq('user_id', session.user.id)
           .maybeSingle()
           .then(({ data }) => {
-            if (data) setBalance(data.skilled_coins);
+            if (data) setBalance(data.credits);
           });
       }
     });
