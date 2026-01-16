@@ -1,4 +1,4 @@
-project_id = "fgqvdltpyzklzjsizuvo"
+project_id = "jkzbrlslzwaojxtjzpdf"
 
 [functions.game-server]
 verify_jwt = false
@@ -10,22 +10,22 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.get-transactions]
-verify_jwt = true
+verify_jwt = false
 
 [functions.end-game]
-verify_jwt = true
+verify_jwt = false
 
 [functions.join-queue]
-verify_jwt = true
+verify_jwt = false
 
 [functions.leave-queue]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-users]
 verify_jwt = false
 
 [functions.create-lobby]
-verify_jwt = true
+verify_jwt = false
 
 [functions.join-lobby]
-verify_jwt = true
+verify_jwt = false
