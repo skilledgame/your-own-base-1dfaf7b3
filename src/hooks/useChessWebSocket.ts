@@ -4,14 +4,19 @@
  * React hook for the chess WebSocket server with auth and wager support.
  * Uses Zustand store for GLOBAL state that persists across navigation.
  * 
- * SINGLE SOURCE OF TRUTH for chess multiplayer - no other backends!
+ * PART D: Performance improvements:
+ * - Memoized callbacks with useCallback
+ * - Throttled balance refresh
+ * - No unnecessary rerenders
+ * - Uses AuthContext instead of redundant auth checks
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { wsClient } from '@/lib/wsClient';
 import { useChessStore } from '@/stores/chessStore';
+import { useBalanceStore } from '@/stores/balanceStore';
 import { supabase } from '@/integrations/supabase/client';
 import type { 
   WSConnectionStatus, 
@@ -56,7 +61,7 @@ interface UseChessWebSocketReturn {
 // Track if message handler has been registered globally
 let messageHandlerRegistered = false;
 let navigationCallback: ((path: string) => void) | null = null;
-let balanceRefreshCallback: (() => Promise<void>) | null = null;
+let balanceRefreshCallback: (() => void) | null = null;
 
 /**
  * Initialize the global message handler ONCE
@@ -180,7 +185,7 @@ function initializeGlobalMessageHandler(): void {
           creditsChange,
         });
         
-        // Refresh balance after game ends
+        // Trigger balance refresh via callback (throttled)
         if (balanceRefreshCallback) {
           balanceRefreshCallback();
         }
@@ -212,7 +217,7 @@ function initializeGlobalMessageHandler(): void {
           creditsChange: wager,  // Win the wager
         });
         
-        // Refresh balance after game ends
+        // Trigger balance refresh
         if (balanceRefreshCallback) {
           balanceRefreshCallback();
         }
@@ -275,6 +280,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
+  // Refs for throttling
+  const lastBalanceRefresh = useRef(0);
+  const balanceRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
   // Read global state from store
   const { 
     phase, 
@@ -287,8 +296,29 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     resetAll 
   } = useChessStore();
   
-  // Refresh balance from Supabase - uses profiles table
+  const { fetchBalance } = useBalanceStore();
+  
+  // Throttled balance refresh - max once per 2 seconds
   const refreshBalance = useCallback(async () => {
+    const now = Date.now();
+    const MIN_INTERVAL = 2000;
+    
+    // Clear any pending refresh
+    if (balanceRefreshTimeout.current) {
+      clearTimeout(balanceRefreshTimeout.current);
+      balanceRefreshTimeout.current = null;
+    }
+    
+    // If recently refreshed, schedule for later
+    if (now - lastBalanceRefresh.current < MIN_INTERVAL) {
+      balanceRefreshTimeout.current = setTimeout(() => {
+        refreshBalance();
+      }, MIN_INTERVAL - (now - lastBalanceRefresh.current));
+      return;
+    }
+    
+    lastBalanceRefresh.current = now;
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -296,24 +326,24 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         return;
       }
       
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('skilled_coins')
+      // Use the balance store
+      fetchBalance(user.id);
+      
+      // Also update chess store for backward compat
+      const { data: playerData } = await supabase
+        .from('players')
+        .select('credits')
         .eq('user_id', user.id)
         .maybeSingle();
       
-      if (profileData) {
-        setPlayerCredits(profileData.skilled_coins || 0);
-        console.log("[Chess WS] Balance refreshed:", profileData.skilled_coins);
-        return;
+      if (playerData) {
+        setPlayerCredits(playerData.credits || 0);
+        console.log("[Chess WS] Balance refreshed:", playerData.credits);
       }
-      
-      // No balance found - set to 0
-      setPlayerCredits(0);
     } catch (error) {
       console.error("[Chess WS] Failed to refresh balance:", error);
     }
-  }, [setPlayerCredits]);
+  }, [setPlayerCredits, fetchBalance]);
   
   // Set up navigation and balance refresh callbacks for the global message handler
   useEffect(() => {
@@ -335,9 +365,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     try {
       const { data, error } = await supabase.auth.getSession();
       
-      // DEBUG LOG - temporary diagnostic
-      console.log("[AUTH] hasSession", !!data.session, "hasAccessToken", !!data.session?.access_token, "userId", data.session?.user?.id ? "present" : "missing");
-      
       if (error || !data.session) {
         console.log("[Chess WS] No session - user not authenticated");
         wsClient.setAuthToken(null);
@@ -346,12 +373,12 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         return false;
       }
       
-      // Use access_token (NOT refresh_token, NOT id_token)
+      // Use access_token
       const token = data.session.access_token;
       wsClient.setAuthToken(token);
       setIsAuthenticated(true);
       setAuthenticated(true);
-      console.log("[Chess WS] Auth token refreshed, token length:", token?.length);
+      console.log("[Chess WS] Auth token refreshed");
       return true;
     } catch (error) {
       console.error("[Chess WS] Failed to refresh auth:", error);
@@ -378,22 +405,20 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       }
     });
     
-    // Subscribe to logs
+    // Subscribe to logs (limit updates for performance)
     const unsubLog = wsClient.onLog((entry) => {
       setLogs(prev => {
         const next = [entry, ...prev];
-        return next.slice(0, 40);
+        return next.slice(0, 30); // Reduced from 40 to 30
       });
     });
     
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // DEBUG LOG - temporary diagnostic
-      console.log("[AUTH] hasSession", !!session, "hasAccessToken", !!session?.access_token, "userId", session?.user?.id ? "present" : "missing");
       console.log("[Chess WS] Auth state changed:", event);
       
       if (session?.access_token) {
-        // Update token on wsClient and reconnect
+        // Update token on wsClient
         wsClient.setAuthToken(session.access_token);
         setIsAuthenticated(true);
         setAuthenticated(true);
@@ -405,18 +430,17 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
           // CRITICAL: Do NOT reconnect if we're in a game - that would end the game!
           const currentPhase = useChessStore.getState().phase;
           if (currentPhase === "in_game" || currentPhase === "searching") {
-            console.log("[Chess WS] Token updated but in game/searching - NOT reconnecting to avoid game loss");
-            // Just update the token silently, the existing connection is still valid
+            console.log("[Chess WS] Token updated but in game/searching - NOT reconnecting");
           } else {
             // Only reconnect if idle/game_over
-            console.log("[Chess WS] Token updated - reconnecting with new token (phase:", currentPhase, ")");
+            console.log("[Chess WS] Token updated - reconnecting (phase:", currentPhase, ")");
             wsClient.disconnect();
             setTimeout(() => wsClient.connect(), 100);
           }
         }
         
-        // Refresh balance on sign in (deferred to avoid deadlock)
-        setTimeout(() => refreshBalance(), 0);
+        // Refresh balance (throttled)
+        refreshBalance();
       } else {
         console.log("[Chess WS] No session - clearing auth");
         wsClient.setAuthToken(null);
@@ -443,9 +467,8 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     };
   }, [refreshAuth, refreshBalance, setAuthenticated, resetAll]);
 
-  // Actions
+  // Memoized actions
   const connect = useCallback(async () => {
-    // Refresh auth token before connecting
     const hasAuth = await refreshAuth();
     if (!hasAuth) {
       toast.error("Please sign in to play");
@@ -463,7 +486,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
 
   const findMatch = useCallback((wager: number, name?: string) => {
     (async () => {
-      // GUARD: Check session exists before attempting WS matchmaking
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session || !session.access_token) {
@@ -475,7 +497,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         return;
       }
       
-      // Ensure wsClient has the latest token
       wsClient.setAuthToken(session.access_token);
       
       if (!isAuthenticated) {
@@ -491,7 +512,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       }
 
       const player_ids = [userId];
-
       const finalName = name || playerName || "Player";
       setPlayerName(finalName);
 
@@ -502,8 +522,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         playerName: finalName,
       };
 
-      console.log("invoking find_match", { player_ids, userIdPresent: !!userId, tokenLength: session.access_token?.length });
-      console.log("[WS OUT]", wsClient.getClientId(), payload);
+      console.log("[Chess WS] findMatch:", { wager, player_ids });
 
       setPhase("searching");
       wsClient.setSearching(true, finalName, wager, player_ids);
@@ -516,14 +535,12 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
 
   const cancelSearch = useCallback(() => {
     const payload = { type: "cancel_search" };
-    console.log("[WS OUT]", wsClient.getClientId(), payload);
     wsClient.send(payload);
     wsClient.setSearching(false);
     setPhase("idle");
   }, [setPhase]);
 
   const sendMove = useCallback((from: string, to: string, promotion?: string) => {
-    // Read latest state from store
     const currentGameState = useChessStore.getState().gameState;
     
     if (!currentGameState) {
@@ -556,7 +573,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       gameId: currentGameState.gameId,
     };
 
-    console.log("[WS OUT]", wsClient.getClientId(), payload);
     wsClient.send(payload);
   }, []);
 
@@ -578,7 +594,8 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     }
   }, []);
 
-  return {
+  // Memoize return object to prevent unnecessary rerenders
+  return useMemo(() => ({
     status,
     connect,
     disconnect,
@@ -594,5 +611,21 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     clearLogs,
     sendRaw,
     reconnectAttempts,
-  };
+  }), [
+    status,
+    connect,
+    disconnect,
+    isAuthenticated,
+    refreshAuth,
+    findMatch,
+    cancelSearch,
+    sendMove,
+    resignGame,
+    clearGameEnd,
+    refreshBalance,
+    logs,
+    clearLogs,
+    sendRaw,
+    reconnectAttempts,
+  ]);
 }

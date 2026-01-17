@@ -4,15 +4,19 @@
  * Wager-based matchmaking flow: Select Wager -> Find Match -> Searching -> Game
  * Uses the chess WebSocket for matchmaking with auth token.
  * 
- * State machine: idle → searching → in_game → game_over → idle
- * 
- * Uses Zustand store for GLOBAL state that persists across navigation.
+ * PART D: Performance improvements:
+ * - Removed auth debug button (cleanup)
+ * - Uses AuthContext and BalanceStore
+ * - Memoized callbacks
+ * - Reduced rerenders
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useCallback, memo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBalanceStore } from '@/stores/balanceStore';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,17 +33,44 @@ import {
   LogIn,
   Wallet
 } from 'lucide-react';
-import { supabase, CURRENT_SUPABASE_URL } from '@/integrations/supabase/client';
+
+// Memoized quick wager button for performance
+const WagerButton = memo(({ 
+  amount, 
+  selected, 
+  disabled, 
+  onClick 
+}: { 
+  amount: number; 
+  selected: boolean; 
+  disabled: boolean; 
+  onClick: () => void;
+}) => (
+  <Button
+    variant={selected ? "default" : "outline"}
+    size="sm"
+    onClick={onClick}
+    disabled={disabled}
+    className={`
+      ${selected 
+        ? "bg-blue-600 text-white" 
+        : "border-blue-500/30 text-blue-400 hover:bg-blue-500/10"}
+      ${disabled ? "opacity-50" : ""}
+    `}
+  >
+    {amount === 0 ? "Free" : `${amount} SC`}
+  </Button>
+));
+WagerButton.displayName = 'WagerButton';
 
 export default function QuickPlay() {
-  // Auth debug state (temporary diagnostic)
-  const [authDebugInfo, setAuthDebugInfo] = useState<{
-    supabaseUrl: string;
-    hasSession: boolean;
-    accessTokenLength: number;
-    userId: string;
-  } | null>(null);
   const navigate = useNavigate();
+  
+  // Auth from context
+  const { isAuthenticated: authContextAuthenticated, loading: authLoading } = useAuth();
+  
+  // Balance from store
+  const { balance: storeBalance } = useBalanceStore();
   
   // Global state from Zustand store
   const { 
@@ -48,12 +79,11 @@ export default function QuickPlay() {
     playerName, 
     playerCredits,
     selectedWager,
-    setPlayerName,
     setSelectedWager 
   } = useChessStore();
   
-  // Local wager input state
-  const [wagerInput, setWagerInput] = useState(selectedWager.toString());
+  // Use the higher balance (store or chess store)
+  const displayBalance = Math.max(storeBalance, playerCredits);
   
   // WebSocket connection and actions
   const {
@@ -61,7 +91,6 @@ export default function QuickPlay() {
     connect,
     disconnect,
     isAuthenticated,
-    refreshAuth,
     findMatch,
     cancelSearch,
     refreshBalance,
@@ -84,63 +113,48 @@ export default function QuickPlay() {
     }
   }, [phase, gameState, navigate]);
 
-  // Sync wager input with store
-  useEffect(() => {
-    setWagerInput(selectedWager.toString());
-  }, [selectedWager]);
-
-  const handleWagerChange = (value: string) => {
-    setWagerInput(value);
+  const handleWagerChange = useCallback((value: string) => {
     const numValue = parseInt(value) || 0;
     if (numValue >= 0) {
       setSelectedWager(numValue);
     }
-  };
+  }, [setSelectedWager]);
 
-  const handleFindMatch = async () => {
+  const handleFindMatch = useCallback(async () => {
     if (!isAuthenticated) {
-      // Try to refresh auth
-      const hasAuth = await refreshAuth();
-      if (!hasAuth) {
-        navigate('/auth');
-        return;
-      }
+      navigate('/auth');
+      return;
     }
-    
-    const wager = parseInt(wagerInput) || 0;
     
     // Validate wager against balance
-    if (wager > playerCredits) {
-      return; // Button should be disabled, but just in case
+    if (selectedWager > displayBalance) {
+      return;
     }
     
-    findMatch(wager, playerName);
-  };
+    findMatch(selectedWager, playerName);
+  }, [isAuthenticated, selectedWager, displayBalance, findMatch, playerName, navigate]);
 
-  const handleCancelSearch = () => {
+  const handleCancelSearch = useCallback(() => {
     cancelSearch();
-  };
+  }, [cancelSearch]);
 
-  const handleSignIn = () => {
+  const handleSignIn = useCallback(() => {
     navigate('/auth');
-  };
-
-  // Auth Debug handler (temporary diagnostic)
-  const handleAuthDebug = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setAuthDebugInfo({
-      supabaseUrl: CURRENT_SUPABASE_URL,
-      hasSession: !!session,
-      accessTokenLength: session?.access_token?.length || 0,
-      userId: session?.user?.id || "missing",
-    });
-  }, []);
+  }, [navigate]);
 
   const StatusIcon = status === "connected" ? Wifi : WifiOff;
   const isConnected = status === "connected";
   const isSearching = phase === "searching";
-  const wagerValue = parseInt(wagerInput) || 0;
-  const canAffordWager = wagerValue <= playerCredits;
+  const canAffordWager = selectedWager <= displayBalance;
+
+  // Show loading during auth bootstrap
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] relative overflow-hidden">
@@ -165,7 +179,7 @@ export default function QuickPlay() {
             {isAuthenticated && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-950/50 border border-yellow-500/30">
                 <Wallet className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm font-bold text-yellow-200">{playerCredits} SC</span>
+                <span className="text-sm font-bold text-yellow-200">{displayBalance} SC</span>
               </div>
             )}
             
@@ -181,31 +195,6 @@ export default function QuickPlay() {
       </header>
 
       <main className="relative z-10 max-w-2xl mx-auto p-6 space-y-8">
-        {/* Debug: State machine */}
-        <div className="text-center text-sm text-blue-300/50">
-          State: {phase} | WS: {status} | Auth: {isAuthenticated ? "Yes" : "No"} | Name: {playerName}
-        </div>
-
-        {/* Auth Debug Button (temporary diagnostic) */}
-        <div className="flex flex-col items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAuthDebug}
-            className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
-          >
-            Auth Debug
-          </Button>
-          {authDebugInfo && (
-            <div className="text-xs text-left bg-yellow-950/30 border border-yellow-500/20 rounded-lg p-3 font-mono space-y-1">
-              <p><span className="text-yellow-400">Supabase URL:</span> {authDebugInfo.supabaseUrl}</p>
-              <p><span className="text-yellow-400">Has Session:</span> {authDebugInfo.hasSession ? "true" : "false"}</p>
-              <p><span className="text-yellow-400">Access Token Length:</span> {authDebugInfo.accessTokenLength}</p>
-              <p><span className="text-yellow-400">User ID:</span> {authDebugInfo.userId}</p>
-            </div>
-          )}
-        </div>
-
         {/* Not Authenticated - Show Sign In Prompt */}
         {!isAuthenticated && (
           <div className="text-center space-y-6 py-12">
@@ -281,8 +270,8 @@ export default function QuickPlay() {
                 <Input
                   type="number"
                   min="0"
-                  max={playerCredits}
-                  value={wagerInput}
+                  max={displayBalance}
+                  value={selectedWager.toString()}
                   onChange={(e) => handleWagerChange(e.target.value)}
                   className="text-2xl font-bold text-center bg-blue-950/50 border-blue-500/30 text-white h-14"
                   placeholder="0"
@@ -293,27 +282,19 @@ export default function QuickPlay() {
               {/* Quick Wager Buttons */}
               <div className="flex gap-2 flex-wrap">
                 {[0, 10, 25, 50, 100].map((amount) => (
-                  <Button
+                  <WagerButton
                     key={amount}
-                    variant={wagerValue === amount ? "default" : "outline"}
-                    size="sm"
+                    amount={amount}
+                    selected={selectedWager === amount}
+                    disabled={amount > displayBalance}
                     onClick={() => handleWagerChange(amount.toString())}
-                    disabled={amount > playerCredits}
-                    className={`
-                      ${wagerValue === amount 
-                        ? "bg-blue-600 text-white" 
-                        : "border-blue-500/30 text-blue-400 hover:bg-blue-500/10"}
-                      ${amount > playerCredits ? "opacity-50" : ""}
-                    `}
-                  >
-                    {amount === 0 ? "Free" : `${amount} SC`}
-                  </Button>
+                  />
                 ))}
               </div>
               
-              {!canAffordWager && wagerValue > 0 && (
+              {!canAffordWager && selectedWager > 0 && (
                 <p className="text-sm text-red-400">
-                  Insufficient balance. You have {playerCredits} SC.
+                  Insufficient balance. You have {displayBalance} SC.
                 </p>
               )}
             </div>
@@ -325,7 +306,7 @@ export default function QuickPlay() {
                   <Wallet className="w-5 h-5 text-yellow-500" />
                   <span className="text-sm text-blue-200/60">Your Balance</span>
                 </div>
-                <p className="text-2xl font-bold text-yellow-400">{playerCredits} SC</p>
+                <p className="text-2xl font-bold text-yellow-400">{displayBalance} SC</p>
               </div>
               
               <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-500/20">
@@ -333,7 +314,7 @@ export default function QuickPlay() {
                   <Trophy className="w-5 h-5 text-green-400" />
                   <span className="text-sm text-blue-200/60">Potential Win</span>
                 </div>
-                <p className="text-2xl font-bold text-green-400">+{wagerValue} SC</p>
+                <p className="text-2xl font-bold text-green-400">+{selectedWager} SC</p>
               </div>
             </div>
 
@@ -352,7 +333,7 @@ export default function QuickPlay() {
               ) : (
                 <>
                   <Play className="w-6 h-6 mr-2" />
-                  Find Match {wagerValue > 0 ? `(${wagerValue} SC)` : "(Free)"}
+                  Find Match {selectedWager > 0 ? `(${selectedWager} SC)` : "(Free)"}
                 </>
               )}
             </Button>

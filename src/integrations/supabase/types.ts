@@ -92,6 +92,51 @@ export type Database = {
         }
         Relationships: []
       }
+      game_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          game_id: string
+          id: string
+          player_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          game_id: string
+          id?: string
+          player_id: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          game_id?: string
+          id?: string
+          player_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_ledger_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_ledger_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
           black_player_id: string
@@ -101,6 +146,8 @@ export type Database = {
           fen: string
           game_type: string
           id: string
+          settled_at: string | null
+          settlement_tx_id: string | null
           status: string
           updated_at: string
           wager: number
@@ -116,6 +163,8 @@ export type Database = {
           fen?: string
           game_type?: string
           id?: string
+          settled_at?: string | null
+          settlement_tx_id?: string | null
           status?: string
           updated_at?: string
           wager: number
@@ -131,6 +180,8 @@ export type Database = {
           fen?: string
           game_type?: string
           id?: string
+          settled_at?: string | null
+          settlement_tx_id?: string | null
           status?: string
           updated_at?: string
           wager?: number
@@ -347,6 +398,10 @@ export type Database = {
         Returns: boolean
       }
       is_privileged_user: { Args: { _user_id: string }; Returns: boolean }
+      settle_game: {
+        Args: { p_game_id: string; p_reason: string; p_winner_id: string }
+        Returns: Json
+      }
       update_player_credits: {
         Args: { p_credit_change: number; p_player_id: string }
         Returns: undefined

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Trophy, Coins, Gamepad2, Settings, LogOut, 
@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBalanceStore } from '@/stores/balanceStore';
 import skilledLogo from '@/assets/skilled-logo.png';
 
 interface UserStats {
@@ -20,9 +22,28 @@ interface UserStats {
   freePlaysRemaining: number;
 }
 
+// Memoized stats card
+const StatCard = memo(({ icon: Icon, value, label, color }: {
+  icon: React.ElementType;
+  value: number | string;
+  label: string;
+  color: string;
+}) => (
+  <Card className="bg-card border-border">
+    <CardContent className="p-4 text-center">
+      <Icon className={`w-6 h-6 ${color} mx-auto mb-2`} />
+      <p className="text-2xl font-bold text-foreground">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </CardContent>
+  </Card>
+));
+StatCard.displayName = 'StatCard';
+
 export default function Profile() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
+  const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  const { balance, fetchBalance } = useBalanceStore();
+  
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<UserStats>({
     wins: 0,
@@ -35,28 +56,24 @@ export default function Profile() {
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate('/auth');
-        return;
-      }
-      setUser(session.user);
-      await fetchProfile(session.user.id);
-      await fetchStats(session.user.id);
+    if (authLoading) return;
+    
+    if (!isAuthenticated || !user) {
+      navigate('/auth');
+      return;
+    }
+    
+    const loadData = async () => {
+      await Promise.all([
+        fetchProfile(user.id),
+        fetchStats(user.id),
+        fetchBalance(user.id)
+      ]);
       setLoading(false);
     };
-
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      if (!session) {
-        navigate('/auth');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    
+    loadData();
+  }, [isAuthenticated, user, authLoading, navigate, fetchBalance]);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -81,7 +98,7 @@ export default function Profile() {
         .from('games')
         .select('*')
         .or(`white_player_id.eq.${playerData},black_player_id.eq.${playerData}`)
-        .eq('status', 'completed');
+        .eq('status', 'finished');
 
       if (games) {
         const wins = games.filter(g => g.winner_id === playerData).length;
@@ -108,18 +125,21 @@ export default function Profile() {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+  const handleSignOut = useCallback(async () => {
+    await signOut();
     navigate('/');
-  };
+  }, [signOut, navigate]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
+
+  // Use balance from store, fallback to profile
+  const displayBalance = balance || profile?.skilled_coins || 0;
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
@@ -163,7 +183,7 @@ export default function Profile() {
               {/* Coin Balance */}
               <div className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border">
                 <Coins className="w-5 h-5 text-yellow-500" />
-                <span className="font-bold text-lg">{profile?.skilled_coins?.toLocaleString() || 0}</span>
+                <span className="font-bold text-lg">{displayBalance.toLocaleString()}</span>
                 <span className="text-sm text-muted-foreground">Coins</span>
               </div>
             </div>
@@ -172,37 +192,10 @@ export default function Profile() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <Trophy className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">{stats.wins}</p>
-              <p className="text-xs text-muted-foreground">Wins</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <Target className="w-6 h-6 text-red-500 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">{stats.losses}</p>
-              <p className="text-xs text-muted-foreground">Losses</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <Gamepad2 className="w-6 h-6 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">{stats.matchesPlayed}</p>
-              <p className="text-xs text-muted-foreground">Matches</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <Award className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">{stats.winRate}%</p>
-              <p className="text-xs text-muted-foreground">Win Rate</p>
-            </CardContent>
-          </Card>
+          <StatCard icon={Trophy} value={stats.wins} label="Wins" color="text-yellow-500" />
+          <StatCard icon={Target} value={stats.losses} label="Losses" color="text-red-500" />
+          <StatCard icon={Gamepad2} value={stats.matchesPlayed} label="Matches" color="text-primary" />
+          <StatCard icon={Award} value={`${stats.winRate}%`} label="Win Rate" color="text-emerald-500" />
         </div>
 
         {/* Free Plays */}
