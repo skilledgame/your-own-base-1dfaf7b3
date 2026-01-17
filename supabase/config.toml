@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.join-lobby]
 verify_jwt = false
+
+[functions.ensure-user]
+verify_jwt = false
