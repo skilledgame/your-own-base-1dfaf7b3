@@ -20,8 +20,15 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import QuickPlay from "./pages/QuickPlay";
 import LiveGame from "./pages/LiveGame";
+import { useEnsureUser } from "./hooks/useEnsureUser";
 
 const queryClient = new QueryClient();
+
+// Wrapper to run the ensure-user hook at app level
+function AppWithAuth({ children }: { children: React.ReactNode }) {
+  useEnsureUser();
+  return <>{children}</>;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -29,26 +36,28 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/deposit" element={<Deposit />} />
-          <Route path="/withdraw" element={<Withdraw />} />
-          <Route path="/games/:gameSlug" element={<GameStart />} />
-          <Route path="/chess-lobby" element={<ChessLobby />} />
-          <Route path="/terms" element={<TermsAndConditions />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/compete" element={<Compete />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/quick-play" element={<QuickPlay />} />
-          <Route path="/game/live/:gameId" element={<LiveGame />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppWithAuth>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/deposit" element={<Deposit />} />
+            <Route path="/withdraw" element={<Withdraw />} />
+            <Route path="/games/:gameSlug" element={<GameStart />} />
+            <Route path="/chess-lobby" element={<ChessLobby />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/compete" element={<Compete />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/quick-play" element={<QuickPlay />} />
+            <Route path="/game/live/:gameId" element={<LiveGame />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AppWithAuth>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
