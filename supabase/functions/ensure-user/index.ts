@@ -80,62 +80,73 @@ Deno.serve(async (req) => {
     let createdFreePlays = false;
     let createdAdminRole = false;
 
-    // 1. Upsert into profiles
-    console.log('[ensure-user] Upserting profile...');
-    const { data: profileData, error: profileError } = await supabaseAdmin
+    // 1. Check if profile exists first
+    console.log('[ensure-user] Checking if profile exists...');
+    const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .upsert({
-        user_id: userId,
-        email: userEmail,
-        display_name: displayName,
-        skilled_coins: 0, // Default, won't overwrite if exists due to upsert
-      }, {
-        onConflict: 'user_id',
-        ignoreDuplicates: false,
-      })
-      .select()
-      .single();
+      .select('id, skilled_coins')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (profileError) {
-      console.error('[ensure-user] Profile upsert error:', profileError.message, profileError.details);
-      // Check if it's a "row already exists" scenario which is fine
-      if (!profileError.message.includes('duplicate')) {
+    if (!existingProfile) {
+      // Only insert if doesn't exist - never overwrite existing data
+      console.log('[ensure-user] Creating new profile...');
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          user_id: userId,
+          email: userEmail,
+          display_name: displayName,
+          skilled_coins: 0, // New accounts start with 0 coins
+        })
+        .select()
+        .single();
+
+      if (profileError && !profileError.message.includes('duplicate')) {
+        console.error('[ensure-user] Profile insert error:', profileError.message);
         return new Response(
-          JSON.stringify({ ok: false, error: `Profile error: ${profileError.message}`, details: profileError.details }),
+          JSON.stringify({ ok: false, error: `Profile error: ${profileError.message}` }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    } else {
       createdProfiles = true;
-      console.log('[ensure-user] Profile upserted successfully:', profileData?.id);
+      console.log('[ensure-user] Profile created:', profileData?.id);
+    } else {
+      console.log('[ensure-user] Profile already exists with', existingProfile.skilled_coins, 'coins');
     }
 
-    // 2. Upsert into players
-    console.log('[ensure-user] Upserting player...');
-    const { data: playerData, error: playerError } = await supabaseAdmin
+    // 2. Check if player exists first
+    console.log('[ensure-user] Checking if player exists...');
+    const { data: existingPlayer } = await supabaseAdmin
       .from('players')
-      .upsert({
-        user_id: userId,
-        name: displayName,
-        credits: 1000, // Default starting credits
-      }, {
-        onConflict: 'user_id',
-        ignoreDuplicates: false,
-      })
-      .select()
-      .single();
+      .select('id, credits')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (playerError) {
-      console.error('[ensure-user] Player upsert error:', playerError.message, playerError.details);
-      if (!playerError.message.includes('duplicate')) {
+    if (!existingPlayer) {
+      // Only insert if doesn't exist - never overwrite existing credits
+      console.log('[ensure-user] Creating new player...');
+      const { data: playerData, error: playerError } = await supabaseAdmin
+        .from('players')
+        .insert({
+          user_id: userId,
+          name: displayName,
+          credits: 0, // New accounts start with 0 credits
+        })
+        .select()
+        .single();
+
+      if (playerError && !playerError.message.includes('duplicate')) {
+        console.error('[ensure-user] Player insert error:', playerError.message);
         return new Response(
-          JSON.stringify({ ok: false, error: `Player error: ${playerError.message}`, details: playerError.details }),
+          JSON.stringify({ ok: false, error: `Player error: ${playerError.message}` }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    } else {
       createdPlayers = true;
-      console.log('[ensure-user] Player upserted successfully:', playerData?.id);
+      console.log('[ensure-user] Player created:', playerData?.id);
+    } else {
+      console.log('[ensure-user] Player already exists with', existingPlayer.credits, 'credits');
     }
 
     // 3. Ensure free_plays exists for chess

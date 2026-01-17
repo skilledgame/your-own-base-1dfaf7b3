@@ -112,13 +112,23 @@ Deno.serve(async (req) => {
 
       console.log(`Updating balance for ${userId} to ${newBalance}`);
 
-      const { error: updateError } = await adminClient
+      // Update BOTH profiles.skilled_coins AND players.credits to keep in sync
+      const { error: profileError } = await adminClient
         .from('profiles')
         .update({ skilled_coins: newBalance })
         .eq('user_id', userId);
 
-      if (updateError) {
-        console.error('Error updating balance:', updateError);
+      if (profileError) {
+        console.error('Error updating profile balance:', profileError);
+      }
+
+      const { error: playerError } = await adminClient
+        .from('players')
+        .update({ credits: newBalance })
+        .eq('user_id', userId);
+
+      if (playerError) {
+        console.error('Error updating player credits:', playerError);
         return new Response(JSON.stringify({ error: 'Failed to update balance' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
