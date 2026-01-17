@@ -1,15 +1,17 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useBalanceStore } from '@/stores/balanceStore';
 
 /**
  * Hook that ensures user has profiles/players/free_plays rows after login.
  * Runs automatically on auth state change and can be called manually.
+ * 
+ * PART E: Removed admin notification toast - no noisy notifications.
  */
 export function useEnsureUser() {
-  const { toast } = useToast();
   const hasRun = useRef(false);
   const isRunning = useRef(false);
+  const { fetchBalance } = useBalanceStore();
 
   const ensureUser = useCallback(async (accessToken?: string) => {
     if (isRunning.current) {
@@ -46,6 +48,18 @@ export function useEnsureUser() {
       }
 
       console.log('[useEnsureUser] Result:', data);
+      
+      // Refresh balance after user provisioning
+      if (data?.ok) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          fetchBalance(user.id);
+        }
+      }
+      
+      // REMOVED: Admin toast notification - Part E requirement
+      // We no longer show "Admin Access Granted" toast
+      
       return data;
     } catch (err) {
       console.error('[useEnsureUser] Unexpected error:', err);
@@ -53,14 +67,14 @@ export function useEnsureUser() {
     } finally {
       isRunning.current = false;
     }
-  }, []);
+  }, [fetchBalance]);
 
   useEffect(() => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[useEnsureUser] Auth state change:', event, 'hasSession:', !!session);
 
-      // Run on SIGNED_IN or TOKEN_REFRESHED with valid session
+      // Run on SIGNED_IN or INITIAL_SESSION with valid session
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.access_token) {
         // Prevent running multiple times for the same session
         if (hasRun.current) {
@@ -72,12 +86,7 @@ export function useEnsureUser() {
         const result = await ensureUser(session.access_token);
         if (result?.ok) {
           console.log('[useEnsureUser] User provisioning complete');
-          if (result.createdAdminRole) {
-            toast({
-              title: 'Admin Access Granted',
-              description: 'You have been granted admin privileges.',
-            });
-          }
+          // No toast for admin role - silent grant
         }
       }
 
@@ -97,7 +106,7 @@ export function useEnsureUser() {
     })();
 
     return () => subscription.unsubscribe();
-  }, [ensureUser, toast]);
+  }, [ensureUser]);
 
   return { ensureUser };
 }
