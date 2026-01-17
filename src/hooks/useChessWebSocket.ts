@@ -531,15 +531,15 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       return;
     }
 
+    // Build UCI string: "e2e4" or "e7e8q" for promotion
+    const uci = `${from.toLowerCase()}${to.toLowerCase()}${promotion ? promotion.toLowerCase() : ""}`;
+
     const payload = {
-      type: "move",
-      gameId: currentGameState.gameId,
-      from,
-      to,
-      promotion,
+      type: "move" as const,
+      move: uci,
     };
 
-    console.log("[WS OUT]", wsClient.getClientId(), payload);
+    console.log("[WS] sending move", { type: "move", move: uci });
     wsClient.send(payload);
   }, []);
 
