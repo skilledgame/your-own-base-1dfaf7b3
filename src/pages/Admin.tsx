@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, CURRENT_SUPABASE_URL } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -148,7 +148,7 @@ export default function Admin() {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?action=list-users`,
+        `${CURRENT_SUPABASE_URL}/functions/v1/admin-users?action=list-users`,
         {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
@@ -265,7 +265,7 @@ export default function Admin() {
 
       if (balanceChanged) {
         const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?action=update-balance`,
+          `${CURRENT_SUPABASE_URL}/functions/v1/admin-users?action=update-balance`,
           {
             method: 'POST',
             headers: {
@@ -287,7 +287,7 @@ export default function Admin() {
 
       if (roleChanged && isAdmin) {
         const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?action=update-role`,
+          `${CURRENT_SUPABASE_URL}/functions/v1/admin-users?action=update-role`,
           {
             method: 'POST',
             headers: {

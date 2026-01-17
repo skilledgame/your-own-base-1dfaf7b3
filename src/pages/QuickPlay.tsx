@@ -9,7 +9,7 @@
  * Uses Zustand store for GLOBAL state that persists across navigation.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
@@ -29,8 +29,16 @@ import {
   LogIn,
   Wallet
 } from 'lucide-react';
+import { supabase, CURRENT_SUPABASE_URL } from '@/integrations/supabase/client';
 
 export default function QuickPlay() {
+  // Auth debug state (temporary diagnostic)
+  const [authDebugInfo, setAuthDebugInfo] = useState<{
+    supabaseUrl: string;
+    hasSession: boolean;
+    accessTokenLength: number;
+    userId: string;
+  } | null>(null);
   const navigate = useNavigate();
   
   // Global state from Zustand store
@@ -117,6 +125,17 @@ export default function QuickPlay() {
     navigate('/auth');
   };
 
+  // Auth Debug handler (temporary diagnostic)
+  const handleAuthDebug = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setAuthDebugInfo({
+      supabaseUrl: CURRENT_SUPABASE_URL,
+      hasSession: !!session,
+      accessTokenLength: session?.access_token?.length || 0,
+      userId: session?.user?.id || "missing",
+    });
+  }, []);
+
   const StatusIcon = status === "connected" ? Wifi : WifiOff;
   const isConnected = status === "connected";
   const isSearching = phase === "searching";
@@ -165,6 +184,26 @@ export default function QuickPlay() {
         {/* Debug: State machine */}
         <div className="text-center text-sm text-blue-300/50">
           State: {phase} | WS: {status} | Auth: {isAuthenticated ? "Yes" : "No"} | Name: {playerName}
+        </div>
+
+        {/* Auth Debug Button (temporary diagnostic) */}
+        <div className="flex flex-col items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAuthDebug}
+            className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+          >
+            Auth Debug
+          </Button>
+          {authDebugInfo && (
+            <div className="text-xs text-left bg-yellow-950/30 border border-yellow-500/20 rounded-lg p-3 font-mono space-y-1">
+              <p><span className="text-yellow-400">Supabase URL:</span> {authDebugInfo.supabaseUrl}</p>
+              <p><span className="text-yellow-400">Has Session:</span> {authDebugInfo.hasSession ? "true" : "false"}</p>
+              <p><span className="text-yellow-400">Access Token Length:</span> {authDebugInfo.accessTokenLength}</p>
+              <p><span className="text-yellow-400">User ID:</span> {authDebugInfo.userId}</p>
+            </div>
+          )}
         </div>
 
         {/* Not Authenticated - Show Sign In Prompt */}

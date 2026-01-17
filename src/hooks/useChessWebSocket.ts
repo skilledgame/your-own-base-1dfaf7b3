@@ -323,6 +323,9 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     try {
       const { data, error } = await supabase.auth.getSession();
       
+      // DEBUG LOG - temporary diagnostic
+      console.log("[AUTH] hasSession", !!data.session, "hasAccessToken", !!data.session?.access_token, "userId", data.session?.user?.id ? "present" : "missing");
+      
       if (error || !data.session) {
         console.log("[Chess WS] No session - user not authenticated");
         wsClient.setAuthToken(null);
@@ -331,11 +334,12 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         return false;
       }
       
+      // Use access_token (NOT refresh_token, NOT id_token)
       const token = data.session.access_token;
       wsClient.setAuthToken(token);
       setIsAuthenticated(true);
       setAuthenticated(true);
-      console.log("[Chess WS] Auth token refreshed");
+      console.log("[Chess WS] Auth token refreshed, token length:", token?.length);
       return true;
     } catch (error) {
       console.error("[Chess WS] Failed to refresh auth:", error);
@@ -371,22 +375,31 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     });
     
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // DEBUG LOG - temporary diagnostic
+      console.log("[AUTH] hasSession", !!session, "hasAccessToken", !!session?.access_token, "userId", session?.user?.id ? "present" : "missing");
       console.log("[Chess WS] Auth state changed:", event);
       
       if (session?.access_token) {
+        // Update token on wsClient and reconnect
         wsClient.setAuthToken(session.access_token);
         setIsAuthenticated(true);
         setAuthenticated(true);
         
-        // Reconnect if disconnected
+        // Reconnect if disconnected - with new token
         if (wsClient.getStatus() === "disconnected") {
           wsClient.connect();
+        } else if (wsClient.getStatus() === "connected") {
+          // Already connected but token changed - reconnect with new token
+          console.log("[Chess WS] Token updated - reconnecting with new token");
+          wsClient.disconnect();
+          setTimeout(() => wsClient.connect(), 100);
         }
         
-        // Refresh balance on sign in
-        refreshBalance();
+        // Refresh balance on sign in (deferred to avoid deadlock)
+        setTimeout(() => refreshBalance(), 0);
       } else {
+        console.log("[Chess WS] No session - clearing auth");
         wsClient.setAuthToken(null);
         setIsAuthenticated(false);
         setAuthenticated(false);
@@ -431,13 +444,27 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
 
   const findMatch = useCallback((wager: number, name?: string) => {
     (async () => {
+      // GUARD: Check session exists before attempting WS matchmaking
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session || !session.access_token) {
+        console.log("[Chess WS] findMatch blocked - no valid session");
+        toast.error("Please sign in again");
+        wsClient.setAuthToken(null);
+        setIsAuthenticated(false);
+        setAuthenticated(false);
+        return;
+      }
+      
+      // Ensure wsClient has the latest token
+      wsClient.setAuthToken(session.access_token);
+      
       if (!isAuthenticated) {
         toast.error("Please sign in to play");
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id;
+      const userId = session.user?.id;
 
       if (!userId) {
         toast.error("Please sign in again");
@@ -456,7 +483,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         playerName: finalName,
       };
 
-      console.log("invoking find_match", { player_ids, userIdPresent: !!userId });
+      console.log("invoking find_match", { player_ids, userIdPresent: !!userId, tokenLength: session.access_token?.length });
       console.log("[WS OUT]", wsClient.getClientId(), payload);
 
       setPhase("searching");
@@ -466,7 +493,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       console.error("[Chess WS] findMatch failed:", error);
       toast.error("Please sign in again");
     });
-  }, [isAuthenticated, playerName, setPlayerName, setPhase]);
+  }, [isAuthenticated, playerName, setPlayerName, setPhase, setAuthenticated]);
 
   const cancelSearch = useCallback(() => {
     const payload = { type: "cancel_search" };
