@@ -269,7 +269,7 @@ class WSClient {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
-      console.log("[WS OPEN]", this.clientSocketId, "Connected (authenticated)");
+      console.log("[WS OPEN]", this.clientSocketId, "Connected (authenticated) - socket readyState:", this.ws?.readyState);
       this.setStatus("connected");
       this.reconnectAttempt = 0;
       this.flushQueue();
@@ -341,7 +341,7 @@ class WSClient {
     };
 
     this.ws.onclose = (event) => {
-      console.log("[WS CLOSE]", this.clientSocketId, event.code, event.reason);
+      console.log("[WS CLOSE]", this.clientSocketId, "code:", event.code, "reason:", event.reason, "wasInGame:", this.wasInGame, "wasSearching:", this.wasSearching);
       this.ws = null;
       
       // Check if auth error (typically 4001 or 4003)

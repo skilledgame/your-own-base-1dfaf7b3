@@ -98,7 +98,13 @@ function initializeGlobalMessageHandler(): void {
       
       case "match_found": {
         const payload = msg as unknown as MatchFoundMessage;
-        console.log("[Chess WS]", clientId, "Match found:", payload);
+        console.log("[Chess WS] MATCH_FOUND received:", {
+          clientId,
+          gameId: payload.gameId,
+          color: payload.color,
+          wager: payload.wager,
+          timestamp: new Date().toISOString()
+        });
         
         // Update wsClient tracking
         wsClient.setSearching(false);
@@ -121,8 +127,9 @@ function initializeGlobalMessageHandler(): void {
         
         toast.success(`Match found! You play as ${payload.color === "w" ? "White" : "Black"}. Wager: ${wager} SC`);
         
-        // Navigate using the callback
+        // Navigate using the callback - CRITICAL: WS must stay open during navigation
         if (navigationCallback) {
+          console.log("[Chess WS] NAVIGATING to game:", `/game/live/${payload.gameId}`);
           navigationCallback(`/game/live/${payload.gameId}`);
         }
         break;
@@ -139,7 +146,12 @@ function initializeGlobalMessageHandler(): void {
       
       case "game_ended": {
         const payload = msg as unknown as GameEndedMessage;
-        console.log("[Chess WS]", clientId, "Game ended:", payload);
+        console.log("[Chess WS] GAME_ENDED received:", {
+          clientId,
+          reason: payload.reason,
+          winnerColor: payload.winnerColor,
+          timestamp: new Date().toISOString()
+        });
         
         wsClient.setSearching(false);
         wsClient.setInGame(false);
@@ -390,10 +402,17 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         if (wsClient.getStatus() === "disconnected") {
           wsClient.connect();
         } else if (wsClient.getStatus() === "connected") {
-          // Already connected but token changed - reconnect with new token
-          console.log("[Chess WS] Token updated - reconnecting with new token");
-          wsClient.disconnect();
-          setTimeout(() => wsClient.connect(), 100);
+          // CRITICAL: Do NOT reconnect if we're in a game - that would end the game!
+          const currentPhase = useChessStore.getState().phase;
+          if (currentPhase === "in_game" || currentPhase === "searching") {
+            console.log("[Chess WS] Token updated but in game/searching - NOT reconnecting to avoid game loss");
+            // Just update the token silently, the existing connection is still valid
+          } else {
+            // Only reconnect if idle/game_over
+            console.log("[Chess WS] Token updated - reconnecting with new token (phase:", currentPhase, ")");
+            wsClient.disconnect();
+            setTimeout(() => wsClient.connect(), 100);
+          }
         }
         
         // Refresh balance on sign in (deferred to avoid deadlock)
