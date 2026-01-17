@@ -99,9 +99,10 @@ export const LandingPage = ({
 
   const fetchBalance = async () => {
     if (!user) return;
-    const { data } = await supabase.from('profiles').select('skilled_coins').eq('user_id', user.id).maybeSingle();
+    // Use players.credits as the single source of truth for balance
+    const { data } = await supabase.from('players').select('credits').eq('user_id', user.id).maybeSingle();
     if (data) {
-      setBalance(data.skilled_coins || 0);
+      setBalance(data.credits || 0);
     }
   };
 
