@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * End Game Edge Function
+ * 
+ * PART C: Now uses the idempotent settle_game RPC for transaction-safe settlement.
+ * Safe to retry multiple times - will not double-pay.
+ */
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -83,154 +90,55 @@ serve(async (req) => {
       );
     }
 
-    // Idempotent: if game already finished, return existing state
-    if (game.status === 'finished') {
-      console.log('end-game: game already finished, returning existing state');
-      
-      const [whiteRes, blackRes] = await Promise.all([
-        supabaseClient.from('players').select('id, credits').eq('id', game.white_player_id).maybeSingle(),
-        supabaseClient.from('players').select('id, credits').eq('id', game.black_player_id).maybeSingle(),
-      ]);
-      
+    console.log('end-game: calling settle_game RPC with:', { gameId, winnerId, reason });
+
+    // Use the idempotent settle_game RPC
+    // This is transaction-safe and can be retried without double-paying
+    const { data: settlementResult, error: settlementError } = await supabaseClient
+      .rpc('settle_game', {
+        p_game_id: gameId,
+        p_winner_id: winnerId || null,
+        p_reason: reason || 'unknown'
+      });
+
+    if (settlementError) {
+      console.error('end-game: settle_game RPC error:', settlementError);
       return new Response(
-        JSON.stringify({
-          success: true,
-          game_id: gameId,
-          winner_id: game.winner_id,
-          already_finished: true,
-          balances: {
-            white: { player_id: game.white_player_id, credits: whiteRes.data?.credits ?? null },
-            black: { player_id: game.black_player_id, credits: blackRes.data?.credits ?? null },
-          },
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const wager = game.wager || 0;
-    console.log('end-game: wager =', wager, 'white_player_id =', game.white_player_id, 'black_player_id =', game.black_player_id);
-
-    // Read both players
-    const [whitePlayerRes, blackPlayerRes] = await Promise.all([
-      supabaseClient.from('players').select('id, credits, user_id, name').eq('id', game.white_player_id).maybeSingle(),
-      supabaseClient.from('players').select('id, credits, user_id, name').eq('id', game.black_player_id).maybeSingle(),
-    ]);
-
-    if (whitePlayerRes.error || !whitePlayerRes.data) {
-      console.error('end-game: white player not found:', whitePlayerRes.error);
-      return new Response(
-        JSON.stringify({ error: 'White player not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (blackPlayerRes.error || !blackPlayerRes.data) {
-      console.error('end-game: black player not found:', blackPlayerRes.error);
-      return new Response(
-        JSON.stringify({ error: 'Black player not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const whitePlayer = whitePlayerRes.data;
-    const blackPlayer = blackPlayerRes.data;
-
-    console.log('end-game: balances BEFORE:', {
-      white: { id: whitePlayer.id, credits: whitePlayer.credits },
-      black: { id: blackPlayer.id, credits: blackPlayer.credits },
-    });
-
-    // Calculate new balances
-    let whiteNewCredits = whitePlayer.credits;
-    let blackNewCredits = blackPlayer.credits;
-
-    if (winnerId) {
-      if (winnerId === whitePlayer.id) {
-        whiteNewCredits = whitePlayer.credits + wager;
-        blackNewCredits = blackPlayer.credits - wager;
-      } else if (winnerId === blackPlayer.id) {
-        blackNewCredits = blackPlayer.credits + wager;
-        whiteNewCredits = whitePlayer.credits - wager;
-      }
-    }
-
-    console.log('end-game: balances AFTER calculation:', {
-      white: { id: whitePlayer.id, oldCredits: whitePlayer.credits, newCredits: whiteNewCredits },
-      black: { id: blackPlayer.id, oldCredits: blackPlayer.credits, newCredits: blackNewCredits },
-    });
-
-    // Update player credits
-    const creditUpdates = [];
-
-    if (whiteNewCredits !== whitePlayer.credits) {
-      creditUpdates.push(
-        supabaseClient.from('players').update({ credits: whiteNewCredits }).eq('id', whitePlayer.id)
-      );
-    }
-
-    if (blackNewCredits !== blackPlayer.credits) {
-      creditUpdates.push(
-        supabaseClient.from('players').update({ credits: blackNewCredits }).eq('id', blackPlayer.id)
-      );
-    }
-
-    if (creditUpdates.length > 0) {
-      const creditResults = await Promise.all(creditUpdates);
-      for (const result of creditResults) {
-        if (result.error) {
-          console.error('end-game: failed to update player credits:', result.error);
-          return new Response(
-            JSON.stringify({ error: 'Failed to update credits' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-    }
-
-    // Update game status
-    const { error: gameUpdateError } = await supabaseClient
-      .from('games')
-      .update({
-        status: 'finished',
-        winner_id: winnerId || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', gameId);
-
-    if (gameUpdateError) {
-      console.error('end-game: failed to update game status:', gameUpdateError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to update game status' }),
+        JSON.stringify({ error: 'Settlement failed', details: settlementError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('end-game SUCCESS:', {
-      game_id: gameId,
-      winner_id: winnerId,
-      reason,
-      balances: {
-        white: { player_id: whitePlayer.id, credits: whiteNewCredits },
-        black: { player_id: blackPlayer.id, credits: blackNewCredits },
-      },
-    });
+    console.log('end-game: settle_game RPC result:', settlementResult);
 
+    // Check RPC result
+    if (!settlementResult?.success) {
+      console.error('end-game: settlement returned failure:', settlementResult);
+      return new Response(
+        JSON.stringify({ 
+          error: settlementResult?.error || 'Settlement failed',
+          game_id: gameId 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Return success with settlement details
     return new Response(
       JSON.stringify({
         success: true,
         game_id: gameId,
-        winner_id: winnerId,
+        winner_id: settlementResult.winner_id,
         reason: reason || 'unknown',
-        balances: {
-          white: { player_id: whitePlayer.id, credits: whiteNewCredits },
-          black: { player_id: blackPlayer.id, credits: blackNewCredits },
-        },
+        already_settled: settlementResult.already_settled || false,
+        settlement_tx_id: settlementResult.settlement_tx_id,
+        balances: settlementResult.balances,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('end-game: unexpected error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
