@@ -143,7 +143,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   },
   
   resetAll: () => {
-    console.log("[ChessStore] resetAll");
+    console.log("[ChessStore] resetAll - clearing all game state, timestamp:", new Date().toISOString());
     set({
       phase: "idle",
       gameState: null,
@@ -157,13 +157,14 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   },
   
   handleMatchFound: ({ gameId, dbGameId, color, fen, playerName, opponentName, wager }) => {
-    console.log("[ChessStore] handleMatchFound:", { gameId, dbGameId, color, fen, playerName, opponentName, wager });
+    console.log("[ChessStore] handleMatchFound - SETTING phase=in_game:", { gameId, dbGameId, color, fen, playerName, opponentName, wager, timestamp: new Date().toISOString() });
     
     const isMyTurn = color === "w"; // White moves first
     
+    // IMPORTANT: Clear any previous game end result FIRST
     set({
       phase: "in_game",
-      gameEndResult: null,
+      gameEndResult: null,  // Clear previous game result
       gameState: {
         gameId,
         dbGameId,
@@ -176,10 +177,19 @@ export const useChessStore = create<ChessStore>((set, get) => ({
         wager,
       },
     });
+    
+    console.log("[ChessStore] handleMatchFound - state updated, phase is now:", get().phase);
   },
   
   handleGameEnd: ({ reason, winnerColor, isOpponentLeft, creditsChange }) => {
-    const { gameState } = get();
+    const { gameState, phase: currentPhase } = get();
+    
+    // GUARD: If we're not in a game, ignore stale game_ended messages
+    if (currentPhase !== "in_game") {
+      console.warn("[ChessStore] handleGameEnd IGNORED - not in_game phase, current phase:", currentPhase);
+      return;
+    }
+    
     const myColor = gameState?.color || null;
     
     const isWin = myColor !== null && myColor === winnerColor;
@@ -196,7 +206,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       message = `You lost: ${reason}`;
     }
     
-    console.log("[ChessStore] handleGameEnd:", { reason, winnerColor, isWin, isDraw, isOpponentLeft, message, creditsChange });
+    console.log("[ChessStore] handleGameEnd - SETTING phase=game_over:", { reason, winnerColor, isWin, isDraw, isOpponentLeft, message, creditsChange, timestamp: new Date().toISOString() });
     
     set({
       phase: "game_over",
