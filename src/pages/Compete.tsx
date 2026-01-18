@@ -50,7 +50,7 @@ export default function Compete() {
         .eq('user_id', session.user.id)
         .maybeSingle();
       
-      if (playerData) {
+      if (playerData && playerData.id) {
         setPlayerId(playerData.id);
         await fetchMatches(playerData.id);
         await checkQueueStatus(playerData.id);
@@ -120,7 +120,7 @@ export default function Compete() {
   };
 
   const getMatchResult = (match: Match) => {
-    if (!match.winner_id) return 'draw';
+    if (!match.winner_id || !playerId) return 'draw';
     const isWhiteWinner = match.winner_id === (match.isWhite ? playerId : null);
     return match.winner_id === playerId ? 'win' : 'loss';
   };

@@ -36,6 +36,18 @@ export const MultiplayerGameView = ({
   onGameEnd,
   onBack,
 }: MultiplayerGameViewProps) => {
+  // Guard: ensure player has id before rendering
+  if (!player || !player.id) {
+    return (
+      <div className="min-h-screen bg-background p-4 sm:p-8 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading player data...</p>
+        </div>
+      </div>
+    );
+  }
+
   const [chess] = useState(() => new Chess(game.fen));
   const [localFen, setLocalFen] = useState(game.fen);
   const [whiteTime, setWhiteTime] = useState(game.white_time);
@@ -98,7 +110,7 @@ export const MultiplayerGameView = ({
       onTimeUpdate(newWhiteTime, newBlackTime);
 
       // Check for game end
-      if (chess.isCheckmate()) {
+      if (chess.isCheckmate() && player?.id) {
         onGameEnd(player.id, 'checkmate');
       } else if (chess.isDraw()) {
         onGameEnd('', 'draw');

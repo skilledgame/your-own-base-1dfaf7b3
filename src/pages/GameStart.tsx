@@ -224,7 +224,7 @@ export default function GameStart() {
   };
 
   const fetchFreePlays = async () => {
-    if (!user || !gameSlug) return;
+    if (!user || !user.id || !gameSlug) return;
     
     const { data, error } = await supabase.rpc('get_or_create_free_plays', {
       p_user_id: user.id,
@@ -356,9 +356,19 @@ export default function GameStart() {
       return;
     }
 
+    // Guard: ensure user exists
+    if (!user || !user.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Not logged in',
+        description: 'Please log in to play',
+      });
+      return;
+    }
+
     // Create or get player, then join queue
     let currentPlayer = player;
-    if (!currentPlayer) {
+    if (!currentPlayer || !currentPlayer.id) {
       // Get display name from profile or use a default
       const { data: profile } = await supabase
         .from('profiles')
@@ -369,10 +379,16 @@ export default function GameStart() {
       currentPlayer = await createPlayer(profile?.display_name || 'Player');
     }
     
-    if (currentPlayer) {
+    if (currentPlayer && currentPlayer.id) {
       // Use WebSocket matchmaking with wager
       const wager = selectedStake || 50;  // Default to 50 if not selected
       findMatch(wager, currentPlayer.name);
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to create player',
+        description: 'Please try again',
+      });
     }
   };
 
@@ -386,7 +402,7 @@ export default function GameStart() {
   };
 
   const handleGameEnd = async (winnerId: string, reason: string) => {
-    if (!player || !currentGame) return;
+    if (!player || !currentGame || !player.id) return;
     
     await endGame(winnerId, reason);
     
@@ -441,6 +457,18 @@ export default function GameStart() {
 
   // Show searching screen while in queue
   if (isSearching && !currentGame) {
+    // Guard: ensure user is loaded before showing search screen
+    if (!user || !user.id) {
+      return (
+        <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+            <p className="text-blue-200/60">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+    
     // Use the real queueStatus and multiplayerError from useMultiplayer hook
     
     return (
@@ -534,11 +562,11 @@ export default function GameStart() {
   }
 
   // Show multiplayer game when matched
-  if (currentGame && opponent && player) {
+  if (currentGame && opponent && player && player.id) {
     return (
       <>
         <MultiplayerGameView
-          player={player}
+          player={{ ...player, skilledCoins: balance }}
           opponent={opponent}
           game={currentGame}
           onMove={handleMove}

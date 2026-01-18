@@ -103,6 +103,13 @@ function initializeGlobalMessageHandler(): void {
       
       case "match_found": {
         const payload = msg as unknown as MatchFoundMessage;
+        
+        // Guard: validate payload has required fields
+        if (!payload || !payload.gameId || !payload.color || !payload.fen) {
+          console.error("[Chess WS] Invalid match_found payload:", payload);
+          break;
+        }
+        
         console.log("[Chess WS] MATCH_FOUND received:", {
           clientId,
           gameId: payload.gameId,
@@ -133,7 +140,7 @@ function initializeGlobalMessageHandler(): void {
         toast.success(`Match found! You play as ${payload.color === "w" ? "White" : "Black"}. Wager: ${wager} SC`);
         
         // Navigate using the callback - CRITICAL: WS must stay open during navigation
-        if (navigationCallback) {
+        if (navigationCallback && payload.gameId) {
           console.log("[Chess WS] NAVIGATING to game:", `/game/live/${payload.gameId}`);
           navigationCallback(`/game/live/${payload.gameId}`);
         }
@@ -321,7 +328,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      if (!user || !user.id) {
         // Balance managed by balanceStore
         return;
       }
