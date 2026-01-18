@@ -564,27 +564,20 @@ serve(async (req) => {
             );
           }
           
-          const wager = game.wager || 0;
+          // Step 3: Resolve winnerId - it could be auth user ID or player ID
+          // The games.winner_id FK references players.id, so we need to convert
+          console.log("end_game STEP 3: Resolving winner ID...");
           
-          // Step 3: Read both players
-          console.log("end_game STEP 3: Fetching players...");
+          // First, get players to resolve winnerId
           const [whitePlayerRes, blackPlayerRes] = await Promise.all([
-            supabase.from("players").select("id, credits, user_id, name").eq("id", game.white_player_id).maybeSingle(),
-            supabase.from("players").select("id, credits, user_id, name").eq("id", game.black_player_id).maybeSingle(),
+            supabase.from("players").select("id, user_id").eq("id", game.white_player_id).maybeSingle(),
+            supabase.from("players").select("id, user_id").eq("id", game.black_player_id).maybeSingle(),
           ]);
           
-          if (whitePlayerRes.error || !whitePlayerRes.data) {
-            console.error("SETTLEMENT_FAILED", { game_id: gameId, error: whitePlayerRes.error || "White player not found", step: "fetch_white_player" });
+          if (whitePlayerRes.error || !whitePlayerRes.data || blackPlayerRes.error || !blackPlayerRes.data) {
+            console.error("SETTLEMENT_FAILED", { game_id: gameId, error: "Failed to fetch players", step: "fetch_players" });
             return new Response(
-              JSON.stringify({ error: "PLAYER_NOT_FOUND", side: "white", player_id: game.white_player_id }),
-              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          
-          if (blackPlayerRes.error || !blackPlayerRes.data) {
-            console.error("SETTLEMENT_FAILED", { game_id: gameId, error: blackPlayerRes.error || "Black player not found", step: "fetch_black_player" });
-            return new Response(
-              JSON.stringify({ error: "PLAYER_NOT_FOUND", side: "black", player_id: game.black_player_id }),
+              JSON.stringify({ error: "PLAYER_NOT_FOUND", details: "Failed to fetch players" }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
           }
@@ -592,13 +585,6 @@ serve(async (req) => {
           const whitePlayer = whitePlayerRes.data;
           const blackPlayer = blackPlayerRes.data;
           
-          console.log("end_game: players fetched:", {
-            white: { id: whitePlayer.id, user_id: whitePlayer.user_id, credits: whitePlayer.credits },
-            black: { id: blackPlayer.id, user_id: blackPlayer.user_id, credits: blackPlayer.credits },
-          });
-          
-          // Step 4: Resolve winnerId - it could be auth user ID or player ID
-          // The games.winner_id FK references players.id, so we need to convert
           let resolvedWinnerId: string | null = null;
           
           if (winnerIdParam) {
@@ -624,117 +610,71 @@ serve(async (req) => {
           
           console.log("end_game: resolved winner:", { winnerIdParam, resolvedWinnerId });
           
-          // Step 5: Calculate new balances
-          let whiteNewCredits = whitePlayer.credits;
-          let blackNewCredits = blackPlayer.credits;
-          let whiteTransactionType = "refund";
-          let blackTransactionType = "refund";
+          // Step 4: Call settle_game() RPC function (atomic, idempotent)
+          console.log("end_game STEP 4: Calling settle_game() RPC...");
           
-          if (resolvedWinnerId) {
-            if (resolvedWinnerId === whitePlayer.id) {
-              // White wins: gets wager from black
-              whiteNewCredits = whitePlayer.credits + wager;
-              blackNewCredits = blackPlayer.credits - wager;
-              whiteTransactionType = "wager_win";
-              blackTransactionType = "wager_loss";
-            } else if (resolvedWinnerId === blackPlayer.id) {
-              // Black wins: gets wager from white
-              blackNewCredits = blackPlayer.credits + wager;
-              whiteNewCredits = whitePlayer.credits - wager;
-              blackTransactionType = "wager_win";
-              whiteTransactionType = "wager_loss";
-            }
-          } else {
-            // Draw - no balance changes
-            console.log("end_game: no winner (draw), no balance changes");
-          }
+          // Retry logic for network/5xx errors (idempotent, so safe to retry)
+          let settleResult: any = null;
+          let settleError: any = null;
+          const maxRetries = 5;
           
-          console.log("end_game STEP 5: balances calculated:", {
-            wager,
-            white: { oldCredits: whitePlayer.credits, newCredits: whiteNewCredits, type: whiteTransactionType },
-            black: { oldCredits: blackPlayer.credits, newCredits: blackNewCredits, type: blackTransactionType },
-          });
-          
-          // Step 6: Update player credits
-          console.log("end_game STEP 6: Updating player credits...");
-          
-          if (whiteNewCredits !== whitePlayer.credits) {
-            console.log("end_game: updating white player credits:", whitePlayer.id, "->", whiteNewCredits);
-            const { error: whiteUpdateError } = await supabase
-              .from("players")
-              .update({ credits: whiteNewCredits })
-              .eq("id", whitePlayer.id);
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            const { data, error } = await supabase.rpc('settle_game', {
+              p_game_id: gameId,
+              p_winner_id: resolvedWinnerId,
+              p_reason: reason || 'Game ended'
+            });
             
-            if (whiteUpdateError) {
-              console.error("SETTLEMENT_FAILED", { game_id: gameId, error: whiteUpdateError, step: "update_white_credits" });
-              return new Response(
-                JSON.stringify({ error: "CREDIT_UPDATE_FAILED", side: "white", details: whiteUpdateError.message }),
-                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
+            if (error) {
+              settleError = error;
+              // If it's a network/5xx error and not the last attempt, retry
+              if (attempt < maxRetries && (error.code === 'PGRST116' || error.message?.includes('network') || error.message?.includes('timeout'))) {
+                console.warn(`end_game: settle_game() attempt ${attempt} failed, retrying...`, error);
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+                continue;
+              }
+              break;
             }
-            console.log("end_game: white player credits updated successfully");
-          }
-          
-          if (blackNewCredits !== blackPlayer.credits) {
-            console.log("end_game: updating black player credits:", blackPlayer.id, "->", blackNewCredits);
-            const { error: blackUpdateError } = await supabase
-              .from("players")
-              .update({ credits: blackNewCredits })
-              .eq("id", blackPlayer.id);
             
-            if (blackUpdateError) {
-              console.error("SETTLEMENT_FAILED", { game_id: gameId, error: blackUpdateError, step: "update_black_credits" });
-              return new Response(
-                JSON.stringify({ error: "CREDIT_UPDATE_FAILED", side: "black", details: blackUpdateError.message }),
-                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
-            }
-            console.log("end_game: black player credits updated successfully");
+            settleResult = data;
+            break;
           }
           
-          // Step 7: Update game status (use resolved winner ID for FK constraint)
-          console.log("end_game STEP 7: Updating game status...");
-          console.log("end_game: setting winner_id to:", resolvedWinnerId);
-          
-          const { error: gameUpdateError } = await supabase
-            .from("games")
-            .update({
-              status: "finished",
-              winner_id: resolvedWinnerId,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", gameId);
-          
-          if (gameUpdateError) {
-            console.error("SETTLEMENT_FAILED", { game_id: gameId, error: gameUpdateError, step: "update_game_status" });
+          if (settleError || !settleResult || !settleResult.success) {
+            console.error("SETTLEMENT_FAILED", { 
+              game_id: gameId, 
+              error: settleError || settleResult?.error, 
+              step: "settle_game_rpc",
+              attempts: maxRetries
+            });
             return new Response(
-              JSON.stringify({ error: "GAME_UPDATE_FAILED", details: gameUpdateError.message }),
+              JSON.stringify({ 
+                error: "SETTLEMENT_FAILED", 
+                details: settleError?.message || settleResult?.error || "Failed to settle game"
+              }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
           }
           
-          console.log("end_game: game status updated successfully");
-          
-          console.log("end_game SUCCESS:", {
-            game_id: gameId,
-            winner_id: resolvedWinnerId,
-            reason,
-            balances: {
-              white: { player_id: whitePlayer.id, credits: whiteNewCredits },
-              black: { player_id: blackPlayer.id, credits: blackNewCredits },
-            },
+          console.log("end_game: settle_game() RPC succeeded", {
+            already_settled: settleResult.already_settled,
+            winner_id: settleResult.winner_id,
+            wager: settleResult.wager,
+            payout: settleResult.payout,
+            balances: settleResult.balances
           });
           
+          // Return the result from settle_game() RPC
           return new Response(
             JSON.stringify({
               success: true,
               game_id: gameId,
-              winner_id: resolvedWinnerId,
-              reason,
-              balances: {
-                white: { player_id: whitePlayer.id, credits: whiteNewCredits },
-                black: { player_id: blackPlayer.id, credits: blackNewCredits },
-              },
+              winner_id: settleResult.winner_id,
+              reason: reason || 'Game ended',
+              already_settled: settleResult.already_settled || false,
+              wager: settleResult.wager,
+              payout: settleResult.payout,
+              balances: settleResult.balances,
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );

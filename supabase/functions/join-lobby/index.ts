@@ -129,12 +129,12 @@ serve(async (req) => {
       );
     }
 
-    // Update the lobby to start the game
+    // Update the lobby to start the game (status 'created' initially, will be set to 'active' by lock_wager)
     const { data: updatedGame, error: updateError } = await supabaseAdmin
       .from('games')
       .update({
         black_player_id: player.id,
-        status: 'active',
+        status: 'created', // Will be set to 'active' by lock_wager()
         fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Reset to starting position
       })
       .eq('id', lobby.id)
@@ -149,6 +149,33 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Lock wager: deduct skilled_coins from both players
+    console.log(`[JOIN-LOBBY] Locking wager for game ${updatedGame.id}...`);
+    const { data: lockResult, error: lockError } = await supabaseAdmin.rpc('lock_wager', {
+      p_game_id: updatedGame.id
+    });
+
+    if (lockError || !lockResult?.success) {
+      console.error('[JOIN-LOBBY] Failed to lock wager:', lockError || lockResult?.error);
+      // Revert game status back to waiting if wager locking failed
+      await supabaseAdmin
+        .from('games')
+        .update({ 
+          status: 'waiting',
+          black_player_id: lobby.white_player_id // Revert black_player_id
+        })
+        .eq('id', updatedGame.id);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to lock wager', 
+          details: lockResult?.error || lockError?.message 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[JOIN-LOBBY] Wager locked successfully for game ${updatedGame.id}`);
 
     // Get host player info
     const { data: hostPlayer } = await supabaseAdmin

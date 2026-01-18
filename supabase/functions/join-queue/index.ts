@@ -184,6 +184,7 @@ serve(async (req) => {
         const blackPlayerId = isWhite ? opponentEntry.player_id : player.id;
 
         // Create game with proper time settings (60 seconds base + 3 second increment)
+        // Status is 'created' initially, will be set to 'active' by lock_wager()
         const { data: gameData, error: gameError } = await supabaseAdmin
           .from('games')
           .insert({
@@ -193,7 +194,7 @@ serve(async (req) => {
             white_time: 60,
             black_time: 60,
             game_type: gameType,
-            status: 'active',
+            status: 'created',  // Will be set to 'active' by lock_wager()
           })
           .select()
           .single();
@@ -214,6 +215,35 @@ serve(async (req) => {
           );
         }
 
+        // Lock wager: deduct skilled_coins from both players
+        console.log(`[JOIN-QUEUE] Locking wager for game ${gameData.id}...`);
+        const { data: lockResult, error: lockError } = await supabaseAdmin.rpc('lock_wager', {
+          p_game_id: gameData.id
+        });
+
+        if (lockError || !lockResult?.success) {
+          console.error('[JOIN-QUEUE] Failed to lock wager:', lockError || lockResult?.error);
+          // Delete the game if wager locking failed
+          await supabaseAdmin.from('games').delete().eq('id', gameData.id);
+          // Re-add opponent to queue
+          await supabaseAdmin
+            .from('matchmaking_queue')
+            .insert({
+              player_id: opponentEntry.player_id,
+              wager: opponentEntry.wager,
+              game_type: opponentEntry.game_type,
+            });
+          return new Response(
+            JSON.stringify({ 
+              error: 'Failed to lock wager', 
+              details: lockResult?.error || lockError?.message 
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log(`[JOIN-QUEUE] Wager locked successfully for game ${gameData.id}`);
+
         // Get opponent info
         const { data: opponentData } = await supabaseAdmin
           .from('players')
@@ -221,7 +251,7 @@ serve(async (req) => {
           .eq('id', opponentEntry.player_id)
           .single();
 
-        console.log(`[JOIN-QUEUE] Game ${gameData.id} created successfully`);
+        console.log(`[JOIN-QUEUE] Game ${gameData.id} created and wager locked successfully`);
 
         return new Response(
           JSON.stringify({ 
