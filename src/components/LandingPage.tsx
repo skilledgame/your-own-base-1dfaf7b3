@@ -192,7 +192,7 @@ export const LandingPage = ({
                   <Link to="/deposit">
                     <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
                   </Link>
-                  <Button asChild className="hidden sm:flex bg-primary text-primary-foreground hover:bg-primary/90 font-semibold">
+                  <Button asChild className="hidden sm:flex bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
                     <Link to="/deposit">
                       <Wallet className="w-4 h-4 mr-2" />
                       Deposit

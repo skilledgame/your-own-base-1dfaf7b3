@@ -542,7 +542,7 @@ export default function Deposit() {
             {/* Deposit Button */}
             <Button
               size="lg"
-              className="w-full"
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0"
               disabled={!selectedAmount || !selectedCrypto || processing}
               onClick={handleDeposit}
             >

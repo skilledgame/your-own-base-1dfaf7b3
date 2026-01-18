@@ -902,7 +902,7 @@ export default function GameStart() {
 
                 <Button
                   size="lg"
-                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white border-0"
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0"
                   disabled={!selectedDepositAmount || !selectedCrypto || processing}
                   onClick={handleDeposit}
                 >
