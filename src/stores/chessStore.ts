@@ -11,6 +11,19 @@ import { create } from 'zustand';
 
 export type GamePhase = "idle" | "searching" | "in_game" | "game_over";
 
+// Normalized matchmaking state (primitives only, no raw objects)
+export type MatchmakingStatus = "idle" | "connecting" | "searching" | "matched" | "error";
+
+export interface MatchmakingState {
+  status: MatchmakingStatus;
+  wager: number | null;
+  matchId: string | null;           // WS game ID
+  dbMatchId: string | null;         // Supabase game ID (for settlement)
+  opponentUserId: string | null;    // Normalized: always user_id, never raw opponent object
+  color: "w" | "b" | null;
+  error?: string;
+}
+
 export interface GameState {
   gameId: string;          // WS game ID
   dbGameId?: string;       // Supabase game ID for credits
@@ -42,6 +55,7 @@ interface ChessStore {
   // Removed playerCredits - use balanceStore.skilledCoins instead
   selectedWager: number;       // Selected wager for next match
   isAuthenticated: boolean;    // Whether user is signed in
+  matchmaking: MatchmakingState;  // Normalized matchmaking state
   
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -78,6 +92,12 @@ interface ChessStore {
     isOpponentLeft: boolean;
     creditsChange?: number;
   }) => void;
+  
+  // Matchmaking state management (normalized)
+  setMatchmakingStatus: (status: MatchmakingStatus) => void;
+  setMatchmakingMatch: (data: { matchId: string; dbMatchId?: string; opponentUserId?: string; color?: "w" | "b"; wager?: number }) => void;
+  setMatchmakingError: (error: string) => void;
+  resetMatchmaking: () => void;
 }
 
 export const useChessStore = create<ChessStore>((set, get) => ({
@@ -89,6 +109,14 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   // Removed playerCredits - use balanceStore.skilledCoins instead
   selectedWager: 10,  // Default wager
   isAuthenticated: false,
+  matchmaking: {
+    status: "idle",
+    wager: null,
+    matchId: null,
+    dbMatchId: null,
+    opponentUserId: null,
+    color: null,
+  },
   
   // Actions
   setPhase: (phase) => {
@@ -145,6 +173,59 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       phase: "idle",
       gameState: null,
       gameEndResult: null,
+      matchmaking: {
+        status: "idle",
+        wager: null,
+        matchId: null,
+        dbMatchId: null,
+        opponentUserId: null,
+        color: null,
+      },
+    });
+  },
+  
+  // Matchmaking state management
+  setMatchmakingStatus: (status) => {
+    set((state) => ({
+      matchmaking: { ...state.matchmaking, status },
+    }));
+  },
+  
+  setMatchmakingMatch: (data) => {
+    set((state) => ({
+      matchmaking: {
+        ...state.matchmaking,
+        status: "matched",
+        matchId: data.matchId || null,
+        dbMatchId: data.dbMatchId || null,
+        opponentUserId: data.opponentUserId || null,
+        color: data.color || null,
+        wager: data.wager ?? state.matchmaking.wager,
+        error: undefined, // Clear error on successful match
+      },
+    }));
+  },
+  
+  setMatchmakingError: (error) => {
+    set((state) => ({
+      matchmaking: {
+        ...state.matchmaking,
+        status: "error",
+        error,
+      },
+    }));
+  },
+  
+  resetMatchmaking: () => {
+    set({
+      matchmaking: {
+        status: "idle",
+        wager: null,
+        matchId: null,
+        dbMatchId: null,
+        opponentUserId: null,
+        color: null,
+      },
     });
   },
   

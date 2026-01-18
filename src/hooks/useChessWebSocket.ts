@@ -98,23 +98,47 @@ function initializeGlobalMessageHandler(): void {
       case "searching": {
         console.log("[Chess WS]", clientId, "Searching for opponent...");
         store.setPhase("searching");
+        store.setMatchmakingStatus("searching");
         break;
       }
       
       case "match_found": {
         const payload = msg as unknown as MatchFoundMessage;
         
-        // Guard: validate payload has required fields
-        if (!payload || !payload.gameId || !payload.color || !payload.fen) {
-          console.error("[Chess WS] Invalid match_found payload:", payload);
+        // STEP D: Normalize IDs immediately from various possible fields
+        const matchId = payload?.gameId ?? payload?.game_id ?? (payload as any)?.matchId ?? (payload as any)?.match_id ?? null;
+        const dbMatchId = payload?.dbGameId ?? (payload as any)?.dbGameId ?? (payload as any)?.db_game_id ?? null;
+        const color = payload?.color ?? null;
+        const fen = payload?.fen ?? null;
+        
+        // Normalize opponent userId (profiles uses user_id, not id)
+        const opponentUserId = 
+          (payload as any)?.opponentUserId ??
+          (payload as any)?.opponent_user_id ??
+          payload?.opponent?.user_id ??
+          payload?.opponent?.userId ??
+          payload?.opponent?.playerId ??
+          payload?.opponent?.player_id ??
+          payload?.opponent?.id ??
+          null;
+        
+        const wager = typeof payload?.wager === 'number' ? payload.wager : 0;
+        
+        // STEP D: Validate required fields before updating state
+        if (!matchId || !color || !fen) {
+          const errorMsg = `MATCH_FOUND missing required fields: matchId=${!!matchId}, color=${!!color}, fen=${!!fen}`;
+          console.error("[Chess WS] Invalid match_found payload:", payload, errorMsg);
+          store.setMatchmakingError(errorMsg);
           break;
         }
         
-        console.log("[Chess WS] MATCH_FOUND received:", {
+        console.log("[Chess WS] MATCH_FOUND received (normalized):", {
           clientId,
-          gameId: payload.gameId,
-          color: payload.color,
-          wager: payload.wager,
+          matchId,
+          dbMatchId,
+          color,
+          opponentUserId,
+          wager,
           timestamp: new Date().toISOString()
         });
         
@@ -123,26 +147,34 @@ function initializeGlobalMessageHandler(): void {
         wsClient.setInGame(true);
         
         // Get opponent name from payload (try new format first, then legacy)
-        const opponentName = payload.opponent?.name || payload.opponentName || "Opponent";
-        const wager = payload.wager || 0;
+        const opponentName = payload.opponent?.name || (payload as any).opponentName || "Opponent";
         
-        // Atomically update store
+        // STEP D: Update normalized matchmaking state
+        store.setMatchmakingMatch({
+          matchId,
+          dbMatchId: dbMatchId || undefined,
+          opponentUserId: opponentUserId || undefined,
+          color,
+          wager,
+        });
+        
+        // Atomically update game store
         store.handleMatchFound({
-          gameId: payload.gameId,
-          dbGameId: payload.dbGameId,
-          color: payload.color,
-          fen: payload.fen,
+          gameId: matchId,
+          dbGameId: dbMatchId || undefined,
+          color,
+          fen,
           playerName: store.playerName,
           opponentName,
           wager,
         });
         
-        toast.success(`Match found! You play as ${payload.color === "w" ? "White" : "Black"}. Wager: ${wager} SC`);
+        toast.success(`Match found! You play as ${color === "w" ? "White" : "Black"}. Wager: ${wager} SC`);
         
         // Navigate using the callback - CRITICAL: WS must stay open during navigation
-        if (navigationCallback && payload.gameId) {
-          console.log("[Chess WS] NAVIGATING to game:", `/game/live/${payload.gameId}`);
-          navigationCallback(`/game/live/${payload.gameId}`);
+        if (navigationCallback && matchId) {
+          console.log("[Chess WS] NAVIGATING to game:", `/game/live/${matchId}`);
+          navigationCallback(`/game/live/${matchId}`);
         }
         break;
       }
@@ -535,6 +567,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     wsClient.send(payload);
     wsClient.setSearching(false);
     setPhase("idle");
+    useChessStore.getState().resetMatchmaking();
   }, [setPhase]);
 
   const sendMove = useCallback((from: string, to: string, promotion?: string) => {

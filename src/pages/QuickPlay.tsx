@@ -11,8 +11,8 @@
  * - Reduced rerenders
  */
 
-import { useEffect, useCallback, memo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useCallback, memo, useMemo } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,10 +65,15 @@ WagerButton.displayName = 'WagerButton';
 
 export default function QuickPlay() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const showDebug = searchParams.get('debug') === '1';
   
   // Auth from context
-  const { isAuthenticated: authContextAuthenticated, isAuthReady } = useAuth();
+  const { isAuthenticated: authContextAuthenticated, isAuthReady, user } = useAuth();
   const authLoading = !isAuthReady;
+  
+  // STEP C: Get IDs safely (normalized, never from raw objects)
+  const userId = user?.id ?? null;
   
   // Balance from store
   const { balance: storeBalance } = useBalanceStore();
@@ -80,7 +85,8 @@ export default function QuickPlay() {
     playerName, 
     // Removed playerCredits - use balanceStore instead
     selectedWager,
-    setSelectedWager 
+    setSelectedWager,
+    matchmaking  // Normalized matchmaking state
   } = useChessStore();
   
   // Use the higher balance (store or chess store)

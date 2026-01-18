@@ -176,10 +176,13 @@ export default function GameStart() {
   } = useChessWebSocket();
   
   // Get global state from store
-  const { phase, gameState } = useChessStore();
+  const { phase, gameState, matchmaking } = useChessStore();
   
-  // Derive isSearching from phase
-  const isSearching = phase === "searching";
+  // Derive isSearching from phase and normalized matchmaking state
+  const isSearching = phase === "searching" || matchmaking.status === "searching";
+  
+  // STEP C: Get IDs safely (normalized, never from raw objects)
+  const userId = user?.id ?? session?.user?.id ?? null;
   const isConnected = wsStatus === "connected";
 
   const game = gameSlug ? GAMES[gameSlug] : null;
@@ -496,10 +499,22 @@ export default function GameStart() {
             </p>
           </div>
 
-          {/* Error display */}
-          {multiplayerError && (
-            <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 text-red-300 text-sm">
-              {multiplayerError}
+          {/* Error display - use normalized matchmaking error */}
+          {(multiplayerError || matchmaking.error) && (
+            <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 text-red-300 text-sm space-y-2">
+              {multiplayerError && <p>{multiplayerError}</p>}
+              {matchmaking.error && <p>{matchmaking.error}</p>}
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 border-red-500/50 text-red-300 hover:bg-red-500/10"
+                onClick={() => {
+                  cancelSearch();
+                  useChessStore.getState().resetMatchmaking();
+                }}
+              >
+                Retry
+              </Button>
             </div>
           )}
 
@@ -556,6 +571,26 @@ export default function GameStart() {
             <X className="w-4 h-4 mr-2" />
             Cancel Search
           </Button>
+          
+          {/* STEP G: Debug Box (dev only) */}
+          {showDebug && (
+            <div className="mt-4 p-4 bg-gray-900/80 border border-gray-700 rounded-xl text-xs font-mono text-left space-y-1">
+              <div className="text-gray-400 mb-2">DEBUG (?debug=1)</div>
+              <div>authReady: {loading ? 'loading' : 'ready'}</div>
+              <div>userId: {userId || 'null'}</div>
+              <div>wsStatus: {wsStatus}</div>
+              <div>wsConnected: {isConnected ? 'true' : 'false'}</div>
+              <div>mm.status: {matchmaking.status}</div>
+              <div>mm.matchId: {matchmaking.matchId || 'null'}</div>
+              <div>mm.dbMatchId: {matchmaking.dbMatchId || 'null'}</div>
+              <div>mm.opponentUserId: {matchmaking.opponentUserId || 'null'}</div>
+              <div>mm.wager: {matchmaking.wager || 'null'}</div>
+              <div>mm.color: {matchmaking.color || 'null'}</div>
+              <div>mm.error: {matchmaking.error || 'none'}</div>
+              <div>phase: {phase}</div>
+              <div>isSearching: {isSearching ? 'true' : 'false'}</div>
+            </div>
+          )}
         </div>
       </div>
     );
