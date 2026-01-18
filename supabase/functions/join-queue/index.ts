@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * Join Queue Edge Function
+ * 
+ * Validates user has enough SKILLED COINS and joins matchmaking queue.
+ * Uses profiles.skilled_coins as the single source of truth.
+ */
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -45,15 +52,30 @@ serve(async (req) => {
     if (!allowedWagers.includes(wager)) {
       console.log(`[JOIN-QUEUE] Invalid wager amount: ${wager}`);
       return new Response(
-        JSON.stringify({ error: 'Invalid wager amount. Must be 100, 500, or 1000 coins.' }),
+        JSON.stringify({ error: 'Invalid wager amount. Must be 100, 500, or 1000 Skilled Coins.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get user's player record
+    // Get user's profile for skilled_coins (single source of truth)
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('skilled_coins')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('[JOIN-QUEUE] Profile not found:', profileError);
+      return new Response(
+        JSON.stringify({ error: 'Profile not found. Please refresh and try again.' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get user's player record for matchmaking
     const { data: player, error: playerError } = await supabaseAdmin
       .from('players')
-      .select('id, credits, name')
+      .select('id, name')
       .eq('user_id', user.id)
       .single();
 
@@ -65,18 +87,18 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[JOIN-QUEUE] Player found: ${player.id} (${player.name}), credits: ${player.credits}`);
+    console.log(`[JOIN-QUEUE] Player found: ${player.id} (${player.name}), skilled_coins: ${profile.skilled_coins}`);
 
     // Check if user is a privileged user (admin/moderator)
     const { data: isPrivileged } = await supabaseAdmin.rpc('is_privileged_user', {
       _user_id: user.id,
     });
 
-    // Validate credits (skip for privileged users)
-    if (!isPrivileged && wager > player.credits) {
-      console.log(`[JOIN-QUEUE] Insufficient credits: ${player.credits} < ${wager}`);
+    // Validate skilled_coins (skip for privileged users)
+    if (!isPrivileged && wager > profile.skilled_coins) {
+      console.log(`[JOIN-QUEUE] Insufficient Skilled Coins: ${profile.skilled_coins} < ${wager}`);
       return new Response(
-        JSON.stringify({ error: 'Insufficient credits' }),
+        JSON.stringify({ error: 'Insufficient Skilled Coins' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -124,7 +146,6 @@ serve(async (req) => {
     }
 
     // Look for opponent with EXACT same wager and game type
-    // Use a transaction-like approach with row locking to prevent race conditions
     const { data: queueData, error: queueError } = await supabaseAdmin
       .from('matchmaking_queue')
       .select('id, player_id, wager, game_type, created_at')

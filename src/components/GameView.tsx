@@ -80,7 +80,7 @@ export const GameView = ({ balance, onBalanceChange, onBack, isFreePlay = false 
       {gameResult && (
         <GameResultModal
           isWin={gameResult.isWin}
-          tokensChange={gameResult.tokensChange}
+          coinsChange={gameResult.tokensChange}
           newBalance={gameResult.newBalance}
           reason={gameResult.reason}
           onPlayAgain={handlePlayAgain}

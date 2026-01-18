@@ -123,7 +123,7 @@ export default function LiveGame() {
       <>
         <GameResultModal
           isWin={gameEndResult.isWin}
-          tokensChange={tokensChange}
+          coinsChange={tokensChange}
           newBalance={playerCredits}
           reason={gameEndResult.message}
           onPlayAgain={handlePlayAgain}

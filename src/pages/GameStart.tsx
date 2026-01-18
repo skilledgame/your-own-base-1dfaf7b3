@@ -548,7 +548,7 @@ export default function GameStart() {
         {gameResult && (
           <GameResultModal
             isWin={gameResult.isWin}
-            tokensChange={gameResult.tokensChange}
+            coinsChange={gameResult.tokensChange}
             newBalance={gameResult.newBalance}
             reason={gameResult.reason}
             onPlayAgain={handlePlayAgain}

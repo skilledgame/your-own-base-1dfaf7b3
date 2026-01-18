@@ -6,11 +6,18 @@ const corsHeaders = {
 };
 
 // Admin user IDs - these users will be granted admin role
-// Add your admin UUIDs here:
 const ADMIN_USER_IDS = [
   '04d39de7-6912-4569-93a8-9645cdc4f35b',
   '600b2a61-44a8-4723-a8db-4e30896a86fa',
 ];
+
+/**
+ * Ensure User Edge Function
+ * 
+ * Creates profile and player records for new users.
+ * Uses profiles.skilled_coins as the SINGLE source of truth.
+ * New accounts start with 0 Skilled Coins.
+ */
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -79,8 +86,9 @@ Deno.serve(async (req) => {
     let createdPlayers = false;
     let createdFreePlays = false;
     let createdAdminRole = false;
+    let skilledCoins = 0;
 
-    // 1. Check if profile exists first
+    // 1. Check if profile exists first (profiles.skilled_coins is the source of truth)
     console.log('[ensure-user] Checking if profile exists...');
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
@@ -97,7 +105,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           email: userEmail,
           display_name: displayName,
-          skilled_coins: 0, // New accounts start with 0 coins
+          skilled_coins: 0, // New accounts start with 0 Skilled Coins
         })
         .select()
         .single();
@@ -110,28 +118,30 @@ Deno.serve(async (req) => {
         );
       }
       createdProfiles = true;
+      skilledCoins = 0;
       console.log('[ensure-user] Profile created:', profileData?.id);
     } else {
-      console.log('[ensure-user] Profile already exists with', existingProfile.skilled_coins, 'coins');
+      skilledCoins = existingProfile.skilled_coins;
+      console.log('[ensure-user] Profile already exists with', skilledCoins, 'Skilled Coins');
     }
 
     // 2. Check if player exists first
     console.log('[ensure-user] Checking if player exists...');
     const { data: existingPlayer } = await supabaseAdmin
       .from('players')
-      .select('id, credits')
+      .select('id')
       .eq('user_id', userId)
       .maybeSingle();
 
     if (!existingPlayer) {
-      // Only insert if doesn't exist - never overwrite existing credits
+      // Only insert if doesn't exist
       console.log('[ensure-user] Creating new player...');
       const { data: playerData, error: playerError } = await supabaseAdmin
         .from('players')
         .insert({
           user_id: userId,
           name: displayName,
-          credits: 0, // New accounts start with 0 credits
+          credits: 0, // Legacy field - kept for compatibility but profiles.skilled_coins is the source of truth
         })
         .select()
         .single();
@@ -146,7 +156,7 @@ Deno.serve(async (req) => {
       createdPlayers = true;
       console.log('[ensure-user] Player created:', playerData?.id);
     } else {
-      console.log('[ensure-user] Player already exists with', existingPlayer.credits, 'credits');
+      console.log('[ensure-user] Player already exists');
     }
 
     // 3. Ensure free_plays exists for chess
@@ -204,6 +214,7 @@ Deno.serve(async (req) => {
       createdPlayers,
       createdFreePlays,
       createdAdminRole,
+      skilledCoins,
     });
 
     return new Response(
@@ -214,6 +225,7 @@ Deno.serve(async (req) => {
         createdPlayers,
         createdFreePlays,
         createdAdminRole,
+        skilled_coins: skilledCoins,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
