@@ -582,6 +582,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         playerName: finalName,
       };
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:578',message:'findMatch payload before send',data:{wager,player_ids,player_ids_length:player_ids?.length,player_ids_first:player_ids?.[0],payloadType:typeof payload,hasPayload:!!payload},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+
       console.log("[Chess WS] findMatch:", { wager, player_ids });
 
       setPhase("searching");
