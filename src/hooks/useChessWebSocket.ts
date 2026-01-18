@@ -105,6 +105,10 @@ function initializeGlobalMessageHandler(): void {
       case "match_found": {
         const payload = msg as unknown as MatchFoundMessage;
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:105',message:'MATCH_FOUND handler entry',data:{hasPayload:!!payload,hasOpponent:!!payload?.opponent,opponentType:typeof payload?.opponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        
         // STEP D: Normalize IDs immediately from various possible fields
         const matchId = payload?.gameId ?? payload?.game_id ?? (payload as any)?.matchId ?? (payload as any)?.match_id ?? null;
         const dbMatchId = payload?.dbGameId ?? (payload as any)?.dbGameId ?? (payload as any)?.db_game_id ?? null;
@@ -121,6 +125,10 @@ function initializeGlobalMessageHandler(): void {
           payload?.opponent?.player_id ??
           payload?.opponent?.id ??
           null;
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:123',message:'After opponentUserId normalization',data:{opponentUserId,hasOpponent:!!payload?.opponent,opponentKeys:payload?.opponent?Object.keys(payload.opponent):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         
         const wager = typeof payload?.wager === 'number' ? payload.wager : 0;
         
@@ -267,6 +275,9 @@ function initializeGlobalMessageHandler(): void {
       
       case "error": {
         const payload = msg as unknown as ErrorMessage;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:268',message:'ERROR handler entry',data:{hasPayload:!!payload,payloadType:typeof payload,code:payload?.code,hasMessage:!!payload?.message,messageType:typeof payload?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         console.log("[Chess WS]", clientId, "Error:", payload.code, payload.message);
         
         // Handle "already in a game" desync
@@ -300,7 +311,11 @@ function initializeGlobalMessageHandler(): void {
           return;
         }
         
-        toast.error(payload.message);
+        // #region agent log
+        const errorMessage = payload?.message ?? "Unknown error";
+        fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:303',message:'Before toast.error',data:{errorMessage,messageType:typeof errorMessage,hasPayload:!!payload},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        toast.error(errorMessage);
         break;
       }
       
@@ -528,12 +543,20 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       
       wsClient.setAuthToken(session.access_token);
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:535',message:'Before userId access',data:{hasSession:!!session,hasUser:!!session?.user,userIdType:typeof session?.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
       if (!isAuthenticated) {
         toast.error("Please sign in to play");
         return;
       }
 
       const userId = session.user?.id;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:537',message:'After userId access',data:{userId,userIdType:typeof userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
 
       if (!userId) {
         toast.error("Please sign in again");
@@ -557,6 +580,9 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       wsClient.setSearching(true, finalName, wager, player_ids);
       wsClient.send(payload);
     })().catch((error) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:582',message:'findMatch catch block',data:{hasError:!!error,errorType:typeof error,errorKeys:error?Object.keys(error):null,errorMessage:error?.message,errorStack:error?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       console.error("[Chess WS] findMatch failed:", error);
       toast.error("Please sign in again");
     });
