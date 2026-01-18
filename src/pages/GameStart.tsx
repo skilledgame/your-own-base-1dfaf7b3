@@ -178,12 +178,34 @@ export default function GameStart() {
   // Get global state from store
   const { phase, gameState, matchmaking } = useChessStore();
   
+  // STEP 4: Ensure matchmaking state has safe defaults (never undefined)
+  const safeMatchmaking = matchmaking || {
+    status: "idle" as const,
+    wager: null,
+    matchId: null,
+    dbMatchId: null,
+    opponentUserId: null,
+    color: null,
+  };
+  
   // Derive isSearching from phase and normalized matchmaking state
-  const isSearching = phase === "searching" || matchmaking.status === "searching";
+  const isSearching = phase === "searching" || safeMatchmaking.status === "searching";
   
   // STEP C: Get IDs safely (normalized, never from raw objects)
   const userId = user?.id ?? session?.user?.id ?? null;
   const isConnected = wsStatus === "connected";
+  
+  // STEP 3: Add timeout for loading state (8 seconds)
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => {
+        console.error('[GameStart] Loading timeout - forcing loading to false');
+        setLoading(false);
+      }, 8000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [loading]);
 
   const game = gameSlug ? GAMES[gameSlug] : null;
   const selectedOption = STAKE_OPTIONS.find(opt => opt.coins === selectedStake);
@@ -500,10 +522,10 @@ export default function GameStart() {
           </div>
 
           {/* Error display - use normalized matchmaking error */}
-          {(multiplayerError || matchmaking.error) && (
+          {(multiplayerError || safeMatchmaking.error) && (
             <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 text-red-300 text-sm space-y-2">
               {multiplayerError && <p>{multiplayerError}</p>}
-              {matchmaking.error && <p>{matchmaking.error}</p>}
+              {safeMatchmaking.error && <p>{safeMatchmaking.error}</p>}
               <Button
                 size="sm"
                 variant="outline"
@@ -573,20 +595,20 @@ export default function GameStart() {
           </Button>
           
           {/* STEP G: Debug Box (dev only) */}
-          {showDebug && (
+          {(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1') && (
             <div className="mt-4 p-4 bg-gray-900/80 border border-gray-700 rounded-xl text-xs font-mono text-left space-y-1">
               <div className="text-gray-400 mb-2">DEBUG (?debug=1)</div>
               <div>authReady: {loading ? 'loading' : 'ready'}</div>
               <div>userId: {userId || 'null'}</div>
               <div>wsStatus: {wsStatus}</div>
               <div>wsConnected: {isConnected ? 'true' : 'false'}</div>
-              <div>mm.status: {matchmaking.status}</div>
-              <div>mm.matchId: {matchmaking.matchId || 'null'}</div>
-              <div>mm.dbMatchId: {matchmaking.dbMatchId || 'null'}</div>
-              <div>mm.opponentUserId: {matchmaking.opponentUserId || 'null'}</div>
-              <div>mm.wager: {matchmaking.wager || 'null'}</div>
-              <div>mm.color: {matchmaking.color || 'null'}</div>
-              <div>mm.error: {matchmaking.error || 'none'}</div>
+              <div>mm.status: {safeMatchmaking.status}</div>
+              <div>mm.matchId: {safeMatchmaking.matchId || 'null'}</div>
+              <div>mm.dbMatchId: {safeMatchmaking.dbMatchId || 'null'}</div>
+              <div>mm.opponentUserId: {safeMatchmaking.opponentUserId || 'null'}</div>
+              <div>mm.wager: {safeMatchmaking.wager || 'null'}</div>
+              <div>mm.color: {safeMatchmaking.color || 'null'}</div>
+              <div>mm.error: {safeMatchmaking.error || 'none'}</div>
               <div>phase: {phase}</div>
               <div>isSearching: {isSearching ? 'true' : 'false'}</div>
             </div>

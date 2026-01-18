@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AuthLoadingScreen } from "@/components/AuthLoadingScreen";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import Auth from "./pages/Auth";
@@ -26,6 +27,21 @@ import LiveGame from "./pages/LiveGame";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { useEffect } from "react";
 import { useBalanceStore } from "./stores/balanceStore";
+
+// STEP 1: Global error handlers to catch unhandled errors
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    console.error('[Global Error Handler]', event.error);
+    console.error('[Global Error Handler] Stack:', event.error?.stack);
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('[Global Unhandled Rejection]', event.reason);
+    if (event.reason instanceof Error) {
+      console.error('[Global Unhandled Rejection] Stack:', event.reason.stack);
+    }
+  });
+}
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -67,14 +83,16 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppWithAuth>
-            <Routes>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppWithAuth>
+              <ErrorBoundary>
+                <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/auth" element={<Auth />} />
@@ -93,14 +111,16 @@ const App = () => (
               <Route path="/game/live/:gameId" element={<LiveGame />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-            {/* Debug panel - only visible with ?debug=1 or in dev */}
-            <AuthDebugPanel />
-          </AppWithAuth>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+                </Routes>
+              </ErrorBoundary>
+              {/* Debug panel - only visible with ?debug=1 or in dev */}
+              <AuthDebugPanel />
+            </AppWithAuth>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
