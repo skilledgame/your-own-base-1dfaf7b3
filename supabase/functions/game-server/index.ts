@@ -354,7 +354,10 @@ serve(async (req) => {
       case "lock_wager": {
         const gameId = params.game_id || params.gameId || params.dbGameId;
         
+        console.log("lock_wager called:", { gameId, paramsKeys: Object.keys(params) });
+        
         if (!gameId) {
+          console.error("lock_wager: Missing gameId", { params });
           return new Response(
             JSON.stringify({ 
               ok: false, 
@@ -365,33 +368,54 @@ serve(async (req) => {
           );
         }
 
+        console.log("lock_wager: Calling RPC with p_game_id:", gameId);
+        
         const { data, error } = await supabase.rpc('lock_wager', {
           p_game_id: gameId
         });
 
         if (error) {
-          console.error("lock_wager RPC error:", error);
+          console.error("lock_wager RPC error:", {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            gameId
+          });
           return new Response(
             JSON.stringify({ 
               ok: false, 
               error: "LOCK_WAGER_FAILED", 
-              details: error.message 
+              details: error.message,
+              debug: { code: error.code, details: error.details, hint: error.hint }
             }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
+        console.log("lock_wager RPC response:", { data, hasSuccess: !!data?.success, hasError: !!data?.error });
+
         if (!data || !data.success) {
+          console.error("lock_wager: RPC returned failure", { 
+            data, 
+            success: data?.success, 
+            error: data?.error,
+            gameId 
+          });
           return new Response(
             JSON.stringify({ 
               ok: false, 
+              success: false,
               error: data?.error || "LOCK_WAGER_FAILED", 
-              details: data?.error 
+              details: data?.error,
+              debug: { data, gameId }
             }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
+        console.log("lock_wager: Success", { gameId, already_locked: data.already_locked });
+        
         return new Response(
           JSON.stringify({ success: true, ...data }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -590,7 +614,9 @@ serve(async (req) => {
             status: game.status, 
             wager: game.wager,
             white_player_id: game.white_player_id,
-            black_player_id: game.black_player_id
+            black_player_id: game.black_player_id,
+            wager_locked_at: (game as any).wager_locked_at,
+            settled_at: (game as any).settled_at
           });
           
           // Step 2: Idempotent check - if game not active, return already settled
@@ -662,12 +688,24 @@ serve(async (req) => {
           const maxRetries = 5;
           
           for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            console.log(`end_game: settle_match() attempt ${attempt}/${maxRetries}`, { 
+              gameId, 
+              resolvedWinnerUserId,
+              winnerIdParam 
+            });
+            
             const { data, error } = await supabase.rpc('settle_match', {
               p_game_id: gameId,
               p_winner_user_id: resolvedWinnerUserId
             });
             
             if (error) {
+              console.error(`end_game: settle_match() attempt ${attempt} RPC error:`, {
+                code: error.code,
+                message: error.message,
+                details: error.details,
+                hint: error.hint
+              });
               settleError = error;
               // If it's a network/5xx error and not the last attempt, retry
               if (attempt < maxRetries && (error.code === 'PGRST116' || error.message?.includes('network') || error.message?.includes('timeout'))) {
@@ -678,25 +716,50 @@ serve(async (req) => {
               break;
             }
             
+            console.log(`end_game: settle_match() attempt ${attempt} result:`, {
+              success: data?.success,
+              error: data?.error,
+              already_settled: data?.already_settled
+            });
+            
             settleResult = data;
             break;
           }
           
           if (settleError || !settleResult || !settleResult.success) {
             const errorDetails = settleError?.message || settleResult?.error || settleError?.details || "Failed to settle game";
-            console.error("SETTLEMENT_FAILED", { 
-              game_id: gameId, 
+            const fullErrorInfo = {
               error: errorDetails,
-              settleError: settleError ? { message: settleError.message, code: settleError.code, details: settleError.details } : null,
-              settleResult: settleResult ? { success: settleResult.success, error: settleResult.error } : null,
+              settleError: settleError ? { 
+                message: settleError.message, 
+                code: settleError.code, 
+                details: settleError.details,
+                hint: settleError.hint 
+              } : null,
+              settleResult: settleResult ? { 
+                success: settleResult.success, 
+                error: settleResult.error 
+              } : null,
+              gameState: {
+                id: game.id,
+                status: game.status,
+                wager: game.wager,
+                wager_locked_at: (game as any).wager_locked_at,
+                settled_at: (game as any).settled_at,
+                white_player_id: game.white_player_id,
+                black_player_id: game.black_player_id
+              },
               resolvedWinnerUserId,
+              winnerIdParam,
               step: "settle_match_rpc",
               attempts: maxRetries
-            });
+            };
+            console.error("SETTLEMENT_FAILED", fullErrorInfo);
             return new Response(
               JSON.stringify({ 
                 error: "SETTLEMENT_FAILED", 
-                details: errorDetails
+                details: errorDetails,
+                debug: fullErrorInfo
               }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
