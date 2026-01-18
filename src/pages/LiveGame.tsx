@@ -56,6 +56,13 @@ export default function LiveGame() {
     sendMove(from, to, promotion);
   };
 
+  const handleTimeLoss = (loserColor: 'w' | 'b') => {
+    // When time runs out, resign the game
+    // The server should handle determining the winner
+    console.log(`[LiveGame] Time loss for ${loserColor === 'w' ? 'white' : 'black'}`);
+    resignGame();
+  };
+
   const handlePlayAgain = () => {
     clearGameEnd();
     refreshBalance();  // Refresh balance when going to play again
@@ -213,6 +220,7 @@ export default function LiveGame() {
         onSendMove={handleSendMove}
         onExit={handleExit}
         onBack={handleBack}
+        onTimeLoss={handleTimeLoss}
       />
       <NetworkDebugPanel
         status={status}

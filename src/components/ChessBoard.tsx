@@ -1,6 +1,8 @@
-import { useState, useCallback } from 'react';
-import { Chess, Square as ChessSquare } from 'chess.js';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { Chess, Square as ChessSquare, Move } from 'chess.js';
 import { cn } from '@/lib/utils';
+import { PIECE_SYMBOLS, FILES, RANKS } from '@/lib/chessConstants';
+import { X } from 'lucide-react';
 
 interface ChessBoardProps {
   game: Chess;
@@ -9,20 +11,28 @@ interface ChessBoardProps {
   lastMove: { from: string; to: string } | null;
   isCheck: boolean;
   flipped?: boolean;
+  isGameOver?: boolean;
+  onMoveSound?: () => void;
+  onCaptureSound?: () => void;
+  onCheckSound?: () => void;
 }
 
-const PIECE_SYMBOLS: Record<string, string> = {
-  'wp': '♙', 'wn': '♘', 'wb': '♗', 'wr': '♖', 'wq': '♕', 'wk': '♔',
-  'bp': '♟', 'bn': '♞', 'bb': '♝', 'br': '♜', 'bq': '♛', 'bk': '♚',
-};
-
-const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'];
-
-export const ChessBoard = ({ game, onMove, isPlayerTurn, lastMove, isCheck, flipped = false }: ChessBoardProps) => {
+export const ChessBoard = ({ 
+  game, 
+  onMove, 
+  isPlayerTurn, 
+  lastMove, 
+  isCheck, 
+  flipped = false,
+  isGameOver = false,
+  onMoveSound,
+  onCaptureSound,
+  onCheckSound,
+}: ChessBoardProps) => {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [validMoves, setValidMoves] = useState<string[]>([]);
+  const [validMoves, setValidMoves] = useState<Move[]>([]);
   const [captureAnimation, setCaptureAnimation] = useState<string | null>(null);
+  const lastSoundRef = useRef<number>(0);
 
   const displayFiles = flipped ? [...FILES].reverse() : FILES;
   const displayRanks = flipped ? [...RANKS].reverse() : RANKS;
@@ -35,8 +45,26 @@ export const ChessBoard = ({ game, onMove, isPlayerTurn, lastMove, isCheck, flip
 
   const playerColor = flipped ? 'b' : 'w';
 
+  // Clear selection when game ends or turn changes
+  useEffect(() => {
+    if (isGameOver || !isPlayerTurn) {
+      setSelectedSquare(null);
+      setValidMoves([]);
+    }
+  }, [isGameOver, isPlayerTurn]);
+
+  // Get capture moves for highlighting
+  const getCaptureMoves = (): string[] => {
+    return validMoves
+      .filter(move => move.captured)
+      .map(move => move.to);
+  };
+
+  const captureMoves = getCaptureMoves();
+
   const handleSquareClick = useCallback((row: number, col: number) => {
-    if (!isPlayerTurn) return;
+    // Block moves if game is over or not player's turn
+    if (!isPlayerTurn || isGameOver) return;
 
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
@@ -44,7 +72,9 @@ export const ChessBoard = ({ game, onMove, isPlayerTurn, lastMove, isCheck, flip
     if (selectedSquare) {
       // Try to make a move
       const targetPiece = game.get(square);
-      if (targetPiece && targetPiece.color !== playerColor) {
+      const isCapture = targetPiece && targetPiece.color !== playerColor;
+      
+      if (isCapture) {
         setCaptureAnimation(square);
         setTimeout(() => setCaptureAnimation(null), 300);
       }
@@ -58,20 +88,49 @@ export const ChessBoard = ({ game, onMove, isPlayerTurn, lastMove, isCheck, flip
       }
 
       const success = onMove(selectedSquare, square, promotion);
+      
+      if (success) {
+        // Play appropriate sound (prevent double-play)
+        const now = Date.now();
+        if (now - lastSoundRef.current > 50) {
+          lastSoundRef.current = now;
+          
+          // Check if resulting position is check
+          const testGame = new Chess(game.fen());
+          try {
+            testGame.move({ from: selectedSquare, to: square, promotion });
+            if (testGame.isCheck()) {
+              onCheckSound?.();
+            } else if (isCapture) {
+              onCaptureSound?.();
+            } else {
+              onMoveSound?.();
+            }
+          } catch {
+            // Move was made optimistically, just play move sound
+            if (isCapture) {
+              onCaptureSound?.();
+            } else {
+              onMoveSound?.();
+            }
+          }
+        }
+      }
+      
       setSelectedSquare(null);
       setValidMoves([]);
       
       if (!success && piece && piece.color === playerColor) {
         setSelectedSquare(square);
         const moves = game.moves({ square, verbose: true });
-        setValidMoves(moves.map(m => m.to));
+        setValidMoves(moves);
       }
     } else if (piece && piece.color === playerColor) {
       setSelectedSquare(square);
       const moves = game.moves({ square, verbose: true });
-      setValidMoves(moves.map(m => m.to));
+      setValidMoves(moves);
     }
-  }, [selectedSquare, game, onMove, isPlayerTurn, playerColor, flipped]);
+  }, [selectedSquare, game, onMove, isPlayerTurn, playerColor, flipped, isGameOver, onMoveSound, onCaptureSound, onCheckSound]);
 
   const isLightSquare = (row: number, col: number) => {
     const actualRow = flipped ? 7 - row : row;
@@ -93,6 +152,7 @@ export const ChessBoard = ({ game, onMove, isPlayerTurn, lastMove, isCheck, flip
   };
 
   const kingSquare = isCheck ? getKingSquare() : null;
+  const validMoveSquares = validMoves.map(m => m.to);
 
   return (
     <div className="relative">
@@ -102,7 +162,8 @@ export const ChessBoard = ({ game, onMove, isPlayerTurn, lastMove, isCheck, flip
             const square = getSquareNotation(row, col);
             const piece = game.get(square);
             const isSelected = selectedSquare === square;
-            const isValidMove = validMoves.includes(square);
+            const isValidMove = validMoveSquares.includes(square);
+            const isCaptureMove = captureMoves.includes(square);
             const isLastMoveSquare = lastMove && (lastMove.from === square || lastMove.to === square);
             const isKingInCheck = kingSquare === square;
             const isCapturing = captureAnimation === square;
@@ -117,22 +178,37 @@ export const ChessBoard = ({ game, onMove, isPlayerTurn, lastMove, isCheck, flip
                   isSelected && "ring-4 ring-primary ring-inset",
                   isLastMoveSquare && "bg-primary/20",
                   isKingInCheck && "bg-destructive/40",
-                  !isPlayerTurn && "cursor-not-allowed"
+                  // Capture highlighting - red tint for capturable squares
+                  isCaptureMove && "bg-red-500/30",
+                  !isPlayerTurn && "cursor-not-allowed",
+                  isGameOver && "cursor-not-allowed opacity-90"
                 )}
               >
-                {/* Valid move indicator */}
-                {isValidMove && !piece && (
+                {/* Valid move indicator (non-capture) */}
+                {isValidMove && !piece && !isCaptureMove && (
                   <div className="absolute w-4 h-4 rounded-full bg-primary/40 animate-pulse" />
                 )}
-                {isValidMove && piece && (
+                
+                {/* Valid move indicator for non-capture squares with pieces */}
+                {isValidMove && piece && !isCaptureMove && (
                   <div className="absolute inset-1 rounded-full border-4 border-primary/50 animate-pulse" />
+                )}
+                
+                {/* Capture indicator - Red X overlay */}
+                {isCaptureMove && (
+                  <>
+                    <div className="absolute inset-0 bg-red-500/20 z-10" />
+                    <div className="absolute inset-0 flex items-center justify-center z-20">
+                      <X className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-red-500/70 stroke-[3]" />
+                    </div>
+                  </>
                 )}
 
                 {/* Piece */}
                 {piece && (
                   <span
                     className={cn(
-                      "text-4xl sm:text-5xl md:text-6xl select-none transition-transform duration-200",
+                      "text-4xl sm:text-5xl md:text-6xl select-none transition-transform duration-200 z-30",
                       piece.color === 'w' ? "text-foreground drop-shadow-lg" : "text-muted-foreground drop-shadow-lg",
                       isSelected && "scale-110",
                       isCapturing && "animate-bounce-in"
@@ -149,12 +225,12 @@ export const ChessBoard = ({ game, onMove, isPlayerTurn, lastMove, isCheck, flip
 
                 {/* Coordinate labels */}
                 {col === 0 && (
-                  <span className="absolute top-0.5 left-1 text-xs font-bold text-muted-foreground/60">
+                  <span className="absolute top-0.5 left-1 text-xs font-bold text-muted-foreground/60 z-40">
                     {rank}
                   </span>
                 )}
                 {row === 7 && (
-                  <span className="absolute bottom-0.5 right-1 text-xs font-bold text-muted-foreground/60">
+                  <span className="absolute bottom-0.5 right-1 text-xs font-bold text-muted-foreground/60 z-40">
                     {file}
                   </span>
                 )}
