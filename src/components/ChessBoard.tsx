@@ -138,12 +138,14 @@ export const ChessBoard = ({
     return (actualRow + actualCol) % 2 === 0;
   };
 
-  const getKingSquare = () => {
+  // Get opponent's king square (when THEY are in check)
+  const getOpponentKingSquare = () => {
+    const opponentColor = playerColor === 'w' ? 'b' : 'w';
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
         const square = getSquareNotation(row, col);
         const piece = game.get(square);
-        if (piece?.type === 'k' && piece.color === playerColor) {
+        if (piece?.type === 'k' && piece.color === opponentColor) {
           return square;
         }
       }
@@ -151,7 +153,13 @@ export const ChessBoard = ({
     return null;
   };
 
-  const kingSquare = isCheck ? getKingSquare() : null;
+  // isCheck means current player to move is in check
+  // We want to highlight opponent's king when WE put them in check (after our move, it's their turn)
+  const opponentKingSquare = isCheck && !isPlayerTurn ? getOpponentKingSquare() : null;
+
+  // Only show lastMove highlight if it's opponent's move (when it's now our turn)
+  const showOpponentLastMove = lastMove && isPlayerTurn;
+
   const validMoveSquares = validMoves.map(m => m.to);
 
   return (
@@ -164,8 +172,8 @@ export const ChessBoard = ({
             const isSelected = selectedSquare === square;
             const isValidMove = validMoveSquares.includes(square);
             const isCaptureMove = captureMoves.includes(square);
-            const isLastMoveSquare = lastMove && (lastMove.from === square || lastMove.to === square);
-            const isKingInCheck = kingSquare === square;
+            const isOpponentLastMoveSquare = showOpponentLastMove && (lastMove.from === square || lastMove.to === square);
+            const isOpponentKingInCheck = opponentKingSquare === square;
             const isCapturing = captureAnimation === square;
 
             return (
@@ -176,8 +184,10 @@ export const ChessBoard = ({
                   "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center cursor-pointer relative transition-all duration-150",
                   isLightSquare(row, col) ? "chess-square-light" : "chess-square-dark",
                   isSelected && "ring-4 ring-primary ring-inset",
-                  isLastMoveSquare && "bg-primary/20",
-                  isKingInCheck && "bg-destructive/40",
+                  // Gray highlight for opponent's last move only
+                  isOpponentLastMoveSquare && "bg-muted-foreground/30",
+                  // Red highlight only for opponent's king when in check
+                  isOpponentKingInCheck && "bg-destructive/40",
                   // Capture highlighting - red tint for capturable squares
                   isCaptureMove && "bg-red-500/30",
                   !isPlayerTurn && "cursor-not-allowed",
