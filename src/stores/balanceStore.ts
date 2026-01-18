@@ -1,10 +1,10 @@
 /**
  * Balance Store - Real-time Skilled Coins Management
  * 
- * SINGLE CURRENCY: SKILLED COINS only (from players table)
+ * SINGLE CURRENCY: SKILLED COINS only (from profiles table)
  * 
  * Key features:
- * - Single source of truth: players.skilled_coins
+ * - Single source of truth: profiles.skilled_coins
  * - null = unknown (loading), show skeleton
  * - 0 = actual zero balance from DB
  * - LocalStorage persistence for last known value
@@ -116,9 +116,9 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
     set({ loading: true, error: null });
     
     try {
-      // Fetch from players table (THE source of truth for skilled_coins)
+      // Fetch from profiles table (THE source of truth for skilled_coins)
       const { data, error } = await supabase
-        .from('players')
+        .from('profiles')
         .select('skilled_coins')
         .eq('user_id', userId)
         .maybeSingle();
@@ -171,15 +171,15 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
     
     console.log('[Balance] Setting up realtime subscription for user:', userId);
     
-    // Subscribe to changes on this user's player row
+    // Subscribe to changes on this user's profile row
     const channel = supabase
-      .channel(`player-balance-${userId}`)
+      .channel(`profile-balance-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'players',
+          table: 'profiles',
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {

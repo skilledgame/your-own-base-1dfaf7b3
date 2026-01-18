@@ -636,16 +636,20 @@ serve(async (req) => {
           }
           
           if (settleError || !settleResult || !settleResult.success) {
+            const errorDetails = settleError?.message || settleResult?.error || settleError?.details || "Failed to settle game";
             console.error("SETTLEMENT_FAILED", { 
               game_id: gameId, 
-              error: settleError || settleResult?.error, 
+              error: errorDetails,
+              settleError: settleError ? { message: settleError.message, code: settleError.code, details: settleError.details } : null,
+              settleResult: settleResult ? { success: settleResult.success, error: settleResult.error } : null,
+              resolvedWinnerUserId,
               step: "settle_match_rpc",
               attempts: maxRetries
             });
             return new Response(
               JSON.stringify({ 
                 error: "SETTLEMENT_FAILED", 
-                details: settleError?.message || settleResult?.error || "Failed to settle game"
+                details: errorDetails
               }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
