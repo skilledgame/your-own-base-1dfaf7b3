@@ -1,10 +1,10 @@
 /**
  * Balance Store - Real-time Skilled Coins Management
  * 
- * SINGLE CURRENCY: SKILLED COINS only (from profiles table)
+ * SINGLE CURRENCY: SKILLED COINS only (from players table)
  * 
  * Key features:
- * - Single source of truth: profiles.skilled_coins
+ * - Single source of truth: players.skilled_coins
  * - null = unknown (loading), show skeleton
  * - 0 = actual zero balance from DB
  * - LocalStorage persistence for last known value
@@ -116,9 +116,9 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
     set({ loading: true, error: null });
     
     try {
-      // Fetch from profiles table (THE source of truth for skilled_coins)
+      // Fetch from players table (THE source of truth for skilled_coins)
       const { data, error } = await supabase
-        .from('profiles')
+        .from('players')
         .select('skilled_coins')
         .eq('user_id', userId)
         .maybeSingle();
@@ -145,8 +145,8 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
           error: null,
         });
       } else {
-        // Profile doesn't exist yet - ensure-user should create it
-        console.log('[Balance] No profile found for user, will be created by ensure-user');
+        // Player doesn't exist yet - ensure-user should create it
+        console.log('[Balance] No player found for user, will be created by ensure-user');
         set({ skilledCoins: null, loading: false, userId });
       }
     } catch (error) {
@@ -171,15 +171,15 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
     
     console.log('[Balance] Setting up realtime subscription for user:', userId);
     
-    // Subscribe to changes on this user's profile row
+    // Subscribe to changes on this user's player row
     const channel = supabase
-      .channel(`profile-balance-${userId}`)
+      .channel(`player-balance-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'profiles',
+          table: 'players',
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
