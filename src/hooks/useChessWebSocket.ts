@@ -311,6 +311,14 @@ function initializeGlobalMessageHandler(): void {
           return;
         }
         
+        // Handle wager denied error (server-side validation failed)
+        if (payload.code === "WAGER_DENIED") {
+          toast.error("Unable to process wager. Please try again.");
+          useChessStore.getState().setPhase("idle");
+          wsClient.setSearching(false);
+          return;
+        }
+        
         // #region agent log
         const errorMessage = payload?.message ?? "Unknown error";
         fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:303',message:'Before toast.error',data:{errorMessage,messageType:typeof errorMessage,hasPayload:!!payload},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
