@@ -22,7 +22,7 @@ interface WSMultiplayerGameViewProps {
   dbGameId?: string;
   playerColor: "white" | "black";
   playerName: string;
-  playerCredits: number;
+  playerSkilledCoins: number;
   opponentName: string;
   initialFen: string;
   wager: number;
@@ -43,7 +43,7 @@ export const WSMultiplayerGameView = ({
   dbGameId,
   playerColor,
   playerName,
-  playerCredits,
+  playerSkilledCoins,
   opponentName,
   initialFen,
   wager,
@@ -255,7 +255,7 @@ export const WSMultiplayerGameView = ({
             {/* Balance Display */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-border">
               <Wallet className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{playerCredits} SC</span>
+              <span className="text-sm text-muted-foreground">{playerSkilledCoins} SC</span>
             </div>
           </div>
           

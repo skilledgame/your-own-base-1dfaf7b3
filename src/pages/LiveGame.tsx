@@ -10,6 +10,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
+import { useBalance } from '@/hooks/useBalance';
 import { WSMultiplayerGameView } from '@/components/WSMultiplayerGameView';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { GameResultModal } from '@/components/GameResultModal';
@@ -21,7 +22,8 @@ export default function LiveGame() {
   const navigate = useNavigate();
   
   // Global state from Zustand store
-  const { phase, gameState, gameEndResult, playerCredits } = useChessStore();
+  const { phase, gameState, gameEndResult } = useChessStore();
+  const { balance } = useBalance();
   
   // WebSocket connection and actions
   const {
@@ -131,7 +133,7 @@ export default function LiveGame() {
         <GameResultModal
           isWin={gameEndResult.isWin}
           coinsChange={tokensChange}
-          newBalance={playerCredits}
+          newBalance={balance}
           reason={gameEndResult.message}
           onPlayAgain={handlePlayAgain}
           onGoHome={handleGoHome}
@@ -211,7 +213,7 @@ export default function LiveGame() {
         dbGameId={gameState.dbGameId}
         playerColor={playerColor}
         playerName={gameState.playerName}
-        playerCredits={playerCredits}
+        playerSkilledCoins={balance}
         opponentName={gameState.opponentName}
         initialFen={gameState.fen}
         wager={gameState.wager}

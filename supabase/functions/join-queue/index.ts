@@ -215,7 +215,7 @@ serve(async (req) => {
           );
         }
 
-        // Lock wager: deduct skilled_coins from both players
+        // Lock wager: deduct skilled_coins from both players' profiles
         console.log(`[JOIN-QUEUE] Locking wager for game ${gameData.id}...`);
         const { data: lockResult, error: lockError } = await supabaseAdmin.rpc('lock_wager', {
           p_game_id: gameData.id

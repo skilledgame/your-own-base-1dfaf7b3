@@ -393,7 +393,8 @@ export default function GameStart() {
     const isWin = winnerId === player.id;
     const isDraw = !winnerId;
     const tokensChange = isDraw ? 0 : (isWin ? currentGame.wager : -currentGame.wager);
-    const newBalance = player.credits + tokensChange;
+    // Balance changes are handled server-side via settle_match RPC
+    // Frontend will update via realtime subscription to profiles.skilled_coins
     
     setGameResult({ isWin, tokensChange, newBalance, reason });
     fetchBalance(); // Refresh balance

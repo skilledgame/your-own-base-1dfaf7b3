@@ -39,7 +39,7 @@ interface ChessStore {
   gameState: GameState | null;
   gameEndResult: GameEndResult | null;
   playerName: string;
-  playerCredits: number;       // Current user's balance
+  // Removed playerCredits - use balanceStore.skilledCoins instead
   selectedWager: number;       // Selected wager for next match
   isAuthenticated: boolean;    // Whether user is signed in
   
@@ -48,7 +48,7 @@ interface ChessStore {
   setGameState: (gameState: GameState | null) => void;
   setGameEndResult: (result: GameEndResult | null) => void;
   setPlayerName: (name: string) => void;
-  setPlayerCredits: (credits: number) => void;
+  // Removed setPlayerCredits - balance managed by balanceStore
   setSelectedWager: (wager: number) => void;
   setAuthenticated: (auth: boolean) => void;
   
@@ -86,7 +86,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   gameState: null,
   gameEndResult: null,
   playerName: "Player",
-  playerCredits: 0,
+  // Removed playerCredits - use balanceStore.skilledCoins instead
   selectedWager: 10,  // Default wager
   isAuthenticated: false,
   
@@ -110,10 +110,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     set({ playerName });
   },
   
-  setPlayerCredits: (playerCredits) => {
-    console.log("[ChessStore] setPlayerCredits:", playerCredits);
-    set({ playerCredits });
-  },
+  // Removed setPlayerCredits - balance managed by balanceStore
   
   setSelectedWager: (selectedWager) => {
     console.log("[ChessStore] setSelectedWager:", selectedWager);

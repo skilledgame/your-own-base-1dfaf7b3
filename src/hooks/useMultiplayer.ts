@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 interface Player {
   id: string;
   name: string;
-  credits: number;
   user_id: string;
 }
 
@@ -58,7 +57,6 @@ export const useMultiplayer = () => {
       const playerData: Player = {
         id: data.id,
         name: data.name,
-        credits: data.credits,
         user_id: data.user_id,
       };
       setPlayer(playerData);
@@ -84,10 +82,10 @@ export const useMultiplayer = () => {
       return existing;
     }
 
-    // Create players entry
+    // Create players entry (no credits field - uses profiles.skilled_coins)
     const { data, error } = await supabase
       .from('players')
-      .insert({ name, user_id: user.id, credits: 1000 })
+      .insert({ name, user_id: user.id })
       .select()
       .single();
 
@@ -104,7 +102,6 @@ export const useMultiplayer = () => {
     const playerData: Player = {
       id: data.id,
       name: data.name,
-      credits: data.credits,
       user_id: data.user_id,
     };
     setPlayer(playerData);
@@ -298,8 +295,7 @@ export const useMultiplayer = () => {
         return;
       }
 
-      // Refresh player data to get updated credits
-      await loadPlayer();
+      // Balance will be updated via realtime subscription to profiles.skilled_coins
     } catch (error) {
       console.error('Error ending game:', error);
       toast.error('Failed to end game');

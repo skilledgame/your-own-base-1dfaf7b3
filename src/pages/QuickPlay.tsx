@@ -78,13 +78,13 @@ export default function QuickPlay() {
     phase, 
     gameState, 
     playerName, 
-    playerCredits,
+    // Removed playerCredits - use balanceStore instead
     selectedWager,
     setSelectedWager 
   } = useChessStore();
   
   // Use the higher balance (store or chess store)
-  const displayBalance = Math.max(storeBalance, playerCredits);
+  const displayBalance = storeBalance; // Use balanceStore only
   
   // WebSocket connection and actions
   const {

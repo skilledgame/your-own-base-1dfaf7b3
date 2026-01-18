@@ -334,12 +334,18 @@ serve(async (req) => {
           );
         }
 
-        const canAfford = Number.isFinite(wager) ? ensured.player.credits >= wager : false;
+        // Check skilled_coins from profiles (not players.credits)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('skilled_coins')
+          .eq('user_id', ensured.user.id)
+          .maybeSingle();
+        const canAfford = Number.isFinite(wager) && profile ? profile.skilled_coins >= wager : false;
         return new Response(
           JSON.stringify({
             valid: canAfford,
             playerId: ensured.player.id,
-            credits: ensured.player.credits,
+            skilled_coins: profile?.skilled_coins ?? 0,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
@@ -544,31 +550,21 @@ serve(async (req) => {
           if (game.status !== "active") {
             console.log("end_game: game already settled, status =", game.status);
             
-            const [whiteRes, blackRes] = await Promise.all([
-              supabase.from("players").select("id, credits").eq("id", game.white_player_id).maybeSingle(),
-              supabase.from("players").select("id, credits").eq("id", game.black_player_id).maybeSingle(),
-            ]);
-            
             return new Response(
               JSON.stringify({
                 success: true,
                 game_id: gameId,
                 winner_id: game.winner_id,
                 already_settled: true,
-                balances: {
-                  white: { player_id: game.white_player_id, credits: whiteRes.data?.credits ?? null },
-                  black: { player_id: game.black_player_id, credits: blackRes.data?.credits ?? null },
-                },
               }),
               { headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
           }
           
-          // Step 3: Resolve winnerId - it could be auth user ID or player ID
-          // The games.winner_id FK references players.id, so we need to convert
-          console.log("end_game STEP 3: Resolving winner ID...");
+          // Step 3: Resolve winner user_id (not player_id)
+          console.log("end_game STEP 3: Resolving winner user_id...");
           
-          // First, get players to resolve winnerId
+          // Get players to resolve winnerId to user_id
           const [whitePlayerRes, blackPlayerRes] = await Promise.all([
             supabase.from("players").select("id, user_id").eq("id", game.white_player_id).maybeSingle(),
             supabase.from("players").select("id, user_id").eq("id", game.black_player_id).maybeSingle(),
@@ -585,33 +581,33 @@ serve(async (req) => {
           const whitePlayer = whitePlayerRes.data;
           const blackPlayer = blackPlayerRes.data;
           
-          let resolvedWinnerId: string | null = null;
+          let resolvedWinnerUserId: string | null = null;
           
           if (winnerIdParam) {
-            // Check if winnerIdParam matches a player.id directly
-            if (winnerIdParam === whitePlayer.id) {
-              resolvedWinnerId = whitePlayer.id;
-              console.log("end_game: winnerId matched white player.id");
-            } else if (winnerIdParam === blackPlayer.id) {
-              resolvedWinnerId = blackPlayer.id;
-              console.log("end_game: winnerId matched black player.id");
-            }
-            // Check if winnerIdParam matches a player.user_id (auth user ID)
-            else if (winnerIdParam === whitePlayer.user_id) {
-              resolvedWinnerId = whitePlayer.id;
-              console.log("end_game: winnerId matched white player.user_id, resolved to player.id:", whitePlayer.id);
+            // Check if winnerIdParam matches a player.user_id (auth user ID) - this is what we need
+            if (winnerIdParam === whitePlayer.user_id) {
+              resolvedWinnerUserId = whitePlayer.user_id;
+              console.log("end_game: winnerId matched white player.user_id");
             } else if (winnerIdParam === blackPlayer.user_id) {
-              resolvedWinnerId = blackPlayer.id;
-              console.log("end_game: winnerId matched black player.user_id, resolved to player.id:", blackPlayer.id);
+              resolvedWinnerUserId = blackPlayer.user_id;
+              console.log("end_game: winnerId matched black player.user_id");
+            }
+            // Check if winnerIdParam matches a player.id - convert to user_id
+            else if (winnerIdParam === whitePlayer.id) {
+              resolvedWinnerUserId = whitePlayer.user_id;
+              console.log("end_game: winnerId matched white player.id, resolved to user_id:", whitePlayer.user_id);
+            } else if (winnerIdParam === blackPlayer.id) {
+              resolvedWinnerUserId = blackPlayer.user_id;
+              console.log("end_game: winnerId matched black player.id, resolved to user_id:", blackPlayer.user_id);
             } else {
               console.warn("end_game: winnerId does not match any player, treating as draw. winnerIdParam:", winnerIdParam);
             }
           }
           
-          console.log("end_game: resolved winner:", { winnerIdParam, resolvedWinnerId });
+          console.log("end_game: resolved winner user_id:", { winnerIdParam, resolvedWinnerUserId });
           
-          // Step 4: Call settle_game() RPC function (atomic, idempotent)
-          console.log("end_game STEP 4: Calling settle_game() RPC...");
+          // Step 4: Call settle_match() RPC function (atomic, idempotent)
+          console.log("end_game STEP 4: Calling settle_match() RPC...");
           
           // Retry logic for network/5xx errors (idempotent, so safe to retry)
           let settleResult: any = null;
@@ -619,17 +615,16 @@ serve(async (req) => {
           const maxRetries = 5;
           
           for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            const { data, error } = await supabase.rpc('settle_game', {
+            const { data, error } = await supabase.rpc('settle_match', {
               p_game_id: gameId,
-              p_winner_id: resolvedWinnerId,
-              p_reason: reason || 'Game ended'
+              p_winner_user_id: resolvedWinnerUserId
             });
             
             if (error) {
               settleError = error;
               // If it's a network/5xx error and not the last attempt, retry
               if (attempt < maxRetries && (error.code === 'PGRST116' || error.message?.includes('network') || error.message?.includes('timeout'))) {
-                console.warn(`end_game: settle_game() attempt ${attempt} failed, retrying...`, error);
+                console.warn(`end_game: settle_match() attempt ${attempt} failed, retrying...`, error);
                 await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
                 continue;
               }
@@ -644,7 +639,7 @@ serve(async (req) => {
             console.error("SETTLEMENT_FAILED", { 
               game_id: gameId, 
               error: settleError || settleResult?.error, 
-              step: "settle_game_rpc",
+              step: "settle_match_rpc",
               attempts: maxRetries
             });
             return new Response(
@@ -656,25 +651,23 @@ serve(async (req) => {
             );
           }
           
-          console.log("end_game: settle_game() RPC succeeded", {
+          console.log("end_game: settle_match() RPC succeeded", {
             already_settled: settleResult.already_settled,
-            winner_id: settleResult.winner_id,
+            winner_user_id: settleResult.winner_user_id,
             wager: settleResult.wager,
-            payout: settleResult.payout,
-            balances: settleResult.balances
+            payout: settleResult.payout
           });
           
-          // Return the result from settle_game() RPC
+          // Return the result from settle_match() RPC
           return new Response(
             JSON.stringify({
               success: true,
               game_id: gameId,
-              winner_id: settleResult.winner_id,
+              winner_user_id: settleResult.winner_user_id,
               reason: reason || 'Game ended',
               already_settled: settleResult.already_settled || false,
               wager: settleResult.wager,
               payout: settleResult.payout,
-              balances: settleResult.balances,
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );

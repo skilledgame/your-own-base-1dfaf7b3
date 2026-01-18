@@ -291,7 +291,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     playerName,
     setPhase,
     setPlayerName,
-    setPlayerCredits,
+    // Removed setPlayerCredits - balance managed by balanceStore
     setAuthenticated,
     resetAll 
   } = useChessStore();
@@ -322,28 +322,18 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setPlayerCredits(0);
+        // Balance managed by balanceStore
         return;
       }
       
       // Use the balance store
       fetchBalance(user.id);
       
-      // Also update chess store for backward compat
-      const { data: playerData } = await supabase
-        .from('players')
-        .select('credits')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (playerData) {
-        setPlayerCredits(playerData.credits || 0);
-        console.log("[Chess WS] Balance refreshed:", playerData.credits);
-      }
+      // Balance is managed by balanceStore via profiles.skilled_coins realtime subscription
     } catch (error) {
       console.error("[Chess WS] Failed to refresh balance:", error);
     }
-  }, [setPlayerCredits, fetchBalance]);
+  }, [fetchBalance]);
   
   // Set up navigation and balance refresh callbacks for the global message handler
   useEffect(() => {

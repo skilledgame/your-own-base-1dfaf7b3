@@ -62,7 +62,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[JOIN-LOBBY] Player: ${player.id} (${player.name}), credits: ${player.credits}`);
+    console.log(`[JOIN-LOBBY] Player: ${player.id} (${player.name})`);
 
     // Find the waiting lobby
     let lobbyQuery = supabaseAdmin
@@ -107,7 +107,14 @@ serve(async (req) => {
       _user_id: user.id,
     });
 
-    if (!isPrivileged && lobby.wager > player.credits) {
+    // Check skilled_coins from profiles (not players.credits)
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('skilled_coins')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (!isPrivileged && profile && lobby.wager > profile.skilled_coins) {
       return new Response(
         JSON.stringify({ error: 'Insufficient credits for this wager' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

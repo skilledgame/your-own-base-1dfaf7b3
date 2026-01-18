@@ -67,14 +67,21 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[CREATE-LOBBY] Player: ${player.id} (${player.name}), credits: ${player.credits}`);
+    console.log(`[CREATE-LOBBY] Player: ${player.id} (${player.name})`);
 
     // Check credits
     const { data: isPrivileged } = await supabaseAdmin.rpc('is_privileged_user', {
       _user_id: user.id,
     });
 
-    if (!isPrivileged && wager > player.credits) {
+    // Check skilled_coins from profiles (not players.credits)
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('skilled_coins')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (!isPrivileged && profile && wager > profile.skilled_coins) {
       return new Response(
         JSON.stringify({ error: 'Insufficient credits' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

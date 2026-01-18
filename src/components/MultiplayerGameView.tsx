@@ -7,7 +7,7 @@ import { ArrowLeft, User, Loader2 } from 'lucide-react';
 import { Chess } from 'chess.js';
 
 interface MultiplayerGameViewProps {
-  player: { id: string; name: string; credits: number };
+  player: { id: string; name: string; skilledCoins: number };
   opponent: { id: string; name: string };
   game: {
     id: string;
@@ -122,7 +122,7 @@ export const MultiplayerGameView = ({
             <ArrowLeft className="w-4 h-4" />
             Exit
           </Button>
-          <TokenBalance balance={player.credits} />
+          <TokenBalance balance={player.skilledCoins} />
         </div>
 
         {/* Game Area */}
