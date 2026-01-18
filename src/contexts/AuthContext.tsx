@@ -154,13 +154,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Bootstrap: Check session on mount
+  // Bootstrap: Set up auth listener FIRST, then get session
+  // This ensures we don't miss any auth events during initialization
   useEffect(() => {
     let mounted = true;
     
     const bootstrap = async () => {
       try {
         console.log('[Auth] Bootstrap starting...');
+        
+        // CRITICAL: Set up listener BEFORE getting session to avoid race conditions
+        // The listener will handle INITIAL_SESSION event which fires immediately
+        
+        // Now safely check for existing session
+        // getSession() returns the session from localStorage
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -168,6 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           console.error('[Auth] Bootstrap error:', error);
           setLoading(false);
+          setRoleLoading(false);
           bootstrapComplete.current = true;
           return;
         }
@@ -176,13 +184,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('[Auth] Bootstrap: Session found, user:', initialSession.user.id);
           setSession(initialSession);
           setUser(initialSession.user);
-          await fetchRole(initialSession.user.id);
+          
+          // Fetch role in background
+          setTimeout(() => {
+            if (mounted && initialSession.user.id) {
+              fetchRole(initialSession.user.id);
+            }
+          }, 0);
         } else {
-          console.log('[Auth] Bootstrap: No session');
+          console.log('[Auth] Bootstrap: No session in localStorage');
           setRoleLoading(false);
         }
       } catch (error) {
         console.error('[Auth] Bootstrap failed:', error);
+        setRoleLoading(false);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -202,18 +217,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Listen for auth state changes
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         console.log('[Auth] State change:', event, 'session:', !!newSession);
-        
-        // Don't process events until bootstrap is complete
-        if (!bootstrapComplete.current && event !== 'INITIAL_SESSION') {
-          console.log('[Auth] Ignoring event before bootstrap:', event);
-          return;
-        }
         
         // Don't process events during sign out
         if (signOutInProgress.current) {
           console.log('[Auth] Ignoring event during sign out:', event);
+          return;
+        }
+        
+        // Handle INITIAL_SESSION - this fires immediately when listener is set up
+        if (event === 'INITIAL_SESSION') {
+          // If bootstrap is already complete and we have a session, sync it
+          if (newSession && !session) {
+            console.log('[Auth] INITIAL_SESSION providing session');
+            setSession(newSession);
+            setUser(newSession.user);
+            setLoading(false);
+            bootstrapComplete.current = true;
+            
+            // Fetch role in background - use setTimeout to avoid deadlock
+            setTimeout(() => {
+              if (!roleFetched.current && newSession.user.id) {
+                fetchRole(newSession.user.id);
+              }
+            }, 0);
+          }
+          return;
+        }
+        
+        // For other events, wait for bootstrap to complete
+        if (!bootstrapComplete.current) {
+          console.log('[Auth] Ignoring event before bootstrap:', event);
           return;
         }
         
@@ -224,7 +259,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setSession(newSession);
               setUser(newSession.user);
               if (!roleFetched.current) {
-                await fetchRole(newSession.user.id);
+                // Defer to avoid Supabase client deadlock
+                setTimeout(() => fetchRole(newSession.user.id), 0);
               }
             }
             break;
@@ -235,6 +271,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setSession(null);
               setUser(null);
               setRole('user');
+              setRoleLoading(false);
               roleFetched.current = false;
             }
             break;
@@ -245,16 +282,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(newSession.user);
             }
             break;
-            
-          case 'INITIAL_SESSION':
-            // Already handled in bootstrap
-            break;
         }
       }
     );
     
     return () => subscription.unsubscribe();
-  }, [fetchRole]);
+  }, [fetchRole, session]);
 
   // Handle tab visibility changes - refresh session when tab becomes visible
   useEffect(() => {
