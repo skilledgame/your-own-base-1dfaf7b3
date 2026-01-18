@@ -351,6 +351,53 @@ serve(async (req) => {
         );
       }
 
+      case "lock_wager": {
+        const gameId = params.game_id || params.gameId || params.dbGameId;
+        
+        if (!gameId) {
+          return new Response(
+            JSON.stringify({ 
+              ok: false, 
+              error: "MISSING_GAME_ID", 
+              message: "lock_wager requires game_id" 
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data, error } = await supabase.rpc('lock_wager', {
+          p_game_id: gameId
+        });
+
+        if (error) {
+          console.error("lock_wager RPC error:", error);
+          return new Response(
+            JSON.stringify({ 
+              ok: false, 
+              error: "LOCK_WAGER_FAILED", 
+              details: error.message 
+            }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!data || !data.success) {
+          return new Response(
+            JSON.stringify({ 
+              ok: false, 
+              error: data?.error || "LOCK_WAGER_FAILED", 
+              details: data?.error 
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, ...data }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       case "create_game": {
         const p = params as Record<string, unknown>;
 
