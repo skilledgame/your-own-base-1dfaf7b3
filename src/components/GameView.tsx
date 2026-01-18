@@ -1,12 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ChessBoard } from './ChessBoard';
 import { GameTimer } from './GameTimer';
+import { CapturedPieces } from './CapturedPieces';
 import { TokenBalance } from './TokenBalance';
 import { WagerModal } from './WagerModal';
 import { GameResultModal } from './GameResultModal';
 import { useChessGame } from '@/hooks/useChessGame';
+import { useChessSound } from '@/hooks/useChessSound';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Bot, User, Sparkles } from 'lucide-react';
+import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
+import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
 
 interface GameViewProps {
   balance: number;
@@ -25,6 +29,9 @@ export const GameView = ({ balance, onBalanceChange, onBack, isFreePlay = false 
     reason: string;
   } | null>(null);
 
+  // Sound effects
+  const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
+
   const handleGameEnd = useCallback((result: 'win' | 'lose', reason: string) => {
     const isWin = result === 'win';
     // No tokens change for free play
@@ -34,14 +41,24 @@ export const GameView = ({ balance, onBalanceChange, onBack, isFreePlay = false 
     if (!isFreePlay) {
       onBalanceChange(newBalance);
     }
+    playGameEnd();
     setGameResult({ isWin, tokensChange, newBalance, reason });
-  }, [currentWager, balance, onBalanceChange, isFreePlay]);
+  }, [currentWager, balance, onBalanceChange, isFreePlay, playGameEnd]);
 
   const { game, timeLeft, isPlayerTurn, isGameActive, lastMove, isCheck, startGame, makeMove, resetGame } = useChessGame({
-    initialTime: 60,
-    timeIncrement: 3,
+    initialTime: CHESS_TIME_CONTROL.BASE_TIME,
+    timeIncrement: CHESS_TIME_CONTROL.INCREMENT,
     onGameEnd: handleGameEnd,
   });
+
+  // Calculate captured pieces and material advantage
+  const capturedPieces = calculateCapturedPieces(game);
+  const materialAdvantage = calculateMaterialAdvantage(game);
+  
+  // Player is white, bot is black
+  const playerCaptured = capturedPieces.white;  // Pieces player captured
+  const botCaptured = capturedPieces.black;      // Pieces bot captured
+  const playerMaterialAdvantage = materialAdvantage.difference;
 
   // Auto-start game for free play
   useEffect(() => {
@@ -107,30 +124,50 @@ export const GameView = ({ balance, onBalanceChange, onBack, isFreePlay = false 
 
         {/* Game Area */}
         <div className="flex flex-col items-center gap-6">
-          {/* Bot Timer */}
+          {/* Bot Info with captured pieces */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
-              <Bot className="w-5 h-5 text-muted-foreground" />
-              <span className="font-display font-semibold text-muted-foreground">
-                {isFreePlay ? 'Practice Bot (600 Elo)' : 'Easy Bot'}
-              </span>
+            <div className="flex flex-col items-start gap-1 px-4 py-2 bg-secondary rounded-lg">
+              <div className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-muted-foreground" />
+                <span className="font-display font-semibold text-muted-foreground">
+                  {isFreePlay ? 'Practice Bot (600 Elo)' : 'Easy Bot'}
+                </span>
+              </div>
+              {/* Bot's captured pieces (pieces bot captured = player's missing pieces) */}
+              <CapturedPieces 
+                pieces={botCaptured} 
+                color="black"
+                materialAdvantage={-playerMaterialAdvantage > 0 ? -playerMaterialAdvantage : undefined}
+              />
             </div>
           </div>
 
-          {/* Chess Board */}
+          {/* Chess Board with sound callbacks */}
           <ChessBoard
             game={game}
             onMove={makeMove}
             isPlayerTurn={isPlayerTurn}
             lastMove={lastMove}
             isCheck={isCheck}
+            isGameOver={!isGameActive && gameResult !== null}
+            onMoveSound={playMove}
+            onCaptureSound={playCapture}
+            onCheckSound={playCheck}
           />
 
-          {/* Player Info */}
+          {/* Player Info with captured pieces */}
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
-              <User className="w-5 h-5 text-gold" />
-              <span className="font-display font-semibold text-foreground">You</span>
+            <div className="flex flex-col items-start gap-1 px-4 py-2 bg-secondary rounded-lg">
+              <div className="flex items-center gap-2">
+                <User className="w-5 h-5 text-gold" />
+                <span className="font-display font-semibold text-foreground">You</span>
+              </div>
+              {/* Player's captured pieces (pieces player captured = bot's missing pieces) */}
+              <CapturedPieces 
+                pieces={playerCaptured} 
+                color="white"
+                materialAdvantage={playerMaterialAdvantage > 0 ? playerMaterialAdvantage : undefined}
+              />
             </div>
             <GameTimer timeLeft={timeLeft} isActive={isPlayerTurn && isGameActive} />
           </div>
