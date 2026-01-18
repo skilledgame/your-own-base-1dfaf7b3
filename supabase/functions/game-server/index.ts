@@ -338,7 +338,7 @@ serve(async (req) => {
         const { data: profile } = await supabase
           .from('profiles')
           .select('skilled_coins')
-          .eq('user_id', ensured.user.id)
+          .eq('user_id', ensured.player.user_id)
           .maybeSingle();
         const canAfford = Number.isFinite(wager) && profile ? profile.skilled_coins >= wager : false;
         return new Response(
