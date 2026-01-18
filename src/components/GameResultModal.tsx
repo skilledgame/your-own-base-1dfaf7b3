@@ -5,7 +5,9 @@ import { cn } from '@/lib/utils';
 
 interface GameResultModalProps {
   isWin: boolean;
-  tokensChange: number;
+  /** Change in Skilled Coins (positive for win, negative for loss) */
+  coinsChange: number;
+  /** New Skilled Coins balance after the game */
   newBalance: number;
   reason: string;
   onPlayAgain: () => void;
@@ -152,13 +154,13 @@ const StatChip = ({
 
 export const GameResultModal = ({
   isWin,
-  tokensChange,
+  coinsChange,
   newBalance,
   reason,
   onPlayAgain,
   onGoHome,
 }: GameResultModalProps) => {
-  const isFreePlay = tokensChange === 0;
+  const isFreePlay = coinsChange === 0;
   const formattedReason = formatReason(reason);
 
   return (
@@ -288,7 +290,7 @@ export const GameResultModal = ({
             <div className="grid grid-cols-3 gap-3 mb-6">
               <StatChip 
                 label="Wager" 
-                value={isFreePlay ? "Free" : `${Math.abs(tokensChange)}`}
+                value={isFreePlay ? "Free" : `${Math.abs(coinsChange)}`}
                 icon={Coins}
                 isWin={isWin}
               />
@@ -300,7 +302,7 @@ export const GameResultModal = ({
               />
               <StatChip 
                 label="Change" 
-                value={tokensChange === 0 ? "+0" : (tokensChange > 0 ? `+${tokensChange}` : `${tokensChange}`)}
+                value={coinsChange === 0 ? "+0" : (coinsChange > 0 ? `+${coinsChange}` : `${coinsChange}`)}
                 icon={Coins}
                 isWin={isWin}
               />

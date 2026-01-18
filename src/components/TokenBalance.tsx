@@ -1,16 +1,36 @@
 import { cn } from '@/lib/utils';
 import { Coins, Infinity } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TokenBalanceProps {
-  balance: number;
+  /** The Skilled Coins balance to display. null = loading state */
+  balance: number | null;
   wager?: number;
   showWager?: boolean;
   className?: string;
   animate?: boolean;
   isPrivileged?: boolean;
+  /** Show loading skeleton when balance is null */
+  isLoading?: boolean;
 }
 
-export const TokenBalance = ({ balance, wager, showWager, className, animate, isPrivileged }: TokenBalanceProps) => {
+/**
+ * TokenBalance - Displays Skilled Coins balance
+ * 
+ * IMPORTANT: Never shows 0 while loading. If balance is null or isLoading is true,
+ * shows a skeleton placeholder.
+ */
+export const TokenBalance = ({ 
+  balance, 
+  wager, 
+  showWager, 
+  className, 
+  animate, 
+  isPrivileged,
+  isLoading,
+}: TokenBalanceProps) => {
+  const showSkeleton = isLoading || balance === null;
+  
   return (
     <div className={cn("flex flex-col items-center gap-2", className)}>
       <div
@@ -25,11 +45,16 @@ export const TokenBalance = ({ balance, wager, showWager, className, animate, is
             <Infinity className="w-5 h-5 text-primary" />
             <span className="font-semibold text-lg text-primary">∞</span>
           </>
+        ) : showSkeleton ? (
+          <>
+            <Coins className="w-5 h-5 text-yellow-500/50" />
+            <Skeleton className="h-6 w-16" />
+          </>
         ) : (
           <>
             <Coins className="w-5 h-5 text-gold" />
             <span className="font-semibold text-lg text-foreground">
-              {balance.toLocaleString()}
+              {(balance ?? 0).toLocaleString()}
             </span>
           </>
         )}
