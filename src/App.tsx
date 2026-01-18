@@ -3,7 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthLoadingScreen } from "@/components/AuthLoadingScreen";
+import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import Auth from "./pages/Auth";
@@ -24,7 +26,6 @@ import LiveGame from "./pages/LiveGame";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { useEffect } from "react";
 import { useBalanceStore } from "./stores/balanceStore";
-import { useAuth } from "./contexts/AuthContext";
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -38,22 +39,29 @@ const queryClient = new QueryClient({
   },
 });
 
-// Wrapper to run the ensure-user hook and balance subscription at app level
+// Wrapper that handles auth-ready gate and initializations
 function AppWithAuth({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, isAuthReady } = useAuth();
+  const { fetchBalance, subscribeToBalance, reset } = useBalanceStore();
+  
+  // Run ensure-user after auth is ready
   useEnsureUser();
   
   // Set up balance subscription when authenticated
-  const { user, isAuthenticated } = useAuth();
-  const { fetchBalance, subscribeToBalance, reset } = useBalanceStore();
-  
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       fetchBalance(user.id);
       subscribeToBalance(user.id);
-    } else {
+    } else if (isAuthReady && !isAuthenticated) {
+      // Only reset if auth is ready and user is definitely logged out
       reset();
     }
-  }, [isAuthenticated, user?.id, fetchBalance, subscribeToBalance, reset]);
+  }, [isAuthenticated, isAuthReady, user?.id, fetchBalance, subscribeToBalance, reset]);
+  
+  // Show loading screen until auth is ready
+  if (!isAuthReady) {
+    return <AuthLoadingScreen />;
+  }
   
   return <>{children}</>;
 }
@@ -86,6 +94,8 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            {/* Debug panel - only visible with ?debug=1 or in dev */}
+            <AuthDebugPanel />
           </AppWithAuth>
         </BrowserRouter>
       </TooltipProvider>

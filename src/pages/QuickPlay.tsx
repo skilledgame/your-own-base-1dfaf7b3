@@ -67,7 +67,8 @@ export default function QuickPlay() {
   const navigate = useNavigate();
   
   // Auth from context
-  const { isAuthenticated: authContextAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated: authContextAuthenticated, isAuthReady } = useAuth();
+  const authLoading = !isAuthReady;
   
   // Balance from store
   const { balance: storeBalance } = useBalanceStore();

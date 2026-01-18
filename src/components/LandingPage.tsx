@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trophy, Loader2, Shield, Lock, Zap, Crown, ArrowRight, ChevronDown, Gamepad2, Coins, Wallet, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { User as SupabaseUser, Session } from '@supabase/supabase-js';
-import { useUserRole } from '@/hooks/useUserRole';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBalance } from '@/hooks/useBalance';
 import skilledLogo from '@/assets/skilled-logo.png';
 import { LogoLink } from './LogoLink';
 import { GameCategory } from './GameCategory';
@@ -17,6 +17,8 @@ import { GuestLoginPrompt } from './GuestLoginPrompt';
 import { InviteBanner } from './InviteBanner';
 import { LiveWins } from './LiveWins';
 import { WeeklyLeaderboard } from './WeeklyLeaderboard';
+import { WhoAmILabel } from './WhoAmILabel';
+import { SkilledCoinsDisplay } from './SkilledCoinsDisplay';
 
 interface LandingPageProps {
   onJoinGame: (playerName: string) => void;
@@ -60,12 +62,14 @@ export const LandingPage = ({
 }: LandingPageProps) => {
   const [playerName, setPlayerName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [balance, setBalance] = useState(0);
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
-  const { isAdmin, isPrivileged } = useUserRole();
   const navigate = useNavigate();
+  
+  // Use centralized auth context (no duplicate listeners!)
+  const { user, isAuthenticated, isPrivileged } = useAuth();
+  
+  // Use centralized balance hook
+  const { balance, isLoading: balanceLoading } = useBalance();
   
   // Initialize dark mode on mount - default to dark
   useEffect(() => {
@@ -78,33 +82,6 @@ export const LandingPage = ({
       document.documentElement.classList.remove('dark');
     }
   }, []);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      fetchBalance();
-    }
-  }, [user]);
-
-  const fetchBalance = async () => {
-    if (!user) return;
-    // Use players.credits as the single source of truth for balance
-    const { data } = await supabase.from('players').select('credits').eq('user_id', user.id).maybeSingle();
-    if (data) {
-      setBalance(data.credits || 0);
-    }
-  };
 
   const handlePlayClick = () => {
     if (showNameInput && playerName.trim()) {
@@ -192,7 +169,7 @@ export const LandingPage = ({
               </nav>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              {user ? (
+              {isAuthenticated ? (
                 <>
                   {isPrivileged && (
                     <Button variant="ghost" size="sm" asChild className="hidden sm:flex text-purple-400 hover:text-purple-300 hover:bg-purple-500/10">
@@ -207,9 +184,13 @@ export const LandingPage = ({
                       <Search className="w-5 h-5" />
                     </Link>
                   </Button>
-                  <Link to="/deposit" className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary border border-border hover:border-primary/50 transition-colors">
-                    <Coins className="w-4 h-4 text-yellow-500" />
-                    <span className="font-semibold text-sm">{balance.toLocaleString()}</span>
+                  {/* Who Am I label + Balance */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    <WhoAmILabel showIcon={false} />
+                    <span className="text-muted-foreground">—</span>
+                  </div>
+                  <Link to="/deposit">
+                    <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
                   </Link>
                   <Button asChild className="hidden sm:flex bg-primary text-primary-foreground hover:bg-primary/90 font-semibold">
                     <Link to="/deposit">
@@ -241,7 +222,7 @@ export const LandingPage = ({
         <InviteBanner />
 
         {/* Hero Section - Only for non-logged-in users */}
-        {!user && (
+        {!isAuthenticated && (
           <section className="relative pt-24 pb-16 overflow-hidden">
             {/* Subtle dark background with pattern */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
@@ -402,7 +383,7 @@ export const LandingPage = ({
       <MobileBottomNav onMenuClick={() => setSideMenuOpen(true)} />
 
       {/* Guest Login Prompt */}
-      {!user && <GuestLoginPrompt />}
+      {!isAuthenticated && <GuestLoginPrompt />}
     </div>
   );
 };

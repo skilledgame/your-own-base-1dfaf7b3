@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { supabase } from '@/integrations/supabase/client';
 import { LogoLink } from './LogoLink';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DesktopSideMenuProps {
   isOpen: boolean;
@@ -33,7 +33,10 @@ const legalItems = [
 export const DesktopSideMenu = ({ isOpen, onToggle }: DesktopSideMenuProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
+  
+  // Use centralized auth context (no duplicate listeners!)
+  const { user, isAuthenticated, signOut } = useAuth();
+  
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('theme');
@@ -42,18 +45,6 @@ export const DesktopSideMenu = ({ isOpen, onToggle }: DesktopSideMenuProps) => {
     }
     return true;
   });
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -66,7 +57,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle }: DesktopSideMenuProps) => {
   }, [isDarkMode]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     onToggle();
   };
 
@@ -163,7 +154,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle }: DesktopSideMenuProps) => {
                   Settings
                 </p>
                 <nav className="space-y-1">
-                  {user && (
+                  {isAuthenticated && (
                     <button
                       onClick={() => handleNavigation('/profile')}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -188,7 +179,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle }: DesktopSideMenuProps) => {
 
             {/* Footer */}
             <div className="p-4 border-t border-border">
-              {user ? (
+              {isAuthenticated ? (
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"

@@ -41,7 +41,8 @@ StatCard.displayName = 'StatCard';
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  const { user, isAuthenticated, isAuthReady, signOut } = useAuth();
+  const authLoading = !isAuthReady;
   const { balance, fetchBalance } = useBalanceStore();
   
   const [profile, setProfile] = useState<any>(null);
