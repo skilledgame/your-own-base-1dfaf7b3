@@ -110,7 +110,7 @@ function initializeGlobalMessageHandler(): void {
         // #endregion
         
         // STEP D: Normalize IDs immediately from various possible fields
-        const matchId = payload?.gameId ?? payload?.game_id ?? (payload as any)?.matchId ?? (payload as any)?.match_id ?? null;
+        const matchId = payload?.gameId ?? (payload as any)?.game_id ?? (payload as any)?.matchId ?? (payload as any)?.match_id ?? null;
         const dbMatchId = payload?.dbGameId ?? (payload as any)?.dbGameId ?? (payload as any)?.db_game_id ?? null;
         const color = payload?.color ?? null;
         const fen = payload?.fen ?? null;
@@ -119,11 +119,11 @@ function initializeGlobalMessageHandler(): void {
         const opponentUserId = 
           (payload as any)?.opponentUserId ??
           (payload as any)?.opponent_user_id ??
-          payload?.opponent?.user_id ??
-          payload?.opponent?.userId ??
+          (payload?.opponent as any)?.user_id ??
+          (payload?.opponent as any)?.userId ??
           payload?.opponent?.playerId ??
-          payload?.opponent?.player_id ??
-          payload?.opponent?.id ??
+          (payload?.opponent as any)?.player_id ??
+          (payload?.opponent as any)?.id ??
           null;
         
         // #region agent log

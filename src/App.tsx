@@ -24,6 +24,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import QuickPlay from "./pages/QuickPlay";
 import LiveGame from "./pages/LiveGame";
+import Affiliate from "./pages/Affiliate";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { useEffect } from "react";
 import { useBalanceStore } from "./stores/balanceStore";
@@ -109,6 +110,7 @@ const App = () => (
               <Route path="/admin" element={<Admin />} />
               <Route path="/quick-play" element={<QuickPlay />} />
               <Route path="/game/live/:gameId" element={<LiveGame />} />
+              <Route path="/affiliate" element={<Affiliate />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
                 </Routes>
