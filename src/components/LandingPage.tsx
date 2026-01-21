@@ -209,7 +209,7 @@ export const LandingPage = ({
                   <Button variant="ghost" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
                     <Link to="/auth">Sign In</Link>
                   </Button>
-                  <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold">
+                  <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
                     <Link to="/auth">Get Started</Link>
                   </Button>
                 </>

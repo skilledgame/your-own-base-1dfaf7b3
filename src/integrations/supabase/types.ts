@@ -147,10 +147,12 @@ export type Database = {
           game_type: string
           id: string
           settled_at: string | null
+          settlement_id: string | null
           settlement_tx_id: string | null
           status: string
           updated_at: string
           wager: number
+          wager_locked_at: string | null
           white_player_id: string
           white_time: number
           winner_id: string | null
@@ -164,10 +166,12 @@ export type Database = {
           game_type?: string
           id?: string
           settled_at?: string | null
+          settlement_id?: string | null
           settlement_tx_id?: string | null
           status?: string
           updated_at?: string
           wager: number
+          wager_locked_at?: string | null
           white_player_id: string
           white_time?: number
           winner_id?: string | null
@@ -181,10 +185,12 @@ export type Database = {
           game_type?: string
           id?: string
           settled_at?: string | null
+          settlement_id?: string | null
           settlement_tx_id?: string | null
           status?: string
           updated_at?: string
           wager?: number
+          wager_locked_at?: string | null
           white_player_id?: string
           white_time?: number
           winner_id?: string | null
@@ -398,8 +404,13 @@ export type Database = {
         Returns: boolean
       }
       is_privileged_user: { Args: { _user_id: string }; Returns: boolean }
+      lock_wager: { Args: { p_game_id: string }; Returns: Json }
       settle_game: {
         Args: { p_game_id: string; p_reason: string; p_winner_id: string }
+        Returns: Json
+      }
+      settle_match: {
+        Args: { p_game_id: string; p_winner_user_id: string }
         Returns: Json
       }
       update_player_credits: {

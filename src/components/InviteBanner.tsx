@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Gift, Clock, X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const InviteBanner = () => {
   const [timeLeft, setTimeLeft] = useState({ days: 2, hours: 0, minutes: 0, seconds: 0 });
   const [dismissed, setDismissed] = useState(false);
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     // Set expiry to 2 days from now (or from stored value)
@@ -40,6 +44,14 @@ export const InviteBanner = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const handleInviteClick = () => {
+    if (isAuthenticated) {
+      navigate('/affiliate');
+    } else {
+      navigate('/auth');
+    }
+  };
+
   if (dismissed) return null;
 
   return (
@@ -49,7 +61,13 @@ export const InviteBanner = () => {
           <div className="flex items-center gap-2">
             <Gift className="w-4 h-4 text-accent flex-shrink-0" />
             <span className="text-foreground font-medium">
-              Invite a friend and get <span className="text-accent font-bold">10 free tokens!</span>
+              Invite a friend and get{' '}
+              <button 
+                onClick={handleInviteClick}
+                className="text-emerald-400 font-bold hover:text-emerald-300 transition-colors underline underline-offset-2"
+              >
+                100 Skilled Coins!
+              </button>
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">
