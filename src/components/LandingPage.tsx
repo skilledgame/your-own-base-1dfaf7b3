@@ -9,7 +9,7 @@ import { useBalance } from '@/hooks/useBalance';
 import skilledLogo from '@/assets/skilled-logo.png';
 import { LogoLink } from './LogoLink';
 import { GameCategory } from './GameCategory';
-import { DesktopSideMenu, SideMenuTrigger } from './DesktopSideMenu';
+import { DesktopSideMenu } from './DesktopSideMenu';
 import { MobileBottomNav } from './MobileBottomNav';
 import { CryptoSection } from './CryptoSection';
 import { FAQSection } from './FAQSection';
@@ -176,17 +176,6 @@ export const LandingPage = ({
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
             <div className="flex items-center gap-4">
-              {/* Side Menu Trigger - Desktop Only, Far Left - Toggles collapsed state */}
-              <SideMenuTrigger onClick={() => {
-                // On desktop: toggle collapsed state (never fully close)
-                if (window.innerWidth >= 768) {
-                  setSidebarCollapsed(!sidebarCollapsed);
-                  if (!sideMenuOpen) setSideMenuOpen(true);
-                } else {
-                  // On mobile: toggle visibility
-                  setSideMenuOpen(!sideMenuOpen);
-                }
-              }} />
               <LogoLink className="h-12 sm:h-14" />
               <nav className="hidden lg:flex items-center gap-1 ml-4">
                 <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => scrollToSection('games')}>
