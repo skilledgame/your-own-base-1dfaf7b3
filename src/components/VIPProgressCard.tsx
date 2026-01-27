@@ -1,7 +1,7 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Crown, Trophy, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/hooks/useProfile';
 import { getRankFromTotalWagered, formatSkilledCoins } from '@/lib/rankSystem';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,12 +9,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export const VIPProgressCard = () => {
   const { user } = useAuth();
-  const { totalWageredSc, displayName, isLoading } = useProfile();
-  const navigate = useNavigate();
+  const [totalWagered, setTotalWagered] = useState<number | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-<<<<<<< HEAD
-  if (isLoading) {
-=======
   useEffect(() => {
     if (!user?.id) {
       setLoading(false);
@@ -73,7 +71,6 @@ export const VIPProgressCard = () => {
   }, [user]);
 
   if (loading) {
->>>>>>> 6733049116da5211b5d29b47f9b7661c6f7a470c
     return (
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardContent className="p-6">
@@ -87,15 +84,11 @@ export const VIPProgressCard = () => {
     );
   }
 
-  const rankInfo = getRankFromTotalWagered(totalWageredSc);
+  const rankInfo = getRankFromTotalWagered(totalWagered);
   const progress = rankInfo.nextMin
-    ? (totalWageredSc - rankInfo.currentMin) / (rankInfo.nextMin - rankInfo.currentMin)
+    ? ((totalWagered ?? 0) - rankInfo.currentMin) / (rankInfo.nextMin - rankInfo.currentMin)
     : 1;
-  const remaining = rankInfo.nextMin ? rankInfo.nextMin - totalWageredSc : 0;
-  
-  const handleClick = () => {
-    navigate('/vip');
-  };
+  const remaining = rankInfo.nextMin ? rankInfo.nextMin - (totalWagered ?? 0) : 0;
 
   const getRankColor = (tier: string) => {
     switch (tier) {
@@ -115,20 +108,10 @@ export const VIPProgressCard = () => {
   };
 
   return (
-<<<<<<< HEAD
-    <Card 
-      className="bg-card/50 backdrop-blur-sm border-border/50 cursor-pointer hover:bg-card/70 transition-colors"
-      onClick={handleClick}
-    >
-      <CardContent className="p-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-=======
     <Card className="bg-card/50 backdrop-blur-sm border-border/50">
       <CardContent className="p-4">
         {/* Header - Compact */}
         <div className="flex items-center gap-3 mb-3">
->>>>>>> 6733049116da5211b5d29b47f9b7661c6f7a470c
           <div className={`p-2 rounded-lg bg-gradient-to-br ${getRankColor(rankInfo.tierName)}`}>
             <Crown className="w-4 h-4 text-white" />
           </div>
@@ -138,21 +121,9 @@ export const VIPProgressCard = () => {
               {rankInfo.displayName}
             </p>
           </div>
-<<<<<<< HEAD
-        </div>
-
-        {/* Total Wagered */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Total Wagered</span>
-            <span className="text-sm font-semibold text-foreground">
-              {formatSkilledCoins(totalWageredSc)} SC
-            </span>
-=======
           <div className="text-right">
             <span className="text-xs text-muted-foreground">Wagered</span>
             <p className="text-sm font-semibold text-foreground">{formatSkilledCoins(totalWagered)} SC</p>
->>>>>>> 6733049116da5211b5d29b47f9b7661c6f7a470c
           </div>
         </div>
 
