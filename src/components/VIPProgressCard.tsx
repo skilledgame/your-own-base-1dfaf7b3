@@ -109,63 +109,55 @@ export const VIPProgressCard = () => {
 
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-      <CardContent className="p-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
+      <CardContent className="p-4">
+        {/* Header - Compact */}
+        <div className="flex items-center gap-3 mb-3">
           <div className={`p-2 rounded-lg bg-gradient-to-br ${getRankColor(rankInfo.tierName)}`}>
-            <Crown className="w-5 h-5 text-white" />
+            <Crown className="w-4 h-4 text-white" />
           </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-lg text-foreground">{displayName || 'Player'}</h3>
-            <p className={`text-sm font-semibold bg-gradient-to-r ${getRankColor(rankInfo.tierName)} bg-clip-text text-transparent`}>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-base text-foreground truncate">{displayName || 'Player'}</h3>
+            <p className={`text-xs font-semibold bg-gradient-to-r ${getRankColor(rankInfo.tierName)} bg-clip-text text-transparent`}>
               {rankInfo.displayName}
             </p>
           </div>
-        </div>
-
-        {/* Total Wagered */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Total Wagered</span>
-            <span className="text-sm font-semibold text-foreground">
-              {formatSkilledCoins(totalWagered)} SC
-            </span>
+          <div className="text-right">
+            <span className="text-xs text-muted-foreground">Wagered</span>
+            <p className="text-sm font-semibold text-foreground">{formatSkilledCoins(totalWagered)} SC</p>
           </div>
         </div>
 
-        {/* Progress Bar */}
+        {/* Progress Bar - Compact */}
         {rankInfo.nextMin && (
-          <div className="mb-4">
-            <Progress value={Math.min(progress * 100, 100)} className="h-2 mb-2" />
+          <div className="mb-3">
+            <Progress value={Math.min(progress * 100, 100)} className="h-1.5 mb-1" />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Next: {rankInfo.displayName}</span>
-              <span>{formatSkilledCoins(remaining)} SC remaining</span>
+              <span>{formatSkilledCoins(remaining)} SC to go</span>
             </div>
           </div>
         )}
 
         {!rankInfo.nextMin && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Trophy className="w-4 h-4 text-yellow-500" />
-              <span>Maximum rank achieved!</span>
-            </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+            <Trophy className="w-3 h-3 text-yellow-500" />
+            <span>Maximum rank achieved!</span>
           </div>
         )}
 
-        {/* Perks */}
-        <div className="pt-4 border-t border-border/50">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Current Perks
-          </p>
-          <ul className="space-y-1.5">
-            {rankInfo.perks.map((perk, index) => (
-              <li key={index} className="flex items-start gap-2 text-sm text-foreground/80">
-                <Sparkles className="w-3.5 h-3.5 mt-0.5 text-accent flex-shrink-0" />
-                <span>{perk}</span>
-              </li>
+        {/* Perks - Compact horizontal */}
+        <div className="pt-3 border-t border-border/50">
+          <div className="flex flex-wrap gap-2">
+            {rankInfo.perks.slice(0, 2).map((perk, index) => (
+              <span key={index} className="inline-flex items-center gap-1 text-xs text-foreground/70 bg-muted/50 px-2 py-1 rounded-full">
+                <Sparkles className="w-3 h-3 text-accent flex-shrink-0" />
+                {perk}
+              </span>
             ))}
-          </ul>
+            {rankInfo.perks.length > 2 && (
+              <span className="text-xs text-muted-foreground px-2 py-1">+{rankInfo.perks.length - 2} more</span>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -1,72 +1,66 @@
 import { Link } from 'react-router-dom';
-import { Crown, Coins, ArrowRight } from 'lucide-react';
+import { Crown, ChevronRight, Sparkles } from 'lucide-react';
 import { VIPProgressCard } from './VIPProgressCard';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
 
 export const VIPProgressSection = () => {
   return (
-    <section className="relative py-16 overflow-hidden">
-      {/* Reuse pre-login hero background styling */}
+    <section className="relative py-8 overflow-hidden">
+      {/* Background with gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
-      <div className="absolute inset-0 opacity-[0.03]" style={{
-        backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
-        backgroundSize: '32px 32px'
-      }} />
+      
+      {/* Subtle random decorative lines */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Diagonal lines */}
+        <div className="absolute top-0 left-[10%] w-px h-full bg-gradient-to-b from-transparent via-white/[0.04] to-transparent transform rotate-12" />
+        <div className="absolute top-0 left-[25%] w-px h-[120%] bg-gradient-to-b from-transparent via-white/[0.03] to-transparent transform -rotate-6" />
+        <div className="absolute top-0 left-[45%] w-px h-full bg-gradient-to-b from-transparent via-white/[0.05] to-transparent transform rotate-3" />
+        <div className="absolute top-0 right-[30%] w-px h-[110%] bg-gradient-to-b from-transparent via-white/[0.03] to-transparent transform -rotate-12" />
+        <div className="absolute top-0 right-[15%] w-px h-full bg-gradient-to-b from-transparent via-white/[0.04] to-transparent transform rotate-8" />
+        <div className="absolute top-0 right-[5%] w-px h-[90%] bg-gradient-to-b from-transparent via-white/[0.02] to-transparent transform -rotate-3" />
+        
+        {/* Horizontal accent lines */}
+        <div className="absolute top-[20%] left-0 w-full h-px bg-gradient-to-r from-transparent via-white/[0.03] to-transparent" />
+        <div className="absolute top-[70%] left-0 w-full h-px bg-gradient-to-r from-transparent via-white/[0.02] to-transparent" />
+      </div>
       
       {/* Subtle glow accents */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl" />
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid lg:grid-cols-2 gap-8 items-start">
+        <div className="grid lg:grid-cols-2 gap-6 items-center">
           {/* Left: VIP Progress Card */}
           <div>
             <VIPProgressCard />
           </div>
 
-          {/* Right: Feature Tiles */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-1 gap-4">
-            {/* Chess Arena Tile */}
-            <Link to="/games/chess">
-              <Card className="group relative h-48 overflow-hidden border-slate-700/50 bg-gradient-to-br from-slate-800/80 to-slate-900/80 hover:from-slate-700/80 hover:to-slate-800/80 transition-all cursor-pointer">
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative h-full p-6 flex flex-col justify-between">
-                  <div>
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Crown className="w-6 h-6 text-cyan-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Chess Arena</h3>
-                    <p className="text-sm text-slate-400">Compete in ranked matches</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-cyan-400 group-hover:translate-x-1 transition-transform">
-                    <span className="text-sm font-semibold">Play Now</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </div>
+          {/* Right: Chess Game Card (from logged-out screen style) */}
+          <Link to="/games/chess" className="block">
+            <div className="card-game relative group cursor-pointer">
+              {/* Game Preview */}
+              <div className="relative h-32 bg-gradient-to-br from-amber-100 to-orange-200 flex items-center justify-center rounded-t-lg">
+                <Crown className="w-14 h-14 text-foreground/80" />
+                <div className="absolute bottom-2 right-2 bg-emerald text-primary-foreground px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Live
                 </div>
-              </Card>
-            </Link>
-
-            {/* Deposit Tile */}
-            <Link to="/deposit">
-              <Card className="group relative h-48 overflow-hidden border-slate-700/50 bg-gradient-to-br from-slate-800/80 to-slate-900/80 hover:from-slate-700/80 hover:to-slate-800/80 transition-all cursor-pointer">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative h-full p-6 flex flex-col justify-between">
-                  <div>
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Coins className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Deposit</h3>
-                    <p className="text-sm text-slate-400">Add Skilled Coins to your account</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-emerald-400 group-hover:translate-x-1 transition-transform">
-                    <span className="text-sm font-semibold">Deposit Now</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          </div>
+              </div>
+              
+              {/* Card Content */}
+              <div className="p-4 bg-card rounded-b-lg border border-t-0 border-border">
+                <h3 className="font-semibold text-lg text-foreground mb-1">Chess</h3>
+                <p className="text-sm text-muted-foreground mb-3">Classic strategy. Wager tokens, beat opponents, double your stake.</p>
+                <Button 
+                  variant="default" 
+                  className="w-full group-hover:bg-primary/90"
+                >
+                  Play Now
+                  <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
     </section>
