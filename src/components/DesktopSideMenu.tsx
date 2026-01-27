@@ -121,7 +121,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
         `}
       >
         {isOpen && (
-          <div className={`flex flex-col h-full ${collapsed ? 'w-16' : 'w-72'} overflow-hidden`}>
+          <div className={`flex flex-col h-full ${collapsed ? 'w-16 overflow-hidden' : 'w-72 overflow-hidden'}`}>
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               {!collapsed && <LogoLink className="h-8" onClick={onToggle} />}
@@ -141,14 +141,14 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                 )}
-                <Button variant="ghost" size="icon" onClick={onToggle}>
+                <Button variant="ghost" size="icon" onClick={onToggle} className="md:hidden">
                   <X className="h-5 w-5" />
                 </Button>
               </div>
             </div>
 
             {/* Main Navigation */}
-            <div className="flex-1 overflow-y-auto py-4">
+            <div className={`flex-1 py-4 ${collapsed ? 'overflow-hidden' : 'overflow-y-auto'}`}>
               {!collapsed && (
                 <div className="px-3 mb-6">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
