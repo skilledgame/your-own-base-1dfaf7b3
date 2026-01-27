@@ -1,19 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* Rainbow text animation for usernames */
-@keyframes rainbow-text {
-  0% { color: hsl(0, 100%, 70%); }
-  14% { color: hsl(30, 100%, 70%); }
-  28% { color: hsl(60, 100%, 70%); }
-  42% { color: hsl(120, 100%, 70%); }
-  57% { color: hsl(180, 100%, 70%); }
-  71% { color: hsl(240, 100%, 70%); }
-  85% { color: hsl(300, 100%, 70%); }
-  100% { color: hsl(360, 100%, 70%); }
+/* Rainbow wave text animation - multiple colors visible, pulsing horizontally */
+@keyframes rainbow-wave {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
 }
 
 .animate-rainbow-text {
-  animation: rainbow-text 3s linear infinite;
+  background: linear-gradient(
+    90deg,
+    hsl(0, 100%, 70%),
+    hsl(45, 100%, 70%),
+    hsl(90, 100%, 70%),
+    hsl(135, 100%, 70%),
+    hsl(180, 100%, 70%),
+    hsl(225, 100%, 70%),
+    hsl(270, 100%, 70%),
+    hsl(315, 100%, 70%),
+    hsl(360, 100%, 70%)
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-wave 3s linear infinite;
 }
 
 @tailwind base;
