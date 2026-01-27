@@ -86,9 +86,10 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     
     try {
       // Fetch from profiles table - THE source of truth
+      // Note: total_wagered_sc column doesn't exist yet, defaulting to 0
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, skilled_coins, total_wagered_sc, display_name, email')
+        .select('user_id, skilled_coins, display_name, email')
         .eq('user_id', userId)
         .maybeSingle();
       
@@ -101,14 +102,13 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       if (data) {
         console.log('[ProfileStore] Fetched profile:', {
           skilled_coins: data.skilled_coins,
-          total_wagered_sc: data.total_wagered_sc,
         });
         
         set({
           profile: {
             user_id: data.user_id,
             skilled_coins: data.skilled_coins ?? 0,
-            total_wagered_sc: data.total_wagered_sc ?? 0,
+            total_wagered_sc: 0, // Column doesn't exist yet
             display_name: data.display_name,
             email: data.email,
           },
