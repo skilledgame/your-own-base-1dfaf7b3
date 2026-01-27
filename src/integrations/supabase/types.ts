@@ -323,6 +323,7 @@ export type Database = {
           email: string | null
           id: string
           skilled_coins: number
+          total_wagered_sc: number
           updated_at: string
           user_id: string
         }
@@ -332,6 +333,7 @@ export type Database = {
           email?: string | null
           id?: string
           skilled_coins?: number
+          total_wagered_sc?: number
           updated_at?: string
           user_id: string
         }
@@ -341,6 +343,7 @@ export type Database = {
           email?: string | null
           id?: string
           skilled_coins?: number
+          total_wagered_sc?: number
           updated_at?: string
           user_id?: string
         }
