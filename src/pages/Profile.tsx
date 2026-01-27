@@ -12,6 +12,8 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalanceStore } from '@/stores/balanceStore';
+import { useProfile } from '@/hooks/useProfile';
+import { formatSkilledCoins } from '@/lib/rankSystem';
 import skilledLogo from '@/assets/skilled-logo.png';
 
 interface UserStats {
@@ -44,6 +46,7 @@ export default function Profile() {
   const { user, isAuthenticated, isAuthReady, signOut } = useAuth();
   const authLoading = !isAuthReady;
   const { balance, fetchBalance } = useBalanceStore();
+  const { totalWageredSc, displayName: profileDisplayName } = useProfile();
   
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<UserStats>({
@@ -197,6 +200,7 @@ export default function Profile() {
           <StatCard icon={Target} value={stats.losses} label="Losses" color="text-red-500" />
           <StatCard icon={Gamepad2} value={stats.matchesPlayed} label="Matches" color="text-primary" />
           <StatCard icon={Award} value={`${stats.winRate}%`} label="Win Rate" color="text-emerald-500" />
+          <StatCard icon={Coins} value={formatSkilledCoins(totalWageredSc)} label="Total Wagered (SC)" color="text-purple-500" />
         </div>
 
         {/* Free Plays */}

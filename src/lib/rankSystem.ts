@@ -14,7 +14,7 @@ export interface RankInfo {
 }
 
 // Rank thresholds (in Skilled Coins)
-const RANK_THRESHOLDS = {
+export const RANK_THRESHOLDS = {
   unranked: 0,
   bronze: 5_000,
   silver: 25_000,
@@ -24,7 +24,7 @@ const RANK_THRESHOLDS = {
 } as const;
 
 // Perks per tier
-const RANK_PERKS: Record<string, string[]> = {
+export const RANK_PERKS: Record<string, string[]> = {
   unranked: [
     'Basic access',
     'Standard matchmaking',

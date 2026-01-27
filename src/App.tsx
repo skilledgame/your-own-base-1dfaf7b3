@@ -25,9 +25,11 @@ import NotFound from "./pages/NotFound";
 import QuickPlay from "./pages/QuickPlay";
 import LiveGame from "./pages/LiveGame";
 import Affiliate from "./pages/Affiliate";
+import VIP from "./pages/VIP";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { useEffect } from "react";
 import { useBalanceStore } from "./stores/balanceStore";
+import { useProfileStore } from "./stores/profileStore";
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -44,21 +46,25 @@ const queryClient = new QueryClient({
 // Wrapper that handles auth-ready gate and initializations
 function AppWithAuth({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isAuthReady } = useAuth();
-  const { fetchBalance, subscribeToBalance, reset } = useBalanceStore();
+  const { fetchBalance, subscribeToBalance, reset: resetBalance } = useBalanceStore();
+  const { fetchProfile, subscribeToProfile, reset: resetProfile } = useProfileStore();
   
   // Run ensure-user after auth is ready
   useEnsureUser();
   
-  // Set up balance subscription when authenticated
+  // Set up balance and profile subscriptions when authenticated
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       fetchBalance(user.id);
       subscribeToBalance(user.id);
+      fetchProfile(user.id);
+      subscribeToProfile(user.id);
     } else if (isAuthReady && !isAuthenticated) {
       // Only reset if auth is ready and user is definitely logged out
-      reset();
+      resetBalance();
+      resetProfile();
     }
-  }, [isAuthenticated, isAuthReady, user?.id, fetchBalance, subscribeToBalance, reset]);
+  }, [isAuthenticated, isAuthReady, user?.id, fetchBalance, subscribeToBalance, resetBalance, fetchProfile, subscribeToProfile, resetProfile]);
   
   // Show loading screen until auth is ready
   if (!isAuthReady) {
@@ -96,6 +102,7 @@ const App = () => (
               <Route path="/quick-play" element={<QuickPlay />} />
               <Route path="/game/live/:gameId" element={<LiveGame />} />
               <Route path="/affiliate" element={<Affiliate />} />
+              <Route path="/vip" element={<VIP />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
                 </Routes>

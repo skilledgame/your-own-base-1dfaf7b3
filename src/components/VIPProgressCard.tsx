@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Crown, Trophy, Sparkles } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProfile } from '@/hooks/useProfile';
 import { getRankFromTotalWagered, formatSkilledCoins } from '@/lib/rankSystem';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,70 +9,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export const VIPProgressCard = () => {
   const { user } = useAuth();
-  const [totalWagered, setTotalWagered] = useState<number | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { totalWageredSc, displayName, isLoading } = useProfile();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('total_wagered_sc, display_name')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-          setLoading(false);
-          return;
-        }
-
-        setTotalWagered(data?.total_wagered_sc ?? 0);
-        setDisplayName(data?.display_name || user.email?.split('@')[0] || 'Player');
-        setLoading(false);
-      } catch (err) {
-        console.error('Error in fetchProfile:', err);
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-
-    // Subscribe to profile changes
-    const channel = supabase
-      .channel('profile-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newData = payload.new as { total_wagered_sc?: number; display_name?: string };
-          if (newData.total_wagered_sc !== undefined) {
-            setTotalWagered(newData.total_wagered_sc);
-          }
-          if (newData.display_name !== undefined) {
-            setDisplayName(newData.display_name || user.email?.split('@')[0] || 'Player');
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardContent className="p-6">
@@ -86,11 +26,15 @@ export const VIPProgressCard = () => {
     );
   }
 
-  const rankInfo = getRankFromTotalWagered(totalWagered);
+  const rankInfo = getRankFromTotalWagered(totalWageredSc);
   const progress = rankInfo.nextMin
-    ? ((totalWagered ?? 0) - rankInfo.currentMin) / (rankInfo.nextMin - rankInfo.currentMin)
+    ? (totalWageredSc - rankInfo.currentMin) / (rankInfo.nextMin - rankInfo.currentMin)
     : 1;
-  const remaining = rankInfo.nextMin ? rankInfo.nextMin - (totalWagered ?? 0) : 0;
+  const remaining = rankInfo.nextMin ? rankInfo.nextMin - totalWageredSc : 0;
+  
+  const handleClick = () => {
+    navigate('/vip');
+  };
 
   const getRankColor = (tier: string) => {
     switch (tier) {
@@ -110,7 +54,10 @@ export const VIPProgressCard = () => {
   };
 
   return (
-    <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+    <Card 
+      className="bg-card/50 backdrop-blur-sm border-border/50 cursor-pointer hover:bg-card/70 transition-colors"
+      onClick={handleClick}
+    >
       <CardContent className="p-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
@@ -130,7 +77,7 @@ export const VIPProgressCard = () => {
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Total Wagered</span>
             <span className="text-sm font-semibold text-foreground">
-              {formatSkilledCoins(totalWagered)} SC
+              {formatSkilledCoins(totalWageredSc)} SC
             </span>
           </div>
         </div>
