@@ -131,16 +131,10 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                   <LogoLink className="h-6" onClick={onToggle} />
                 </div>
               )}
-              <div className="flex items-center gap-1">
-                {/* Desktop: Hamburger icon to toggle collapsed/expanded */}
-                <Button variant="ghost" size="icon" onClick={handleCollapseToggle} className="hidden md:flex">
-                  <Menu className="h-4 w-4" />
-                </Button>
-                {/* Mobile: X to close completely */}
-                <Button variant="ghost" size="icon" onClick={onToggle} className="md:hidden">
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
+              {/* Mobile: X to close completely */}
+              <Button variant="ghost" size="icon" onClick={onToggle} className="md:hidden">
+                <X className="h-5 w-5" />
+              </Button>
             </div>
 
             {/* Main Navigation */}
