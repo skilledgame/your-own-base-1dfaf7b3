@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Crown, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { VIPProgressCard } from './VIPProgressCard';
-import { Button } from './ui/button';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -38,9 +37,9 @@ export const VIPProgressSection = () => {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
         {/* Welcome Message */}
         <div className="mb-6">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-1">
-            Welcome{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-1">
+            <span className="text-white">Welcome </span>
+            <span className="text-cyan-400">
               {username}!
             </span>
           </h2>
@@ -52,32 +51,51 @@ export const VIPProgressSection = () => {
             <VIPProgressCard />
           </div>
 
-          {/* Right: Chess Game Card (from logged-out screen style) */}
-          <Link to="/games/chess" className="block">
-            <div className="card-game relative group cursor-pointer">
-              {/* Game Preview */}
-              <div className="relative h-32 bg-gradient-to-br from-amber-100 to-orange-200 flex items-center justify-center rounded-t-lg">
-                <Crown className="w-14 h-14 text-foreground/80" />
-                <div className="absolute bottom-2 right-2 bg-emerald text-primary-foreground px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  Live
+          {/* Right: Chess Game Card with tilt effect (matching logged-out design) */}
+          <div className="flex justify-center lg:justify-end">
+            <Link to="/games/chess" className="relative group" style={{ transform: 'perspective(1000px) rotateY(-8deg) rotateX(4deg)' }}>
+              {/* Card glow */}
+              <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-3xl blur-xl opacity-60 group-hover:opacity-100 transition-opacity" />
+              
+              {/* Main card */}
+              <div 
+                className="relative w-64 sm:w-72 h-80 sm:h-96 rounded-2xl overflow-hidden border border-slate-700/50 shadow-2xl group-hover:scale-[1.02] transition-transform duration-300"
+                style={{ background: 'linear-gradient(145deg, #1e3a5f, #0f2744)' }}
+              >
+                {/* Chess pattern overlay */}
+                <div className="absolute inset-0 opacity-10">
+                  <div className="grid grid-cols-4 h-full">
+                    {Array.from({ length: 16 }).map((_, i) => (
+                      <div key={i} className={`${i % 2 === (Math.floor(i / 4) % 2) ? 'bg-white' : 'bg-transparent'}`} />
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Chess piece */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[120px] sm:text-[140px] drop-shadow-2xl transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-2">
+                    ♟️
+                  </span>
+                </div>
+                
+                {/* Bottom gradient and label */}
+                <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-cyan-900/90 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">♟️</span>
+                    <span className="text-white font-bold text-lg">Chess</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-white/70 group-hover:translate-x-1 transition-transform" />
+                </div>
+                
+                {/* Live badge */}
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-emerald-500/90 text-white px-2.5 py-1 rounded-full text-xs font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  LIVE
                 </div>
               </div>
-              
-              {/* Card Content */}
-              <div className="p-4 bg-card rounded-b-lg border border-t-0 border-border">
-                <h3 className="font-semibold text-lg text-foreground mb-1">Chess</h3>
-                <p className="text-sm text-muted-foreground mb-3">Classic strategy. Wager tokens, beat opponents, double your stake.</p>
-                <Button 
-                  variant="default" 
-                  className="w-full group-hover:bg-primary/90"
-                >
-                  Play Now
-                  <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </div>
-            </div>
-          </Link>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
