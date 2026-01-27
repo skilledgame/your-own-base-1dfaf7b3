@@ -42,9 +42,9 @@ export const GameCategory = ({ title, icon, games, onGameClick }: GameCategoryPr
   };
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 max-w-5xl mx-auto px-4 sm:px-8 lg:px-16">
       {/* Category Header */}
-      <div className="flex items-center justify-between mb-4 px-4 sm:px-0">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           {icon === 'flame' ? (
             <img src={skilledMascot} alt="Skilled" className="w-6 h-6 object-contain" />
@@ -76,7 +76,7 @@ export const GameCategory = ({ title, icon, games, onGameClick }: GameCategoryPr
       {/* Scrollable Games Row */}
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto pb-4 px-4 sm:px-0 scrollbar-hide"
+        className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {games.map((game, index) => (

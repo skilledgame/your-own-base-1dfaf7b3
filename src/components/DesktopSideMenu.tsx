@@ -49,13 +49,14 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
     return true;
   });
 
-  // Load collapsed state from localStorage
+  // Load collapsed state from localStorage - default to collapsed (icon-only)
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('sidebarCollapsed');
-      return stored === 'true';
+      // Default to collapsed if no preference stored
+      return stored !== null ? stored === 'true' : true;
     }
-    return false;
+    return true;
   });
 
   // Sync with prop if provided
@@ -130,21 +131,10 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                   <LogoLink className="h-6" onClick={onToggle} />
                 </div>
               )}
-              <div className="flex items-center gap-1">
-                {collapsed && (
-                  <Button variant="ghost" size="icon" onClick={handleCollapseToggle} className="hidden md:flex">
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                )}
-                {!collapsed && (
-                  <Button variant="ghost" size="icon" onClick={handleCollapseToggle} className="hidden md:flex">
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" onClick={onToggle} className="md:hidden">
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
+              {/* Mobile: X to close completely */}
+              <Button variant="ghost" size="icon" onClick={onToggle} className="md:hidden">
+                <X className="h-5 w-5" />
+              </Button>
             </div>
 
             {/* Main Navigation */}

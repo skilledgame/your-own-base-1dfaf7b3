@@ -9,9 +9,18 @@ const cryptoIcons = [
 
 export const CryptoSection = () => {
   return (
-    <section className="py-12 px-4 border-t border-border">
-      <div className="max-w-7xl mx-auto">
-        <p className="text-center text-sm text-muted-foreground mb-8 uppercase tracking-wider font-medium">
+    <section className="relative py-12 px-4 overflow-hidden">
+      {/* Background matching VIP section */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+      
+      {/* Subtle decorative lines */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-[15%] w-px h-full bg-gradient-to-b from-transparent via-white/[0.03] to-transparent transform rotate-6" />
+        <div className="absolute top-0 right-[20%] w-px h-full bg-gradient-to-b from-transparent via-white/[0.04] to-transparent transform -rotate-8" />
+      </div>
+      
+      <div className="relative max-w-7xl mx-auto">
+        <p className="text-center text-sm text-slate-400 mb-8 uppercase tracking-wider font-medium">
           Supported Cryptocurrencies
         </p>
         <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
@@ -26,11 +35,11 @@ export const CryptoSection = () => {
               >
                 {crypto.symbol}
               </div>
-              <span className="text-xs text-muted-foreground">{crypto.name}</span>
+              <span className="text-xs text-slate-400">{crypto.name}</span>
             </div>
           ))}
           <div className="flex flex-col items-center gap-2">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center bg-muted text-muted-foreground text-sm font-medium">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center bg-slate-700/50 text-slate-400 text-sm font-medium">
               +more
             </div>
           </div>
