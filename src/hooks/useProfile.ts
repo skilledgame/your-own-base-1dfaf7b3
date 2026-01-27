@@ -11,17 +11,28 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export function useProfile() {
   const { user, isAuthenticated } = useAuth();
-  const { 
-    profile,
-    skilledCoins,
-    totalWageredSc,
-    displayName,
-    loading, 
-    error,
-    fetchProfile, 
-    subscribeToProfile, 
-    reset,
-  } = useProfileStore();
+  // Subscribe to store state directly (not getters) so React re-renders on changes
+  const profile = useProfileStore((state) => state.profile);
+  const loading = useProfileStore((state) => state.loading);
+  const error = useProfileStore((state) => state.error);
+  const fetchProfile = useProfileStore((state) => state.fetchProfile);
+  const subscribeToProfile = useProfileStore((state) => state.subscribeToProfile);
+  const reset = useProfileStore((state) => state.reset);
+  
+  // Compute derived values from profile (these will update when profile changes)
+  const skilledCoins = profile?.skilled_coins ?? 0;
+  const totalWageredSc = profile?.total_wagered_sc ?? 0;
+  const displayName = profile?.display_name ?? null;
+  
+  // Debug log when profile changes
+  useEffect(() => {
+    if (profile) {
+      console.log('[useProfile] Profile updated:', {
+        total_wagered_sc: profile.total_wagered_sc,
+        skilled_coins: profile.skilled_coins,
+      });
+    }
+  }, [profile?.total_wagered_sc, profile?.skilled_coins]);
   
   useEffect(() => {
     if (isAuthenticated && user?.id) {
