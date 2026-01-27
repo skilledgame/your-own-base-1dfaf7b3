@@ -101,7 +101,7 @@ export const LiveWins = () => {
 
   return (
     <section className="py-6 px-0 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 mb-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-16 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
           <span className="text-sm font-semibold text-foreground bg-accent/20 px-3 py-1 rounded-full">
