@@ -19,6 +19,7 @@ import { LiveWins } from './LiveWins';
 import { WeeklyLeaderboard } from './WeeklyLeaderboard';
 import { WhoAmILabel } from './WhoAmILabel';
 import { SkilledCoinsDisplay } from './SkilledCoinsDisplay';
+import { VIPProgressSection } from './VIPProgressSection';
 
 interface LandingPageProps {
   onJoinGame: (playerName: string) => void;
@@ -63,6 +64,13 @@ export const LandingPage = ({
   const [playerName, setPlayerName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sidebarCollapsed');
+      return stored === 'true';
+    }
+    return false;
+  });
   const navigate = useNavigate();
   
   // Use centralized auth context (no duplicate listeners!)
@@ -128,7 +136,12 @@ export const LandingPage = ({
   return (
     <div className="min-h-screen bg-background overflow-x-hidden pb-16 md:pb-0">
       {/* Desktop Side Menu */}
-      <DesktopSideMenu isOpen={sideMenuOpen} onToggle={() => setSideMenuOpen(!sideMenuOpen)} />
+      <DesktopSideMenu 
+        isOpen={sideMenuOpen} 
+        onToggle={() => setSideMenuOpen(!sideMenuOpen)}
+        isCollapsed={sidebarCollapsed}
+        onCollapseToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
 
       {/* Overlay for mobile only */}
       {sideMenuOpen && (
@@ -142,7 +155,7 @@ export const LandingPage = ({
       <div 
         className={`
           transition-all duration-300 ease-out
-          ${sideMenuOpen ? 'md:ml-72' : 'md:ml-0'}
+          ${sideMenuOpen ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-72') : 'md:ml-0'}
         `}
       >
         {/* Header */}
@@ -150,7 +163,7 @@ export const LandingPage = ({
           className={`
             fixed top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/50
             transition-all duration-300 ease-out
-            ${sideMenuOpen ? 'md:left-72 left-0 right-0' : 'left-0 right-0'}
+            ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
@@ -220,6 +233,9 @@ export const LandingPage = ({
 
         {/* Invite Banner - Moved to top */}
         <InviteBanner />
+
+        {/* VIP Progress Section - Only for logged-in users */}
+        {isAuthenticated && <VIPProgressSection />}
 
         {/* Hero Section - Only for non-logged-in users */}
         {!isAuthenticated && (

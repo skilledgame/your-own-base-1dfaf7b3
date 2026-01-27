@@ -3,16 +3,19 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, X, Home, Gamepad2, HelpCircle, 
   FileText, Shield, Mail, Crown, Trophy, Coins,
-  LogOut, ChevronRight, Moon, Sun, User
+  LogOut, ChevronRight, Moon, Sun, User, ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { LogoLink } from './LogoLink';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DesktopSideMenuProps {
   isOpen: boolean;
   onToggle: () => void;
+  isCollapsed?: boolean;
+  onCollapseToggle?: () => void;
 }
 
 const menuItems = [
@@ -30,7 +33,7 @@ const legalItems = [
   { icon: Mail, label: 'Contact Us', path: '/contact' },
 ];
 
-export const DesktopSideMenu = ({ isOpen, onToggle }: DesktopSideMenuProps) => {
+export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onCollapseToggle }: DesktopSideMenuProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -45,6 +48,32 @@ export const DesktopSideMenu = ({ isOpen, onToggle }: DesktopSideMenuProps) => {
     }
     return true;
   });
+
+  // Load collapsed state from localStorage
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sidebarCollapsed');
+      return stored === 'true';
+    }
+    return false;
+  });
+
+  // Sync with prop if provided
+  useEffect(() => {
+    if (onCollapseToggle !== undefined) {
+      // Controlled mode - use prop
+      setCollapsed(isCollapsed);
+    }
+  }, [isCollapsed, onCollapseToggle]);
+
+  const handleCollapseToggle = () => {
+    const newCollapsed = !collapsed;
+    setCollapsed(newCollapsed);
+    localStorage.setItem('sidebarCollapsed', String(newCollapsed));
+    if (onCollapseToggle) {
+      onCollapseToggle();
+    }
+  };
 
   useEffect(() => {
     if (isDarkMode) {
@@ -78,129 +107,282 @@ export const DesktopSideMenu = ({ isOpen, onToggle }: DesktopSideMenuProps) => {
     onToggle();
   };
 
+  const sidebarWidth = collapsed ? 'w-16' : 'w-72';
+
   return (
-    <>
+    <TooltipProvider>
       {/* Side Menu - Works on both mobile and desktop */}
       <div
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
           bg-card border-r border-border
           transition-all duration-300 ease-out
-          ${isOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full md:w-0'}
+          ${isOpen ? `${sidebarWidth} translate-x-0` : 'w-0 -translate-x-full md:w-0'}
         `}
       >
         {isOpen && (
-          <div className="flex flex-col h-full w-72 overflow-hidden">
+          <div className={`flex flex-col h-full ${collapsed ? 'w-16' : 'w-72'} overflow-hidden`}>
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
-              <LogoLink className="h-8" onClick={onToggle} />
-              <Button variant="ghost" size="icon" onClick={onToggle}>
-                <X className="h-5 w-5" />
-              </Button>
+              {!collapsed && <LogoLink className="h-8" onClick={onToggle} />}
+              {collapsed && (
+                <div className="w-full flex justify-center">
+                  <LogoLink className="h-6" onClick={onToggle} />
+                </div>
+              )}
+              <div className="flex items-center gap-1">
+                {collapsed && (
+                  <Button variant="ghost" size="icon" onClick={handleCollapseToggle} className="hidden md:flex">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                )}
+                {!collapsed && (
+                  <Button variant="ghost" size="icon" onClick={handleCollapseToggle} className="hidden md:flex">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" onClick={onToggle}>
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
 
             {/* Main Navigation */}
             <div className="flex-1 overflow-y-auto py-4">
-              <div className="px-3 mb-6">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
-                  Menu
-                </p>
-                <nav className="space-y-1">
-                  {menuItems.map((item) => {
-                    const isActive = location.pathname === item.path || 
-                      (item.path === '/' && location.pathname === '/');
-                    return (
+              {!collapsed && (
+                <div className="px-3 mb-6">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
+                    Menu
+                  </p>
+                  <nav className="space-y-1">
+                    {menuItems.map((item) => {
+                      const isActive = location.pathname === item.path || 
+                        (item.path === '/' && location.pathname === '/');
+                      return (
+                        <button
+                          key={item.path}
+                          onClick={() => handleNavigation(item.path)}
+                          className={`
+                            w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
+                            transition-colors duration-200 text-left
+                            ${isActive 
+                              ? 'bg-primary/10 text-primary' 
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
+                          `}
+                        >
+                          <item.icon className="w-5 h-5 flex-shrink-0" />
+                          <span className="font-medium">{item.label}</span>
+                          <ChevronRight className="w-4 h-4 ml-auto opacity-50" />
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
+
+              {collapsed && (
+                <div className="px-2 mb-6">
+                  <nav className="space-y-1">
+                    {menuItems.map((item) => {
+                      const isActive = location.pathname === item.path || 
+                        (item.path === '/' && location.pathname === '/');
+                      return (
+                        <Tooltip key={item.path}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleNavigation(item.path)}
+                              className={`
+                                w-full flex items-center justify-center p-3 rounded-lg
+                                transition-colors duration-200
+                                ${isActive 
+                                  ? 'bg-primary/10 text-primary' 
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
+                              `}
+                            >
+                              <item.icon className="w-5 h-5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            <p>{item.label}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
+
+              {!collapsed && (
+                <div className="px-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
+                    Legal & Support
+                  </p>
+                  <nav className="space-y-1">
+                    {legalItems.map((item) => (
                       <button
                         key={item.path}
                         onClick={() => handleNavigation(item.path)}
-                        className={`
-                          w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
-                          transition-colors duration-200 text-left
-                          ${isActive 
-                            ? 'bg-primary/10 text-primary' 
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
-                        `}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground"
                       >
                         <item.icon className="w-5 h-5 flex-shrink-0" />
                         <span className="font-medium">{item.label}</span>
-                        <ChevronRight className="w-4 h-4 ml-auto opacity-50" />
                       </button>
-                    );
-                  })}
-                </nav>
-              </div>
+                    ))}
+                  </nav>
+                </div>
+              )}
 
-              <div className="px-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
-                  Legal & Support
-                </p>
-                <nav className="space-y-1">
-                  {legalItems.map((item) => (
-                    <button
-                      key={item.path}
-                      onClick={() => handleNavigation(item.path)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
-                      <span className="font-medium">{item.label}</span>
-                    </button>
-                  ))}
-                </nav>
-              </div>
+              {collapsed && (
+                <div className="px-2">
+                  <nav className="space-y-1">
+                    {legalItems.map((item) => (
+                      <Tooltip key={item.path}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => handleNavigation(item.path)}
+                            className="w-full flex items-center justify-center p-3 rounded-lg transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <item.icon className="w-5 h-5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <p>{item.label}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </nav>
+                </div>
+              )}
 
               {/* Settings Section */}
-              <div className="px-3 mt-6">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
-                  Settings
-                </p>
-                <nav className="space-y-1">
-                  {isAuthenticated && (
-                    <button
-                      onClick={() => handleNavigation('/profile')}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <User className="w-5 h-5 flex-shrink-0" />
-                      <span className="font-medium">Account Settings</span>
-                    </button>
-                  )}
-                  <div className="flex items-center justify-between px-3 py-2.5 rounded-lg text-muted-foreground">
-                    <div className="flex items-center gap-3">
-                      {isDarkMode ? <Moon className="w-5 h-5 flex-shrink-0" /> : <Sun className="w-5 h-5 flex-shrink-0" />}
-                      <span className="font-medium">Dark Mode</span>
+              {!collapsed && (
+                <div className="px-3 mt-6">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
+                    Settings
+                  </p>
+                  <nav className="space-y-1">
+                    {isAuthenticated && (
+                      <button
+                        onClick={() => handleNavigation('/profile')}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <User className="w-5 h-5 flex-shrink-0" />
+                        <span className="font-medium">Account Settings</span>
+                      </button>
+                    )}
+                    <div className="flex items-center justify-between px-3 py-2.5 rounded-lg text-muted-foreground">
+                      <div className="flex items-center gap-3">
+                        {isDarkMode ? <Moon className="w-5 h-5 flex-shrink-0" /> : <Sun className="w-5 h-5 flex-shrink-0" />}
+                        <span className="font-medium">Dark Mode</span>
+                      </div>
+                      <Switch
+                        checked={isDarkMode}
+                        onCheckedChange={setIsDarkMode}
+                      />
                     </div>
-                    <Switch
-                      checked={isDarkMode}
-                      onCheckedChange={setIsDarkMode}
-                    />
-                  </div>
-                </nav>
-              </div>
+                  </nav>
+                </div>
+              )}
+
+              {collapsed && (
+                <div className="px-2 mt-6">
+                  <nav className="space-y-1">
+                    {isAuthenticated && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => handleNavigation('/profile')}
+                            className="w-full flex items-center justify-center p-3 rounded-lg transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <User className="w-5 h-5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <p>Account Settings</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center justify-center p-3 rounded-lg text-muted-foreground">
+                          {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <div className="flex items-center gap-2">
+                          <span>Dark Mode</span>
+                          <Switch
+                            checked={isDarkMode}
+                            onCheckedChange={setIsDarkMode}
+                            className="ml-2"
+                          />
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </nav>
+                </div>
+              )}
             </div>
 
             {/* Footer */}
             <div className="p-4 border-t border-border">
               {isAuthenticated ? (
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={handleSignOut}
-                >
-                  <LogOut className="w-5 h-5 mr-3" />
-                  Sign Out
-                </Button>
+                collapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={handleSignOut}
+                      >
+                        <LogOut className="w-5 h-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Sign Out</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="w-5 h-5 mr-3" />
+                    Sign Out
+                  </Button>
+                )
               ) : (
-                <Button 
-                  className="w-full bg-primary text-primary-foreground"
-                  onClick={() => { navigate('/auth'); onToggle(); }}
-                >
-                  Get Started
-                </Button>
+                collapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        size="icon"
+                        className="w-full bg-primary text-primary-foreground"
+                        onClick={() => { navigate('/auth'); onToggle(); }}
+                      >
+                        <Crown className="w-5 h-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Get Started</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Button 
+                    className="w-full bg-primary text-primary-foreground"
+                    onClick={() => { navigate('/auth'); onToggle(); }}
+                  >
+                    Get Started
+                  </Button>
+                )
               )}
             </div>
           </div>
         )}
       </div>
-    </>
+    </TooltipProvider>
   );
 };
 
