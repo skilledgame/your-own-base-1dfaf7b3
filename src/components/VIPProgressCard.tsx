@@ -23,7 +23,7 @@ export const VIPProgressCard = () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('total_wagered_sc, display_name')
+          .select('display_name')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -33,7 +33,8 @@ export const VIPProgressCard = () => {
           return;
         }
 
-        setTotalWagered(data?.total_wagered_sc ?? 0);
+        // total_wagered_sc column doesn't exist yet, default to 0
+        setTotalWagered(0);
         setDisplayName(data?.display_name || user.email?.split('@')[0] || 'Player');
         setLoading(false);
       } catch (err) {
@@ -56,10 +57,7 @@ export const VIPProgressCard = () => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newData = payload.new as { total_wagered_sc?: number; display_name?: string };
-          if (newData.total_wagered_sc !== undefined) {
-            setTotalWagered(newData.total_wagered_sc);
-          }
+          const newData = payload.new as { display_name?: string };
           if (newData.display_name !== undefined) {
             setDisplayName(newData.display_name || user.email?.split('@')[0] || 'Player');
           }
