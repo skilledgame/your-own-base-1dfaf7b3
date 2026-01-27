@@ -12,76 +12,14 @@ export const VIPProgressCard = () => {
   const { totalWageredSc, displayName, isLoading } = useProfile();
   const navigate = useNavigate();
 
-<<<<<<< HEAD
   if (isLoading) {
-=======
-  useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-          setLoading(false);
-          return;
-        }
-
-        // total_wagered_sc column doesn't exist yet, default to 0
-        setTotalWagered(0);
-        setDisplayName(data?.display_name || user.email?.split('@')[0] || 'Player');
-        setLoading(false);
-      } catch (err) {
-        console.error('Error in fetchProfile:', err);
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-
-    // Subscribe to profile changes
-    const channel = supabase
-      .channel('profile-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newData = payload.new as { display_name?: string };
-          if (newData.display_name !== undefined) {
-            setDisplayName(newData.display_name || user.email?.split('@')[0] || 'Player');
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  if (loading) {
->>>>>>> 6733049116da5211b5d29b47f9b7661c6f7a470c
     return (
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardContent className="p-6">
-          <Skeleton className="h-8 w-32 mb-4" />
+        <CardContent className="p-4">
+          <Skeleton className="h-8 w-32 mb-3" />
           <Skeleton className="h-6 w-24 mb-2" />
-          <Skeleton className="h-2 w-full mb-4" />
-          <Skeleton className="h-4 w-40 mb-2" />
-          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-1.5 w-full mb-3" />
+          <Skeleton className="h-4 w-40" />
         </CardContent>
       </Card>
     );
@@ -115,20 +53,13 @@ export const VIPProgressCard = () => {
   };
 
   return (
-<<<<<<< HEAD
     <Card 
       className="bg-card/50 backdrop-blur-sm border-border/50 cursor-pointer hover:bg-card/70 transition-colors"
       onClick={handleClick}
     >
-      <CardContent className="p-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-=======
-    <Card className="bg-card/50 backdrop-blur-sm border-border/50">
       <CardContent className="p-4">
         {/* Header - Compact */}
         <div className="flex items-center gap-3 mb-3">
->>>>>>> 6733049116da5211b5d29b47f9b7661c6f7a470c
           <div className={`p-2 rounded-lg bg-gradient-to-br ${getRankColor(rankInfo.tierName)}`}>
             <Crown className="w-4 h-4 text-white" />
           </div>
@@ -138,21 +69,9 @@ export const VIPProgressCard = () => {
               {rankInfo.displayName}
             </p>
           </div>
-<<<<<<< HEAD
-        </div>
-
-        {/* Total Wagered */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Total Wagered</span>
-            <span className="text-sm font-semibold text-foreground">
-              {formatSkilledCoins(totalWageredSc)} SC
-            </span>
-=======
           <div className="text-right">
             <span className="text-xs text-muted-foreground">Wagered</span>
-            <p className="text-sm font-semibold text-foreground">{formatSkilledCoins(totalWagered)} SC</p>
->>>>>>> 6733049116da5211b5d29b47f9b7661c6f7a470c
+            <p className="text-sm font-semibold text-foreground">{formatSkilledCoins(totalWageredSc)} SC</p>
           </div>
         </div>
 
