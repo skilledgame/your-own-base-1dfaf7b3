@@ -370,9 +370,72 @@ export type Database = {
         }
         Relationships: []
       }
+      wagers: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          user_id: string
+          wager_amount: number
+          wager_locked_at: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          user_id: string
+          wager_amount: number
+          wager_locked_at?: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          user_id?: string
+          wager_amount?: number
+          wager_locked_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wagers_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      user_wager_history: {
+        Row: {
+          created_at: string | null
+          game_id: string | null
+          game_status: string | null
+          id: string | null
+          result: string | null
+          user_id: string | null
+          wager_amount: number | null
+          wager_locked_at: string | null
+          winner_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "games_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wagers_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       clean_stale_queue_entries: { Args: never; Returns: undefined }

@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { LogoLink } from './LogoLink';
+
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DesktopSideMenuProps {
@@ -124,13 +124,16 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
         {isOpen && (
           <div className={`flex flex-col h-full ${collapsed ? 'w-16 overflow-hidden' : 'w-72 overflow-hidden'}`}>
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              {!collapsed && <LogoLink className="h-8" onClick={onToggle} />}
-              {collapsed && (
-                <div className="w-full flex justify-center">
-                  <LogoLink className="h-6" onClick={onToggle} />
-                </div>
-              )}
+            <div className="flex items-center justify-start p-4 border-b border-border">
+              {/* Desktop: Hamburger menu to toggle collapsed state - stays fixed position */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleCollapseToggle}
+                className="hidden md:flex h-10 w-10"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
               {/* Mobile: X to close completely */}
               <Button variant="ghost" size="icon" onClick={onToggle} className="md:hidden">
                 <X className="h-5 w-5" />
@@ -376,15 +379,3 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
   );
 };
 
-export const SideMenuTrigger = ({ onClick }: { onClick: () => void }) => {
-  return (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      onClick={onClick}
-      className="hidden md:flex h-10 w-10"
-    >
-      <Menu className="h-5 w-5" />
-    </Button>
-  );
-};
