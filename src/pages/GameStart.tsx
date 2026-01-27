@@ -194,18 +194,6 @@ export default function GameStart() {
   // STEP C: Get IDs safely (normalized, never from raw objects)
   const userId = user?.id ?? session?.user?.id ?? null;
   const isConnected = wsStatus === "connected";
-  
-  // STEP 3: Add timeout for loading state (8 seconds)
-  useEffect(() => {
-    if (loading) {
-      const timeout = setTimeout(() => {
-        console.error('[GameStart] Loading timeout - forcing loading to false');
-        setLoading(false);
-      }, 8000);
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [loading]);
 
   const game = gameSlug ? GAMES[gameSlug] : null;
   const selectedOption = STAKE_OPTIONS.find(opt => opt.coins === selectedStake);
@@ -600,26 +588,6 @@ export default function GameStart() {
             <X className="w-4 h-4 mr-2" />
             Cancel Search
           </Button>
-          
-          {/* STEP G: Debug Box (dev only) */}
-          {(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1') && (
-            <div className="mt-4 p-4 bg-gray-900/80 border border-gray-700 rounded-xl text-xs font-mono text-left space-y-1">
-              <div className="text-gray-400 mb-2">DEBUG (?debug=1)</div>
-              <div>authReady: {loading ? 'loading' : 'ready'}</div>
-              <div>userId: {userId || 'null'}</div>
-              <div>wsStatus: {wsStatus}</div>
-              <div>wsConnected: {isConnected ? 'true' : 'false'}</div>
-              <div>mm.status: {safeMatchmaking.status}</div>
-              <div>mm.matchId: {safeMatchmaking.matchId || 'null'}</div>
-              <div>mm.dbMatchId: {safeMatchmaking.dbMatchId || 'null'}</div>
-              <div>mm.opponentUserId: {safeMatchmaking.opponentUserId || 'null'}</div>
-              <div>mm.wager: {safeMatchmaking.wager || 'null'}</div>
-              <div>mm.color: {safeMatchmaking.color || 'null'}</div>
-              <div>mm.error: {safeMatchmaking.error || 'none'}</div>
-              <div>phase: {phase}</div>
-              <div>isSearching: {isSearching ? 'true' : 'false'}</div>
-            </div>
-          )}
         </div>
       </div>
     );

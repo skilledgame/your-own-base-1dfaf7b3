@@ -29,21 +29,6 @@ import { useEnsureUser } from "./hooks/useEnsureUser";
 import { useEffect } from "react";
 import { useBalanceStore } from "./stores/balanceStore";
 
-// STEP 1: Global error handlers to catch unhandled errors
-if (typeof window !== 'undefined') {
-  window.addEventListener('error', (event) => {
-    console.error('[Global Error Handler]', event.error);
-    console.error('[Global Error Handler] Stack:', event.error?.stack);
-  });
-
-  window.addEventListener('unhandledrejection', (event) => {
-    console.error('[Global Unhandled Rejection]', event.reason);
-    if (event.reason instanceof Error) {
-      console.error('[Global Unhandled Rejection] Stack:', event.reason.stack);
-    }
-  });
-}
-
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
   defaultOptions: {
