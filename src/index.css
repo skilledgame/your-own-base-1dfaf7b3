@@ -1,5 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* Rainbow text animation for usernames */
+@keyframes rainbow-text {
+  0% { color: hsl(0, 100%, 70%); }
+  14% { color: hsl(30, 100%, 70%); }
+  28% { color: hsl(60, 100%, 70%); }
+  42% { color: hsl(120, 100%, 70%); }
+  57% { color: hsl(180, 100%, 70%); }
+  71% { color: hsl(240, 100%, 70%); }
+  85% { color: hsl(300, 100%, 70%); }
+  100% { color: hsl(360, 100%, 70%); }
+}
+
+.animate-rainbow-text {
+  animation: rainbow-text 3s linear infinite;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
