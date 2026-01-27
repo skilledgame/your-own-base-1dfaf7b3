@@ -63,13 +63,21 @@ export const LandingPage = ({
 }: LandingPageProps) => {
   const [playerName, setPlayerName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
-  const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  // Desktop: always open, just toggle collapsed state. Mobile: can close completely.
+  const [sideMenuOpen, setSideMenuOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      // Default open on desktop (md breakpoint = 768px)
+      return window.innerWidth >= 768;
+    }
+    return false;
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('sidebarCollapsed');
-      return stored === 'true';
+      // Default to collapsed (icon-only) on desktop
+      return stored !== null ? stored === 'true' : true;
     }
-    return false;
+    return true;
   });
   const navigate = useNavigate();
   
@@ -168,8 +176,17 @@ export const LandingPage = ({
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
             <div className="flex items-center gap-4">
-              {/* Side Menu Trigger - Desktop Only, Far Left */}
-              <SideMenuTrigger onClick={() => setSideMenuOpen(!sideMenuOpen)} />
+              {/* Side Menu Trigger - Desktop Only, Far Left - Toggles collapsed state */}
+              <SideMenuTrigger onClick={() => {
+                // On desktop: toggle collapsed state (never fully close)
+                if (window.innerWidth >= 768) {
+                  setSidebarCollapsed(!sidebarCollapsed);
+                  if (!sideMenuOpen) setSideMenuOpen(true);
+                } else {
+                  // On mobile: toggle visibility
+                  setSideMenuOpen(!sideMenuOpen);
+                }
+              }} />
               <LogoLink className="h-12 sm:h-14" />
               <nav className="hidden lg:flex items-center gap-1 ml-4">
                 <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => scrollToSection('games')}>
