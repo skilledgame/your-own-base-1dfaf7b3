@@ -99,11 +99,19 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       }
       
       if (data) {
-        const totalWagered = data.total_wagered_sc ?? 0;
+        // Explicitly check for total_wagered_sc - handle both number and string
+        const totalWagered = typeof data.total_wagered_sc === 'number' 
+          ? data.total_wagered_sc 
+          : typeof data.total_wagered_sc === 'string'
+          ? parseInt(data.total_wagered_sc, 10) || 0
+          : 0;
+        
         console.log('[ProfileStore] Fetched profile:', {
           skilled_coins: data.skilled_coins,
           total_wagered_sc: totalWagered,
+          total_wagered_sc_raw: data.total_wagered_sc,
           user_id: data.user_id,
+          full_data: data, // Log full response for debugging
         });
         
         set({
@@ -119,6 +127,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           loading: false,
           error: null,
         });
+        
+        console.log('[ProfileStore] Profile state updated. totalWageredSc getter returns:', get().totalWageredSc);
       } else {
         console.log('[ProfileStore] No profile found for user');
         set({ profile: null, loading: false, userId });
