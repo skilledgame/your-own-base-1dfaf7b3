@@ -2,8 +2,15 @@ import { Link } from 'react-router-dom';
 import { Crown, ChevronRight, Sparkles } from 'lucide-react';
 import { VIPProgressCard } from './VIPProgressCard';
 import { Button } from './ui/button';
+import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const VIPProgressSection = () => {
+  const { user } = useAuth();
+  const { displayName, isLoading } = useProfile();
+  
+  const username = displayName || user?.email?.split('@')[0] || 'Player';
+
   return (
     <section className="relative py-8 overflow-hidden">
       {/* Background with gradient */}
@@ -29,6 +36,16 @@ export const VIPProgressSection = () => {
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Welcome Message */}
+        <div className="mb-6">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-1">
+            Welcome{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+              {username}!
+            </span>
+          </h2>
+        </div>
+
         <div className="grid lg:grid-cols-2 gap-6 items-center">
           {/* Left: VIP Progress Card */}
           <div>
