@@ -34,11 +34,14 @@ CREATE INDEX IF NOT EXISTS idx_wagers_user_created ON public.wagers(user_id, cre
 
 ALTER TABLE public.wagers ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Users can view their own wagers" 
+-- Drop policies if they exist, then create them
+DROP POLICY IF EXISTS "Users can view their own wagers" ON public.wagers;
+CREATE POLICY "Users can view their own wagers" 
 ON public.wagers FOR SELECT 
 USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "System can insert wagers" 
+DROP POLICY IF EXISTS "System can insert wagers" ON public.wagers;
+CREATE POLICY "System can insert wagers" 
 ON public.wagers FOR INSERT 
 WITH CHECK (true);
 

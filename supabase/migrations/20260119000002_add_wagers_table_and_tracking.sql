@@ -20,12 +20,14 @@ CREATE INDEX IF NOT EXISTS idx_wagers_user_created ON public.wagers(user_id, cre
 -- 3. Enable RLS on wagers
 ALTER TABLE public.wagers ENABLE ROW LEVEL SECURITY;
 
--- 4. RLS Policies for wagers
+-- 4. RLS Policies for wagers (drop if exists, then create)
+DROP POLICY IF EXISTS "Users can view their own wagers" ON public.wagers;
 CREATE POLICY "Users can view their own wagers" 
 ON public.wagers FOR SELECT 
 USING (auth.uid() = user_id);
 
 -- System can insert wagers (via lock_wager function)
+DROP POLICY IF EXISTS "System can insert wagers" ON public.wagers;
 CREATE POLICY "System can insert wagers" 
 ON public.wagers FOR INSERT 
 WITH CHECK (true); -- Allow system to insert via SECURITY DEFINER function
