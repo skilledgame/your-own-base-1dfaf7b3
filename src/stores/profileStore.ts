@@ -99,16 +99,18 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       }
       
       if (data) {
+        const totalWagered = data.total_wagered_sc ?? 0;
         console.log('[ProfileStore] Fetched profile:', {
           skilled_coins: data.skilled_coins,
-          total_wagered_sc: (data as any).total_wagered_sc,
+          total_wagered_sc: totalWagered,
+          user_id: data.user_id,
         });
         
         set({
           profile: {
             user_id: data.user_id,
             skilled_coins: data.skilled_coins ?? 0,
-            total_wagered_sc: (data as any).total_wagered_sc ?? 0,
+            total_wagered_sc: totalWagered,
             display_name: data.display_name,
             email: data.email,
           },
@@ -161,18 +163,26 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           // Update profile state
           const currentProfile = get().profile;
           if (currentProfile && currentProfile.user_id === userId) {
+            const updatedProfile = {
+              ...currentProfile,
+              skilled_coins: newData.skilled_coins ?? currentProfile.skilled_coins,
+              total_wagered_sc: newData.total_wagered_sc ?? currentProfile.total_wagered_sc,
+              display_name: newData.display_name ?? currentProfile.display_name,
+              email: newData.email ?? currentProfile.email,
+            };
+            
+            console.log('[ProfileStore] Updating profile from realtime:', {
+              old_total_wagered: currentProfile.total_wagered_sc,
+              new_total_wagered: updatedProfile.total_wagered_sc,
+            });
+            
             set({
-              profile: {
-                ...currentProfile,
-                skilled_coins: newData.skilled_coins ?? currentProfile.skilled_coins,
-                total_wagered_sc: newData.total_wagered_sc ?? currentProfile.total_wagered_sc,
-                display_name: newData.display_name ?? currentProfile.display_name,
-                email: newData.email ?? currentProfile.email,
-              },
+              profile: updatedProfile,
               lastUpdated: Date.now(),
             });
           } else {
             // Profile not loaded yet, fetch it
+            console.log('[ProfileStore] Profile not loaded, fetching...');
             get().fetchProfile(userId);
           }
         }

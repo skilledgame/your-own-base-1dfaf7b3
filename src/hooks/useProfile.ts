@@ -39,6 +39,23 @@ export function useProfile() {
       // Only cleanup on sign out (handled in reset)
     };
   }, [user?.id, isAuthenticated, fetchProfile, subscribeToProfile, reset]);
+
+  // Refresh profile when tab becomes visible (user comes back)
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[useProfile] Tab visible, refreshing profile...');
+        fetchProfile(user.id);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, user?.id, fetchProfile]);
   
   // Provide a refresh function for manual refetch
   const refresh = () => {
