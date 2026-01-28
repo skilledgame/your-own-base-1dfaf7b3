@@ -25,12 +25,12 @@ export const RANK_THRESHOLDS = {
 
 // Perks per tier
 export const RANK_PERKS: Record<string, string[]> = {
-  Noob: ["Basic access", "Standard matchmaking"],
-  gooner: ["Exclusive badge", "Basic leaderboard access"],
-  emeraldedger: ["Reduced fee (coming soon)", "Priority matchmaking (coming soon)"],
-  ganad: ["VIP badge", "Monthly bonus drops (coming soon)"],
-  super: ["Lower house fee (coming soon)", "VIP support (coming soon)"],
-  grandmasterbaiter: ["Best fee tier (coming soon)", "Early access features (coming soon)"],
+  unranked: ["Basic access", "Standard matchmaking"],
+  bronze: ["Exclusive badge", "Basic leaderboard access"],
+  silver: ["Reduced fee (coming soon)", "Priority matchmaking (coming soon)"],
+  gold: ["VIP badge", "Monthly bonus drops (coming soon)"],
+  platinum: ["Lower house fee (coming soon)", "VIP support (coming soon)"],
+  diamond: ["Best fee tier (coming soon)", "Early access features (coming soon)"],
 };
 
 /**
