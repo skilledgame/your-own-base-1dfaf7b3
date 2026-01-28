@@ -275,6 +275,29 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Sidebar scrollbar - matches sidebar background */
+  .scrollbar-sidebar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  .scrollbar-sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
 }
 
 @layer utilities {
