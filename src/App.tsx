@@ -13,6 +13,7 @@ import Auth from "./pages/Auth";
 import Deposit from "./pages/Deposit";
 import GameStart from "./pages/GameStart";
 import ChessLobby from "./pages/ChessLobby";
+import ChessHome from "./pages/ChessHome";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Profile from "./pages/Profile";
@@ -92,6 +93,7 @@ const App = () => (
               <Route path="/withdraw" element={<Withdraw />} />
               <Route path="/games/:gameSlug" element={<GameStart />} />
               <Route path="/chess-lobby" element={<ChessLobby />} />
+              <Route path="/chess" element={<ChessHome />} />
               <Route path="/terms" element={<TermsAndConditions />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/profile" element={<Profile />} />

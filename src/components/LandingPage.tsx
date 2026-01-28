@@ -120,8 +120,13 @@ export const LandingPage = ({
   };
 
   const handleGameClick = (gameName: string) => {
+    // Chess has its own dedicated game mode selection page
+    if (gameName === 'Chess') {
+      navigate('/chess');
+      return;
+    }
+    
     const slugMap: Record<string, string> = {
-      'Chess': 'chess',
       'Checkers': 'checkers',
       'Reversi': 'reversi',
       'Go': 'go',
