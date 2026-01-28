@@ -26,7 +26,7 @@ interface LandingPageProps {
   isSearching: boolean;
 }
 
-// Game data - Only Skilled Originals with Chess + 3 coming soon (rainbow colors)
+// Game data - Only Skilled Originals with Chess + 3 coming soon (muted colors)
 const skilledOriginals = [{
   name: 'Chess',
   image: '♟️',
@@ -35,26 +35,26 @@ const skilledOriginals = [{
   isLive: true,
   showName: true
 }, {
-  name: 'Duck Hunt',
-  image: '🦆',
-  gradientFrom: '#ef4444',
-  gradientTo: '#b91c1c',
+  name: '',
+  image: '🪿',
+  gradientFrom: '#6b5c5c',
+  gradientTo: '#4a3f3f',
   comingSoon: true,
-  showName: true
+  showName: false
 }, {
-  name: 'Dino Run',
+  name: '',
   image: '🦖',
-  gradientFrom: '#22c55e',
-  gradientTo: '#15803d',
+  gradientFrom: '#4a6b5c',
+  gradientTo: '#3a5248',
   comingSoon: true,
-  showName: true
+  showName: false
 }, {
-  name: 'Ping Pong',
+  name: '',
   image: '🏓',
-  gradientFrom: '#f97316',
-  gradientTo: '#c2410c',
+  gradientFrom: '#6b5a4a',
+  gradientTo: '#524638',
   comingSoon: true,
-  showName: true
+  showName: false
 }];
 
 export const LandingPage = ({
