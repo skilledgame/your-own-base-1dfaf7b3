@@ -17,7 +17,7 @@ export interface RankInfo {
 export const RANK_THRESHOLDS = {
   unranked: 0,
   bronze: 2_500,
-  silver: 25_000,
+  silver: 10_000,
   gold: 100_000,
   platinum: 250_000,
   diamond: 1_000_000,
