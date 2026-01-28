@@ -31,6 +31,7 @@ interface ModeCardProps {
   title: string;
   subtitle: string;
   icon: React.ReactNode;
+  chessPiece: string;
   gradientFrom: string;
   gradientTo: string;
   glowColor: string;
@@ -46,6 +47,7 @@ const ModeCard = ({
   title,
   subtitle,
   icon,
+  chessPiece,
   gradientFrom,
   gradientTo,
   glowColor,
@@ -93,15 +95,21 @@ const ModeCard = ({
           }}
         />
 
-        {/* Icon/Visual Area */}
+        {/* Chess Piece Visual */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div 
             className={`
-              text-[120px] sm:text-[150px] transition-all duration-500
-              ${isActive ? 'scale-110 drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]' : 'scale-100'}
+              text-[100px] sm:text-[130px] md:text-[150px] transition-all duration-500
+              select-none filter
+              ${isActive ? 'scale-110 drop-shadow-[0_0_40px_rgba(255,255,255,0.6)]' : 'scale-100 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]'}
             `}
+            style={{
+              textShadow: isActive 
+                ? `0 0 60px ${glowColor}, 0 0 100px ${glowColor}` 
+                : `0 0 30px ${glowColor}`
+            }}
           >
-            ♟️
+            {chessPiece}
           </div>
         </div>
 
@@ -210,27 +218,27 @@ export default function ChessHome() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0f1a] relative overflow-hidden">
-      {/* Animated Background */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+      {/* Subtle Animated Background - Toned down to match home page */}
       <div className="absolute inset-0">
-        {/* Radial gradient background */}
+        {/* Soft radial gradient background */}
         <div 
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(ellipse at 50% 30%, #1e3a5f 0%, #0a0f1a 70%)'
+            background: 'radial-gradient(ellipse at 50% 30%, rgba(30, 58, 95, 0.3) 0%, transparent 70%)'
           }}
         />
         
-        {/* Animated glow orbs */}
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/15 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-600/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
+        {/* Subtle glow orbs - reduced opacity */}
+        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[150px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/8 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-600/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
         
-        {/* Geometric lines */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-blue-500 to-transparent" />
-          <div className="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-cyan-500 to-transparent" />
-          <div className="absolute top-1/3 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+        {/* Subtle geometric lines - matching home page style */}
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-white to-transparent" />
+          <div className="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-white to-transparent" />
+          <div className="absolute top-1/3 left-0 w-full h-px bg-gradient-to-r from-transparent via-white to-transparent" />
         </div>
       </div>
 
@@ -262,12 +270,13 @@ export default function ChessHome() {
         {/* Game Mode Cards */}
         <div className="flex-1 flex items-center justify-center px-4 pb-8">
           <div className="flex gap-4 sm:gap-6 md:gap-8 items-center justify-center max-w-6xl w-full">
-            {/* Private Mode */}
+            {/* Private Mode - Knight piece */}
             <ModeCard
               mode="private"
               title="Private"
               subtitle="Play with friends using room codes"
               icon={<UserPlus className="w-7 h-7 text-purple-400" />}
+              chessPiece="♞"
               gradientFrom="#7c3aed"
               gradientTo="#2e1065"
               glowColor="rgba(124, 58, 237, 0.5)"
@@ -277,12 +286,13 @@ export default function ChessHome() {
               onClick={() => handleModeSelect('private')}
             />
 
-            {/* Online Mode (Center - Main) */}
+            {/* Online Mode (Center - Main) - Queen piece */}
             <ModeCard
               mode="online"
               title="Online"
               subtitle="Compete for Skilled Coins"
               icon={<Globe className="w-7 h-7 text-blue-400" />}
+              chessPiece="♛"
               gradientFrom="#0ea5e9"
               gradientTo="#0c4a6e"
               glowColor="rgba(14, 165, 233, 0.5)"
@@ -292,12 +302,13 @@ export default function ChessHome() {
               onClick={() => handleModeSelect('online')}
             />
 
-            {/* Battle Royale Mode */}
+            {/* Battle Royale Mode - Rook/Castle piece */}
             <ModeCard
               mode="battle-royale"
               title="Battle Royale"
               subtitle="Last player standing wins"
               icon={<Crown className="w-7 h-7 text-yellow-400" />}
+              chessPiece="♜"
               gradientFrom="#f59e0b"
               gradientTo="#78350f"
               glowColor="rgba(245, 158, 11, 0.5)"
