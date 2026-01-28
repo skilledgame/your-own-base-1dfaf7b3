@@ -16,7 +16,7 @@ export interface RankInfo {
 // Rank thresholds (in Skilled Coins)
 export const RANK_THRESHOLDS = {
   unranked: 0,
-  bronze: 2_000,
+  bronze: 2_500,
   silver: 25_000,
   gold: 100_000,
   platinum: 250_000,
