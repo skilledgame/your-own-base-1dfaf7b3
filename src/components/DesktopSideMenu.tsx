@@ -118,11 +118,14 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
           fixed top-0 left-0 h-full z-50 flex flex-col
           bg-card border-r border-border
           transition-all duration-300 ease-out
-          ${isOpen ? `${sidebarWidth} translate-x-0` : 'w-0 -translate-x-full md:w-0'}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${collapsed ? 'w-16' : 'w-72'}
         `}
+        style={{
+          transitionProperty: 'transform, width',
+        }}
       >
-        {isOpen && (
-          <div className={`flex flex-col h-full ${collapsed ? 'w-16 overflow-hidden' : 'w-72 overflow-hidden'}`}>
+        <div className={`flex flex-col h-full transition-all duration-300 ease-out ${collapsed ? 'w-16' : 'w-72'} overflow-hidden`}>
             {/* Header */}
             <div className="flex items-center justify-start p-4 border-b border-border">
               {/* Desktop: Hamburger menu to toggle collapsed state - stays fixed position */}
@@ -141,7 +144,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
             </div>
 
             {/* Main Navigation */}
-            <div className={`flex-1 py-4 ${collapsed ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+            <div className={`flex-1 py-4 ${collapsed ? 'overflow-hidden' : 'overflow-y-auto scrollbar-sidebar'}`}>
               {!collapsed && (
                 <div className="px-3 mb-6">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
@@ -373,8 +376,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
     </TooltipProvider>
   );
 };

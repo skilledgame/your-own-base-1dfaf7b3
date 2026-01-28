@@ -42,7 +42,7 @@ export const GameCategory = ({ title, icon, games, onGameClick }: GameCategoryPr
   };
 
   return (
-    <div className="mb-8 max-w-5xl mx-auto px-4 sm:px-8 lg:px-16">
+    <div className="mb-8 max-w-5xl mx-auto px-4 sm:px-8 lg:px-16 overflow-visible">
       {/* Category Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export const GameCategory = ({ title, icon, games, onGameClick }: GameCategoryPr
       {/* Scrollable Games Row */}
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide"
+        className="flex gap-4 overflow-x-auto pb-4 pt-2 pl-1 scrollbar-hide -ml-1"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {games.map((game, index) => (
