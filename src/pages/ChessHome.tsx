@@ -7,7 +7,7 @@
  * - Battle Royale (right): Coming soon
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LogoLink } from '@/components/LogoLink';
@@ -74,7 +74,7 @@ const ModeCard = ({
       {/* Card Container */}
       <div
         className={`
-          relative h-[450px] sm:h-[500px] md:h-[550px] rounded-2xl overflow-hidden
+          relative h-[380px] sm:h-[420px] md:h-[460px] rounded-2xl overflow-hidden
           border-2 transition-all duration-500
           ${isActive 
             ? `border-white/60 shadow-[0_0_60px_${glowColor}]` 
@@ -82,7 +82,7 @@ const ModeCard = ({
           ${isSelected ? 'ring-4 ring-white/40' : ''}
         `}
         style={{
-          background: `linear-gradient(180deg, ${gradientFrom} 0%, ${gradientTo} 100%)`,
+          background: `linear-gradient(180deg, ${gradientFrom}dd 0%, ${gradientTo}ee 100%)`,
           boxShadow: isActive ? `0 0 80px ${glowColor}, inset 0 0 60px ${glowColor}40` : undefined
         }}
       >
@@ -99,7 +99,7 @@ const ModeCard = ({
         <div className="absolute inset-0 flex items-center justify-center">
           <div 
             className={`
-              text-[100px] sm:text-[130px] md:text-[150px] transition-all duration-500
+              text-[80px] sm:text-[100px] md:text-[120px] transition-all duration-500
               select-none filter
               ${isActive ? 'scale-110 drop-shadow-[0_0_40px_rgba(255,255,255,0.6)]' : 'scale-100 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]'}
             `}
@@ -195,6 +195,23 @@ export default function ChessHome() {
   const [hoveredMode, setHoveredMode] = useState<GameMode | null>(null);
   const [selectedMode, setSelectedMode] = useState<SelectedMode>(null);
 
+  // Animated tab title with cycling chess pieces
+  useEffect(() => {
+    const pieces = ['♟', '♞', '♝', '♜', '♛', '♚'];
+    let index = 0;
+    const originalTitle = document.title;
+    
+    const interval = setInterval(() => {
+      document.title = `${pieces[index]} Chess | Skilled`;
+      index = (index + 1) % pieces.length;
+    }, 500);
+    
+    return () => {
+      clearInterval(interval);
+      document.title = originalTitle;
+    };
+  }, []);
+
   const handleModeSelect = (mode: GameMode) => {
     if (mode === 'battle-royale') return; // Coming soon
     setSelectedMode(mode);
@@ -221,18 +238,18 @@ export default function ChessHome() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
       {/* Subtle Animated Background - Toned down to match home page */}
       <div className="absolute inset-0">
-        {/* Soft radial gradient background */}
+        {/* Soft radial gradient background - desaturated */}
         <div 
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(ellipse at 50% 30%, rgba(30, 58, 95, 0.3) 0%, transparent 70%)'
+            background: 'radial-gradient(ellipse at 50% 30%, rgba(40, 55, 75, 0.25) 0%, transparent 70%)'
           }}
         />
         
-        {/* Subtle glow orbs - reduced opacity */}
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[150px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/8 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-600/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
+        {/* Subtle glow orbs - reduced saturation and opacity */}
+        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-slate-500/8 rounded-full blur-[150px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-slate-400/6 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-slate-600/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
         
         {/* Subtle geometric lines - matching home page style */}
         <div className="absolute inset-0 opacity-[0.03]">
