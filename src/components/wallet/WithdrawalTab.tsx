@@ -64,13 +64,17 @@ export function WithdrawalTab() {
     setAmount(balance.toString());
   };
 
+  // Convert SC to USD (100 SC = 1 USD)
+  const usdEquivalent = balance / 100;
+  const withdrawalUsdValue = numericAmount / 100;
+
   return (
     <div className="space-y-5">
       {/* Balance Display */}
       <div className="bg-slate-800/50 rounded-xl p-4 text-center">
         <div className="text-slate-400 text-sm">Available Balance</div>
         <div className="text-2xl font-bold text-white">{balance.toLocaleString()} SC</div>
-        <div className="text-slate-500 text-xs">1 SC = $1 USD</div>
+        <div className="text-slate-500 text-xs">≈ ${usdEquivalent.toFixed(2)} USD (100 SC = $1)</div>
       </div>
 
       {/* Amount Input */}
@@ -143,18 +147,28 @@ export function WithdrawalTab() {
       </div>
 
       {/* Withdrawal Info */}
-      <div className="bg-slate-800/30 rounded-xl p-3 space-y-2 text-sm">
-        <div className="flex justify-between text-slate-400">
-          <span>Network Fee</span>
-          <span className="text-white">~$2.00</span>
+      {numericAmount > 0 && (
+        <div className="bg-slate-800/30 rounded-xl p-3 space-y-2 text-sm">
+          <div className="flex justify-between text-slate-400">
+            <span>Withdrawal Amount</span>
+            <span className="text-white">{numericAmount.toLocaleString()} SC</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>USD Value</span>
+            <span className="text-white">${withdrawalUsdValue.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Network Fee</span>
+            <span className="text-white">~$2.00</span>
+          </div>
+          <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-700/50">
+            <span>You'll Receive</span>
+            <span className="text-emerald-400 font-medium">
+              ~${Math.max(0, withdrawalUsdValue - 2).toFixed(2)}
+            </span>
+          </div>
         </div>
-        <div className="flex justify-between text-slate-400">
-          <span>You'll Receive</span>
-          <span className="text-emerald-400 font-medium">
-            ~${Math.max(0, numericAmount - 2).toFixed(2)}
-          </span>
-        </div>
-      </div>
+      )}
 
       {/* Submit Button */}
       <Button
