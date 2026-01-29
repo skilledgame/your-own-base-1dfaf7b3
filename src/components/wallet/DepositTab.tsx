@@ -125,17 +125,17 @@ export function DepositTab() {
   // Step 1: Amount Selection
   if (step === 'amount') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
-          <Label className="text-slate-300 text-sm mb-3 block">Select Amount (USD)</Label>
-          <div className="grid grid-cols-3 gap-3">
+          <Label className="text-slate-300 text-sm mb-2 block">Select Amount (USD)</Label>
+          <div className="grid grid-cols-3 gap-2">
             {AMOUNT_OPTIONS.map((amount) => (
               <button
                 key={amount}
                 onClick={() => handleAmountSelect(amount)}
                 className={cn(
-                  "py-3 px-4 rounded-xl font-semibold text-lg transition-all",
-                  "border-2",
+                  "py-2.5 px-3 rounded-lg font-semibold text-base transition-all",
+                  "border",
                   selectedAmount === amount
                     ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
                     : "bg-slate-800/50 border-slate-600/50 text-slate-200 hover:border-slate-500"
@@ -145,27 +145,39 @@ export function DepositTab() {
               </button>
             ))}
           </div>
+          {/* Conversion hint */}
+          <p className="text-slate-500 text-xs mt-2 text-center">
+            1 USD = 100 Skilled Coins
+          </p>
         </div>
 
         <div>
-          <Label className="text-slate-300 text-sm mb-2 block">Or enter custom amount</Label>
+          <Label className="text-slate-300 text-sm mb-1.5 block">Or enter custom amount</Label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
             <Input
               type="number"
               placeholder="0.00"
               value={customAmount}
               onChange={(e) => handleCustomAmountChange(e.target.value)}
-              className="pl-8 bg-slate-800/50 border-slate-600/50 text-white h-12 text-lg"
+              className="pl-7 bg-slate-800/50 border-slate-600/50 text-white h-10"
               min={1}
             />
           </div>
         </div>
 
+        {/* Summary */}
+        {finalAmount > 0 && (
+          <div className="bg-slate-800/50 rounded-lg p-3 text-center border border-slate-700/50">
+            <p className="text-slate-400 text-xs">You'll receive</p>
+            <p className="text-xl font-bold text-emerald-400">{(finalAmount * 100).toLocaleString()} SC</p>
+          </div>
+        )}
+
         <Button
           onClick={() => setStep('crypto')}
           disabled={!finalAmount || finalAmount < 1}
-          className="w-full h-12 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white font-semibold text-lg"
+          className="w-full h-10 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white font-semibold"
         >
           Continue - ${finalAmount || 0}
         </Button>
@@ -240,11 +252,11 @@ export function DepositTab() {
         </button>
 
         <div className="text-center">
-          <div className="text-slate-400 text-sm mb-1">Send exactly</div>
-          <div className="text-2xl font-bold text-white">
+          <div className="text-slate-400 text-xs mb-1">Send exactly</div>
+          <div className="text-xl font-bold text-white">
             {paymentDetails.payAmount} {paymentDetails.payCurrency.toUpperCase()}
           </div>
-          <div className="text-slate-400 text-sm">≈ ${finalAmount} USD</div>
+          <div className="text-slate-400 text-xs">≈ ${finalAmount} USD → {(finalAmount * 100).toLocaleString()} SC</div>
         </div>
 
         {/* QR Code */}
