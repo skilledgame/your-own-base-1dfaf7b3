@@ -33,14 +33,14 @@ const TabButton = memo(({ tab, activeTab, onClick, icon, label }: TabButtonProps
     <button
       onClick={() => onClick(tab)}
       className={cn(
-        "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all",
+        "flex items-center gap-1.5 px-2.5 py-2 rounded-lg font-medium text-xs transition-all whitespace-nowrap",
         isActive
           ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50"
           : "text-slate-400 hover:text-white hover:bg-slate-700/50"
       )}
     >
       {icon}
-      <span className="hidden sm:inline">{label}</span>
+      <span>{label}</span>
     </button>
   );
 });
