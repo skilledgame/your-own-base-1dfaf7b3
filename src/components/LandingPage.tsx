@@ -17,7 +17,7 @@ import { GuestLoginPrompt } from './GuestLoginPrompt';
 import { InviteBanner } from './InviteBanner';
 import { LiveWins } from './LiveWins';
 import { WeeklyLeaderboard } from './WeeklyLeaderboard';
-import { WhoAmILabel } from './WhoAmILabel';
+import { UserDropdown } from './UserDropdown';
 import { SkilledCoinsDisplay } from './SkilledCoinsDisplay';
 import { BalanceDepositPill } from './BalanceDepositPill';
 import { VIPProgressSection } from './VIPProgressSection';
@@ -205,9 +205,9 @@ export const LandingPage = ({
                       </Link>
                     </Button>
                   )}
-                  {/* Who Am I label */}
+                  {/* User dropdown with username and menu */}
                   <div className="hidden sm:flex items-center">
-                    <WhoAmILabel showIcon={false} />
+                    <UserDropdown />
                   </div>
                   <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
                     <Link to="/search">
