@@ -58,14 +58,14 @@ export const WalletModal = memo(() => {
           "bg-slate-900 border-slate-700/50",
           "rounded-2xl shadow-2xl shadow-black/50",
           "p-0 gap-0",
-          "max-h-[90vh] overflow-hidden"
+          "flex flex-col"
         )}
       >
         {/* Accessible title for screen readers */}
         <DialogTitle className="sr-only">Wallet</DialogTitle>
         
         {/* Header with Tabs */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700/50 shrink-0">
           <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
             <TabButton
               tab="deposit"
@@ -99,7 +99,7 @@ export const WalletModal = memo(() => {
         </div>
 
         {/* Tab Content */}
-        <div className="p-5 overflow-y-auto max-h-[calc(90vh-80px)]">
+        <div className="p-5 overflow-y-auto flex-1 min-h-0">
           {activeTab === 'deposit' && <DepositTab />}
           {activeTab === 'withdrawal' && <WithdrawalTab />}
           {activeTab === 'gift' && <GiftTab />}
