@@ -6,6 +6,7 @@ import { Trophy, Loader2, Shield, Lock, Zap, Crown, ArrowRight, ChevronDown, Gam
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
+import { useWalletModal } from '@/contexts/WalletModalContext';
 import skilledLogo from '@/assets/skilled-logo.png';
 import { LogoLink } from './LogoLink';
 import { GameCategory } from './GameCategory';
@@ -58,6 +59,19 @@ const skilledOriginals = [{
   comingSoon: true,
   showName: false
 }];
+
+// Mobile balance pill that opens wallet modal
+const MobileBalancePill = ({ isPrivileged }: { isPrivileged: boolean }) => {
+  const { openWallet } = useWalletModal();
+  
+  return (
+    <div className="sm:hidden">
+      <button onClick={() => openWallet('deposit')}>
+        <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
+      </button>
+    </div>
+  );
+};
 
 export const LandingPage = ({
   onJoinGame,
@@ -221,11 +235,7 @@ export const LandingPage = ({
                     <UserDropdown />
                   </div>
                   {/* Mobile: Show balance pill */}
-                  <div className="sm:hidden">
-                    <Link to="/deposit">
-                      <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
-                    </Link>
-                  </div>
+                  <MobileBalancePill isPrivileged={isPrivileged} />
                 </>
               ) : (
                 <>
