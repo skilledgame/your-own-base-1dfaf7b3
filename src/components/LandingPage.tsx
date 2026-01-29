@@ -19,6 +19,7 @@ import { LiveWins } from './LiveWins';
 import { WeeklyLeaderboard } from './WeeklyLeaderboard';
 import { WhoAmILabel } from './WhoAmILabel';
 import { SkilledCoinsDisplay } from './SkilledCoinsDisplay';
+import { BalanceDepositPill } from './BalanceDepositPill';
 import { VIPProgressSection } from './VIPProgressSection';
 
 interface LandingPageProps {
@@ -180,6 +181,7 @@ export const LandingPage = ({
           `}
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
+            {/* Left: Logo + Nav */}
             <div className="flex items-center gap-4">
               <LogoLink className="h-12 sm:h-14" />
               <nav className="hidden lg:flex items-center gap-1 ml-4">
@@ -192,6 +194,15 @@ export const LandingPage = ({
                 </Button>
               </nav>
             </div>
+
+            {/* Center: Balance + Deposit (only when authenticated) */}
+            {isAuthenticated && (
+              <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2">
+                <BalanceDepositPill isPrivileged={isPrivileged} />
+              </div>
+            )}
+
+            {/* Right: Auth/User controls */}
             <div className="flex items-center gap-2 sm:gap-3">
               {isAuthenticated ? (
                 <>
@@ -203,25 +214,21 @@ export const LandingPage = ({
                       </Link>
                     </Button>
                   )}
+                  {/* Who Am I label */}
+                  <div className="hidden sm:flex items-center">
+                    <WhoAmILabel showIcon={false} />
+                  </div>
                   <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
                     <Link to="/search">
                       <Search className="w-5 h-5" />
                     </Link>
                   </Button>
-                  {/* Who Am I label + Balance */}
-                  <div className="hidden sm:flex items-center gap-2">
-                    <WhoAmILabel showIcon={false} />
-                    <span className="text-muted-foreground">—</span>
-                  </div>
-                  <Link to="/deposit">
-                    <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
-                  </Link>
-                  <Button asChild className="hidden sm:flex bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
+                  {/* Mobile: Show balance pill */}
+                  <div className="sm:hidden">
                     <Link to="/deposit">
-                      <Wallet className="w-4 h-4 mr-2" />
-                      Deposit
+                      <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
                     </Link>
-                  </Button>
+                  </div>
                 </>
               ) : (
                 <>
