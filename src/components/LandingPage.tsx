@@ -20,6 +20,7 @@ import { WeeklyLeaderboard } from './WeeklyLeaderboard';
 import { UserDropdown } from './UserDropdown';
 import { SkilledCoinsDisplay } from './SkilledCoinsDisplay';
 import { BalanceDepositPill } from './BalanceDepositPill';
+import { NotificationDropdown } from './NotificationDropdown';
 import { VIPProgressSection } from './VIPProgressSection';
 
 interface LandingPageProps {
@@ -205,15 +206,20 @@ export const LandingPage = ({
                       </Link>
                     </Button>
                   )}
-                  {/* User dropdown with username and menu */}
-                  <div className="hidden sm:flex items-center">
-                    <UserDropdown />
-                  </div>
-                  <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
+                  {/* Search icon */}
+                  <Button variant="ghost" size="icon" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
                     <Link to="/search">
                       <Search className="w-5 h-5" />
                     </Link>
                   </Button>
+                  {/* Notification bell */}
+                  <div className="hidden sm:flex">
+                    <NotificationDropdown />
+                  </div>
+                  {/* User dropdown with username and menu */}
+                  <div className="hidden sm:flex items-center">
+                    <UserDropdown />
+                  </div>
                   {/* Mobile: Show balance pill */}
                   <div className="sm:hidden">
                     <Link to="/deposit">

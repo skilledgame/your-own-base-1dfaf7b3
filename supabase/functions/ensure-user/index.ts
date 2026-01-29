@@ -17,6 +17,7 @@ const ADMIN_USER_IDS = [
  * Creates profile and player records for new users.
  * Uses profiles.skilled_coins as the SINGLE source of truth.
  * New accounts start with 0 Skilled Coins.
+ * Sends a welcome notification to new users.
  */
 
 Deno.serve(async (req) => {
@@ -86,6 +87,7 @@ Deno.serve(async (req) => {
     let createdPlayers = false;
     let createdFreePlays = false;
     let createdAdminRole = false;
+    let createdWelcomeNotification = false;
     let skilledCoins = 0;
 
     // 1. Check if profile exists first (profiles.skilled_coins is the source of truth)
@@ -120,6 +122,24 @@ Deno.serve(async (req) => {
       createdProfiles = true;
       skilledCoins = 0;
       console.log('[ensure-user] Profile created:', profileData?.id);
+      
+      // Send welcome notification for new users
+      console.log('[ensure-user] Creating welcome notification...');
+      const { error: notificationError } = await supabaseAdmin
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          title: '🎉 Welcome to Skilled!',
+          message: 'Welcome to the platform! Start competing in skill-based games and earn real rewards. Good luck and have fun!',
+          read: false,
+        });
+      
+      if (notificationError) {
+        console.error('[ensure-user] Welcome notification error:', notificationError.message);
+      } else {
+        createdWelcomeNotification = true;
+        console.log('[ensure-user] Welcome notification created');
+      }
     } else {
       skilledCoins = existingProfile.skilled_coins;
       console.log('[ensure-user] Profile already exists with', skilledCoins, 'Skilled Coins');
@@ -214,6 +234,7 @@ Deno.serve(async (req) => {
       createdPlayers,
       createdFreePlays,
       createdAdminRole,
+      createdWelcomeNotification,
       skilledCoins,
     });
 
@@ -225,6 +246,7 @@ Deno.serve(async (req) => {
         createdPlayers,
         createdFreePlays,
         createdAdminRole,
+        createdWelcomeNotification,
         skilled_coins: skilledCoins,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
