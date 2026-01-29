@@ -4,9 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { WalletModalProvider } from "@/contexts/WalletModalContext";
 import { AuthLoadingScreen } from "@/components/AuthLoadingScreen";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { WalletModal } from "@/components/WalletModal";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import Auth from "./pages/Auth";
@@ -79,41 +81,45 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppWithAuth>
-              <ErrorBoundary>
-                <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/deposit" element={<Deposit />} />
-              <Route path="/withdraw" element={<Withdraw />} />
-              <Route path="/games/:gameSlug" element={<GameStart />} />
-              <Route path="/chess-lobby" element={<ChessLobby />} />
-              <Route path="/chess" element={<ChessHome />} />
-              <Route path="/terms" element={<TermsAndConditions />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/compete" element={<Compete />} />
-              <Route path="/search" element={<Search />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/quick-play" element={<QuickPlay />} />
-              <Route path="/game/live/:gameId" element={<LiveGame />} />
-              <Route path="/affiliate" element={<Affiliate />} />
-              <Route path="/vip" element={<VIP />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-                </Routes>
-              </ErrorBoundary>
-              {/* Debug panel - only visible with ?debug=1 or in dev */}
-              <AuthDebugPanel />
-            </AppWithAuth>
-          </BrowserRouter>
-        </TooltipProvider>
+        <WalletModalProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppWithAuth>
+                <ErrorBoundary>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/how-it-works" element={<HowItWorks />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/deposit" element={<Deposit />} />
+                    <Route path="/withdraw" element={<Withdraw />} />
+                    <Route path="/games/:gameSlug" element={<GameStart />} />
+                    <Route path="/chess-lobby" element={<ChessLobby />} />
+                    <Route path="/chess" element={<ChessHome />} />
+                    <Route path="/terms" element={<TermsAndConditions />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/compete" element={<Compete />} />
+                    <Route path="/search" element={<Search />} />
+                    <Route path="/leaderboard" element={<Leaderboard />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/quick-play" element={<QuickPlay />} />
+                    <Route path="/game/live/:gameId" element={<LiveGame />} />
+                    <Route path="/affiliate" element={<Affiliate />} />
+                    <Route path="/vip" element={<VIP />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
+                {/* Wallet Modal - renders at root level */}
+                <WalletModal />
+                {/* Debug panel - only visible with ?debug=1 or in dev */}
+                <AuthDebugPanel />
+              </AppWithAuth>
+            </BrowserRouter>
+          </TooltipProvider>
+        </WalletModalProvider>
       </AuthProvider>
     </QueryClientProvider>
   </ErrorBoundary>

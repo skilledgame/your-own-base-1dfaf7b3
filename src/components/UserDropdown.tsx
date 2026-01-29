@@ -7,6 +7,7 @@
 import { memo, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWalletModal } from '@/contexts/WalletModalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   User, ChevronDown, ChevronUp, Wallet, Settings, 
@@ -28,6 +29,7 @@ interface UserDropdownProps {
 
 export const UserDropdown = memo(({ className }: UserDropdownProps) => {
   const { user, isAuthenticated, isAuthReady, signOut } = useAuth();
+  const { openWallet } = useWalletModal();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +70,11 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleOpenCashier = () => {
+    setIsOpen(false);
+    openWallet('deposit');
   };
   
   // Not ready yet
@@ -128,11 +135,14 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
         className="w-56 bg-slate-800 border-slate-700 rounded-xl shadow-xl shadow-black/30 z-50"
       >
         {/* Main actions */}
-        <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
-          <Link to="/deposit" className="flex items-center gap-3 px-3 py-2.5">
+        <DropdownMenuItem 
+          onClick={handleOpenCashier}
+          className="focus:bg-slate-700 cursor-pointer"
+        >
+          <div className="flex items-center gap-3 px-3 py-2.5">
             <Wallet className="w-4 h-4 text-emerald-400" />
             <span className="text-slate-200">Cashier</span>
-          </Link>
+          </div>
         </DropdownMenuItem>
         
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">

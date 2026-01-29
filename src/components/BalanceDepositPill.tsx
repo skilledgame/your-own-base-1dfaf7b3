@@ -2,14 +2,15 @@
  * BalanceDepositPill Component
  * 
  * Combined balance display and deposit button in a single pill-shaped container.
+ * Opens the wallet modal instead of navigating to a separate page.
  */
 
 import { memo } from 'react';
-import { Link } from 'react-router-dom';
-import { Coins, Wallet } from 'lucide-react';
+import { Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBalance } from '@/hooks/useBalance';
+import { useWalletModal } from '@/contexts/WalletModalContext';
 
 interface BalanceDepositPillProps {
   className?: string;
@@ -21,6 +22,7 @@ export const BalanceDepositPill = memo(({
   isPrivileged = false,
 }: BalanceDepositPillProps) => {
   const { balance, isLoading, isReady } = useBalance();
+  const { openWallet } = useWalletModal();
   
   return (
     <div
@@ -34,8 +36,8 @@ export const BalanceDepositPill = memo(({
       )}
     >
       {/* Balance Section - Left side */}
-      <Link 
-        to="/deposit"
+      <button 
+        onClick={() => openWallet('deposit')}
         className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-white/5 transition-colors"
       >
         {/* Coin icon - simple colored icon */}
@@ -51,15 +53,15 @@ export const BalanceDepositPill = memo(({
             {balance.toLocaleString()}
           </span>
         )}
-      </Link>
+      </button>
       
       {/* Deposit Button - Right side */}
-      <Link
-        to="/deposit"
+      <button
+        onClick={() => openWallet('deposit')}
         className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 transition-all font-semibold text-white text-sm"
       >
         Deposit
-      </Link>
+      </button>
     </div>
   );
 });
