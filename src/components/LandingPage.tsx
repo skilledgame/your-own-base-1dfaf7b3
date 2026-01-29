@@ -181,18 +181,9 @@ export const LandingPage = ({
           `}
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
-            {/* Left: Logo + Nav */}
-            <div className="flex items-center gap-4">
+            {/* Left: Logo */}
+            <div className="flex items-center">
               <LogoLink className="h-12 sm:h-14" />
-              <nav className="hidden lg:flex items-center gap-1 ml-4">
-                <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => scrollToSection('games')}>
-                  <Gamepad2 className="w-4 h-4 mr-2" />
-                  Games
-                </Button>
-                <Button variant="ghost" className="text-muted-foreground hover:text-foreground" asChild>
-                  <Link to="/how-it-works">How It Works</Link>
-                </Button>
-              </nav>
             </div>
 
             {/* Center: Balance + Deposit (only when authenticated) */}
