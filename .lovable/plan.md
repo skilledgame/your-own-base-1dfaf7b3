@@ -1,112 +1,180 @@
 
-# Move Logo to Main Header and Add Hamburger to Sidebar
 
-## What We're Changing
+# Wallet Modal Redesign Plan
 
-### Main Screen Header (LandingPage.tsx)
-- Remove the `SideMenuTrigger` hamburger button (lines 180-189)
-- Keep the `LogoLink` that's already there (line 190)
-- The logo will just be a link to home, not a toggle
+## Overview
+Transform the current separate deposit/withdraw pages into a unified modal overlay (like the Rainbet reference image) that appears on top of the current page. The modal will have four tabs: **Deposit**, **Withdrawal**, **Gift**, and **Redeem**.
 
-### Sidebar Header (DesktopSideMenu.tsx)
-- Remove the `LogoLink` from the sidebar header
-- Add a hamburger (`Menu`) button that toggles collapsed/expanded state
-- The hamburger button stays fixed in the same position whether collapsed or expanded
+---
 
-## File Changes
+## What Will Change
 
-### 1. src/components/LandingPage.tsx
+### User Experience
+- Clicking "Deposit" from the header (or anywhere) will **no longer navigate to a new page**
+- Instead, a **modal overlay** will appear on top of the current page (homepage visible in background)
+- Users can switch between Deposit, Withdrawal, Gift, and Redeem tabs without leaving the modal
+- Clicking outside the modal or the X button closes it and returns to the page they were on
 
-**Remove the SideMenuTrigger and its toggle logic (lines 179-189):**
-```tsx
-// Before:
-<div className="flex items-center gap-4">
-  {/* Side Menu Trigger - Desktop Only, Far Left - Toggles collapsed state */}
-  <SideMenuTrigger onClick={() => {
-    // On desktop: toggle collapsed state (never fully close)
-    if (window.innerWidth >= 768) {
-      setSidebarCollapsed(!sidebarCollapsed);
-      if (!sideMenuOpen) setSideMenuOpen(true);
-    } else {
-      // On mobile: toggle visibility
-      setSideMenuOpen(!sideMenuOpen);
-    }
-  }} />
-  <LogoLink className="h-12 sm:h-14" />
+### Visual Design (Inspired by Rainbet Reference)
+- Dark modal with `slate-900` background
+- Rounded corners with subtle border
+- Semi-transparent backdrop overlay (`bg-black/60`)
+- Tab buttons at the top (Deposit | Withdrawal | Gift | Redeem)
+- Active tab highlighted with primary color
+- Close button in top-right corner
 
-// After:
-<div className="flex items-center gap-4">
-  <LogoLink className="h-12 sm:h-14" />
-```
+---
 
-Also remove the unused `SideMenuTrigger` import from line 12.
+## Implementation Steps
 
-### 2. src/components/DesktopSideMenu.tsx
+### 1. Create WalletModal Component
+**New file: `src/components/WalletModal.tsx`**
 
-**Replace LogoLink in sidebar header with a hamburger button (lines 127-138):**
-```tsx
-// Before:
-<div className="flex items-center justify-between p-4 border-b border-border">
-  {!collapsed && <LogoLink className="h-8" onClick={onToggle} />}
-  {collapsed && (
-    <div className="w-full flex justify-center">
-      <LogoLink className="h-6" onClick={onToggle} />
-    </div>
-  )}
-  {/* Mobile: X to close completely */}
-  <Button variant="ghost" size="icon" onClick={onToggle} className="md:hidden">
-    <X className="h-5 w-5" />
-  </Button>
-</div>
-
-// After:
-<div className="flex items-center justify-between p-4 border-b border-border">
-  {/* Desktop: Hamburger menu to toggle collapsed state - stays fixed */}
-  <Button 
-    variant="ghost" 
-    size="icon" 
-    onClick={handleCollapseToggle}
-    className="hidden md:flex h-10 w-10"
-  >
-    <Menu className="h-5 w-5" />
-  </Button>
-  {/* Mobile: X to close completely */}
-  <Button variant="ghost" size="icon" onClick={onToggle} className="md:hidden">
-    <X className="h-5 w-5" />
-  </Button>
-</div>
-```
-
-Remove the `LogoLink` import since it's no longer used in this file.
-
-## Visual Result
+A new modal component that:
+- Uses Radix Dialog for accessibility and overlay behavior
+- Contains 4 tabs managed by internal state
+- Accepts an `open` prop and `onOpenChange` callback
+- Can be opened from anywhere in the app
 
 ```text
 ┌─────────────────────────────────────────────────┐
-│ MAIN HEADER                                     │
-│ [Logo]  Games  How It Works     [Balance] [Dep] │
+│  ╔═══════════════════════════════════════════╗  │
+│  ║  [Deposit] [Withdrawal] [Gift] [Redeem]   X ║  │
+│  ╠═══════════════════════════════════════════╣  │
+│  ║                                            ║  │
+│  ║     Tab content rendered here              ║  │
+│  ║     (amount selection, crypto options,     ║  │
+│  ║      payment details, etc.)                ║  │
+│  ║                                            ║  │
+│  ╚═══════════════════════════════════════════╝  │
+│                                                  │
+│          (Homepage visible in background)        │
 └─────────────────────────────────────────────────┘
-
-┌────────┐                                         
-│ SIDEBAR│ (Collapsed - icons only)
-│ [☰]    │ ← Hamburger stays here
-│        │
-│ [🏠]   │
-│ [🎮]   │
-│ [♟️]   │
-└────────┘
-
-┌─────────────────┐
-│ SIDEBAR         │ (Expanded)
-│ [☰]             │ ← Same hamburger, same spot
-│                 │
-│ [🏠] Home       │
-│ [🎮] Games      │
-│ [♟️] Play Chess │
-└─────────────────┘
 ```
 
+### 2. Create Tab Content Components
+**New files for each tab:**
+
+- **`src/components/wallet/DepositTab.tsx`**: Move deposit logic from current `Deposit.tsx`
+  - Amount selection grid (10, 25, 50, 100, 250, 500 USD)
+  - Crypto selection (BTC, ETH, USDT, etc.)
+  - QR code and payment details display
+  
+- **`src/components/wallet/WithdrawalTab.tsx`**: Move withdrawal logic from current `Withdraw.tsx`
+  - Amount input
+  - Wallet address input
+  - Crypto method selection
+  
+- **`src/components/wallet/GiftTab.tsx`**: New feature
+  - Send Skilled Coins to another user
+  - Search/select recipient by username
+  - Enter amount and optional message
+  
+- **`src/components/wallet/RedeemTab.tsx`**: New feature
+  - Enter promo/gift codes
+  - Redeem bonuses or promotional offers
+
+### 3. Create Wallet Context/State
+**New file: `src/contexts/WalletModalContext.tsx`**
+
+A React context that:
+- Manages modal open/closed state globally
+- Allows opening to a specific tab (e.g., `openWallet('deposit')`)
+- Can be accessed from any component
+
+```typescript
+interface WalletModalContextType {
+  isOpen: boolean;
+  activeTab: 'deposit' | 'withdrawal' | 'gift' | 'redeem';
+  openWallet: (tab?: string) => void;
+  closeWallet: () => void;
+}
+```
+
+### 4. Update Trigger Points
+**Modify these files to use the modal instead of navigation:**
+
+- **`src/components/BalanceDepositPill.tsx`**: 
+  - Change `<Link to="/deposit">` to `onClick={() => openWallet('deposit')}`
+  
+- **`src/components/UserDropdown.tsx`**: 
+  - "Cashier" menu item opens modal instead of navigating
+  
+- **`src/components/LandingPage.tsx`**: 
+  - Mobile balance display opens modal on click
+  
+- **Other places with deposit links**: Update to use modal
+
+### 5. Update App.tsx
+- Wrap app with `WalletModalProvider`
+- Add `<WalletModal />` component to render at root level
+- Keep routes for direct URL access (`/deposit`, `/withdraw`) that auto-open the modal
+
+### 6. Handle Direct URL Access
+Keep the existing routes but modify them to:
+- Redirect to home with modal open
+- Or render the page with modal auto-opened on top
+
+---
+
+## Technical Details
+
+### Modal Structure
+```tsx
+<Dialog open={isOpen} onOpenChange={closeWallet}>
+  <DialogContent className="max-w-lg bg-slate-900 border-slate-700">
+    {/* Tab Navigation */}
+    <div className="flex gap-2 border-b border-slate-700 pb-4">
+      <TabButton active={tab === 'deposit'}>Deposit</TabButton>
+      <TabButton active={tab === 'withdrawal'}>Withdrawal</TabButton>
+      <TabButton active={tab === 'gift'}>Gift</TabButton>
+      <TabButton active={tab === 'redeem'}>Redeem</TabButton>
+    </div>
+    
+    {/* Tab Content */}
+    {tab === 'deposit' && <DepositTab />}
+    {tab === 'withdrawal' && <WithdrawalTab />}
+    {tab === 'gift' && <GiftTab />}
+    {tab === 'redeem' && <RedeemTab />}
+  </DialogContent>
+</Dialog>
+```
+
+### Files to Create
+1. `src/contexts/WalletModalContext.tsx` - Global modal state
+2. `src/components/WalletModal.tsx` - Main modal component
+3. `src/components/wallet/DepositTab.tsx` - Deposit content
+4. `src/components/wallet/WithdrawalTab.tsx` - Withdrawal content
+5. `src/components/wallet/GiftTab.tsx` - Gift feature
+6. `src/components/wallet/RedeemTab.tsx` - Redeem feature
+
+### Files to Modify
+1. `src/App.tsx` - Add provider and modal
+2. `src/components/BalanceDepositPill.tsx` - Use modal trigger
+3. `src/components/UserDropdown.tsx` - Use modal trigger
+4. `src/components/LandingPage.tsx` - Mobile deposit trigger
+5. `src/pages/Deposit.tsx` - Redirect to home with modal open (optional: keep for SEO)
+6. `src/pages/Withdraw.tsx` - Similar redirect handling
+
+---
+
+## Gift & Redeem Features (New)
+
+### Gift Tab
+- Search for users by username/email
+- Enter amount to send
+- Optional message
+- Confirm transaction
+- Note: Requires backend work (edge function for secure transfer)
+
+### Redeem Tab  
+- Input field for promo codes
+- "Redeem" button
+- Display success/error messages
+- Note: Requires backend table for promo codes
+
+---
+
 ## Summary
-- Logo stays on the main header (link to home only)
-- Hamburger button added to sidebar header (toggles collapsed/expanded)
-- Hamburger button position is fixed regardless of sidebar state
+This redesign creates a unified, modal-based wallet experience that keeps users on their current page while managing all financial transactions. The four-tab structure (Deposit, Withdrawal, Gift, Redeem) provides a comprehensive wallet interface inspired by the Rainbet design.
+
