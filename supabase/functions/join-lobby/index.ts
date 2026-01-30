@@ -102,23 +102,48 @@ serve(async (req) => {
       );
     }
 
-    // Check credits
-    const { data: isPrivileged } = await supabaseAdmin.rpc('is_privileged_user', {
+    // Check if user is privileged (admin/moderator)
+    const { data: isPrivileged, error: privilegedError } = await supabaseAdmin.rpc('is_privileged_user', {
       _user_id: user.id,
     });
 
+    if (privilegedError) {
+      console.error('[JOIN-LOBBY] Error checking privileged status:', privilegedError);
+      // Continue anyway - treat as non-privileged if check fails
+    }
+
+    const isPrivilegedUser = isPrivileged === true;
+
     // Check skilled_coins from profiles (not players.credits)
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('skilled_coins')
       .eq('user_id', user.id)
       .maybeSingle();
-    
-    if (!isPrivileged && profile && lobby.wager > profile.skilled_coins) {
+
+    if (profileError) {
+      console.error('[JOIN-LOBBY] Error fetching profile:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Insufficient credits for this wager' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Failed to fetch profile' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Validate balance for non-privileged users
+    if (!isPrivilegedUser) {
+      if (!profile) {
+        return new Response(
+          JSON.stringify({ error: 'Profile not found. Please refresh and try again.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (lobby.wager > profile.skilled_coins) {
+        return new Response(
+          JSON.stringify({ error: 'Insufficient credits for this wager' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Check if already in an active game
