@@ -246,7 +246,7 @@ serve(async (req) => {
     // Clean up stale games for this specific player before checking
     // This prevents stale game records from blocking new lobby joins
     const staleCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // 5 minutes ago
-    const oldActiveCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1 hour ago
+    const startingFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     
     console.log('[JOIN-LOBBY] Cleaning up stale games for player:', player.id);
     
@@ -263,16 +263,30 @@ serve(async (req) => {
       console.warn('[JOIN-LOBBY] Error cleaning up stale created games:', cleanupCreatedError);
     }
     
-    // Cancel stale 'active' games (no updates in last hour)
+    // Cancel stale 'active' games (no updates in last 5 minutes)
+    // Games that haven't been updated in 5 minutes are likely abandoned
     const { error: cleanupActiveError } = await supabaseAdmin
       .from('games')
       .update({ status: 'cancelled' })
       .or(`white_player_id.eq.${player.id},black_player_id.eq.${player.id}`)
       .eq('status', 'active')
-      .lt('updated_at', oldActiveCutoff);
+      .lt('updated_at', staleCutoff);
     
     if (cleanupActiveError) {
       console.warn('[JOIN-LOBBY] Error cleaning up stale active games:', cleanupActiveError);
+    }
+    
+    // Cancel 'active' games still at starting position (no moves made)
+    // These are games that were created but never actually played
+    const { error: cleanupNoMovesError } = await supabaseAdmin
+      .from('games')
+      .update({ status: 'cancelled' })
+      .or(`white_player_id.eq.${player.id},black_player_id.eq.${player.id}`)
+      .eq('status', 'active')
+      .eq('fen', startingFen);
+    
+    if (cleanupNoMovesError) {
+      console.warn('[JOIN-LOBBY] Error cleaning up games with no moves:', cleanupNoMovesError);
     }
     
     // Cancel invalid 'active' games (both players are the same - invalid state)
