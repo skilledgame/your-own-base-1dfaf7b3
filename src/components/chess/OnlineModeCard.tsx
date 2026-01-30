@@ -118,57 +118,59 @@ export const OnlineModeCard = ({
               src={rookCharacter} 
               alt="Online Mode Rook" 
               className={`
-                w-[200px] sm:w-[220px] md:w-[240px] h-auto object-contain
+                w-[160px] sm:w-[180px] md:w-[200px] h-auto object-contain
                 transition-all duration-500
                 ${isActive ? 'brightness-110' : 'brightness-100'}
               `}
               style={{
                 filter: isActive 
-                  ? 'drop-shadow(0 0 25px rgba(14, 165, 233, 0.4))' 
-                  : 'drop-shadow(0 0 10px rgba(0, 0, 0, 0.3))'
+                  ? 'drop-shadow(0 0 20px rgba(14, 165, 233, 0.3))' 
+                  : 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25))'
               }}
             />
             
-            {/* Animated Eyes Overlay - positioned to match the rook's face */}
+            {/* Animated Eyes - positioned on the rook's upper body/face area */}
             <div 
               className="absolute pointer-events-none"
               style={{
-                top: '24%',
+                top: '28%',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 display: 'flex',
-                gap: '16px'
+                gap: '20px'
               }}
             >
               {/* Left Eye */}
               <div 
                 className="relative"
                 style={{
-                  width: '22px',
-                  height: isBlinking ? '3px' : '22px',
+                  width: '18px',
+                  height: isBlinking ? '2px' : '18px',
                   background: 'white',
-                  borderRadius: isBlinking ? '3px' : '50%',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-                  transition: 'height 0.1s ease-out, border-radius 0.1s ease-out',
+                  borderRadius: isBlinking ? '2px' : '50%',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 -1px 2px rgba(0,0,0,0.1)',
+                  transition: 'height 0.08s ease-out, border-radius 0.08s ease-out',
                   overflow: 'hidden'
                 }}
               >
                 {!isBlinking && (
                   <div 
-                    className="absolute bg-slate-900 rounded-full"
+                    className="absolute rounded-full"
                     style={{
-                      width: '11px',
-                      height: '11px',
-                      left: `calc(50% - 5.5px + ${eyeOffset.x}px)`,
-                      top: `calc(50% - 5.5px + ${eyeOffset.y}px)`,
-                      transition: isActive ? 'left 0.05s, top 0.05s' : 'all 0.3s ease-out'
+                      width: '10px',
+                      height: '10px',
+                      background: '#1e293b',
+                      left: `calc(50% - 5px + ${eyeOffset.x}px)`,
+                      top: `calc(50% - 5px + ${eyeOffset.y}px)`,
+                      transition: isActive ? 'left 0.06s, top 0.06s' : 'all 0.25s ease-out'
                     }}
                   >
+                    {/* Eye shine */}
                     <div 
                       className="absolute bg-white rounded-full"
                       style={{
-                        width: '4px',
-                        height: '4px',
+                        width: '3px',
+                        height: '3px',
                         top: '1px',
                         right: '1px'
                       }}
@@ -181,31 +183,33 @@ export const OnlineModeCard = ({
               <div 
                 className="relative"
                 style={{
-                  width: '22px',
-                  height: isBlinking ? '3px' : '22px',
+                  width: '18px',
+                  height: isBlinking ? '2px' : '18px',
                   background: 'white',
-                  borderRadius: isBlinking ? '3px' : '50%',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-                  transition: 'height 0.1s ease-out, border-radius 0.1s ease-out',
+                  borderRadius: isBlinking ? '2px' : '50%',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 -1px 2px rgba(0,0,0,0.1)',
+                  transition: 'height 0.08s ease-out, border-radius 0.08s ease-out',
                   overflow: 'hidden'
                 }}
               >
                 {!isBlinking && (
                   <div 
-                    className="absolute bg-slate-900 rounded-full"
+                    className="absolute rounded-full"
                     style={{
-                      width: '11px',
-                      height: '11px',
-                      left: `calc(50% - 5.5px + ${eyeOffset.x}px)`,
-                      top: `calc(50% - 5.5px + ${eyeOffset.y}px)`,
-                      transition: isActive ? 'left 0.05s, top 0.05s' : 'all 0.3s ease-out'
+                      width: '10px',
+                      height: '10px',
+                      background: '#1e293b',
+                      left: `calc(50% - 5px + ${eyeOffset.x}px)`,
+                      top: `calc(50% - 5px + ${eyeOffset.y}px)`,
+                      transition: isActive ? 'left 0.06s, top 0.06s' : 'all 0.25s ease-out'
                     }}
                   >
+                    {/* Eye shine */}
                     <div 
                       className="absolute bg-white rounded-full"
                       style={{
-                        width: '4px',
-                        height: '4px',
+                        width: '3px',
+                        height: '3px',
                         top: '1px',
                         right: '1px'
                       }}
