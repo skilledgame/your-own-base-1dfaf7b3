@@ -87,183 +87,213 @@ export const OnlineModeCard = ({
       onMouseLeave={() => onHover(false)}
       onClick={onClick}
     >
-      {/* Card Container */}
+      {/* Card Container - unified dark blue background */}
       <div
         className={`
           relative h-[380px] sm:h-[420px] md:h-[460px] rounded-2xl overflow-hidden
           border-2 transition-all duration-500
           ${isActive 
-            ? 'border-white/60' 
-            : 'border-white/20 shadow-lg'}
-          ${isSelected ? 'ring-4 ring-white/40' : ''}
+            ? 'border-white/40' 
+            : 'border-white/10'}
+          ${isSelected ? 'ring-4 ring-white/30' : ''}
         `}
         style={{
-          background: 'linear-gradient(180deg, #1a3a52 0%, #0f2536 100%)',
+          background: '#0f2536',
           boxShadow: isActive 
-            ? '0 0 60px rgba(14, 165, 233, 0.35), inset 0 0 40px rgba(14, 165, 233, 0.1)' 
-            : undefined
+            ? '0 0 40px rgba(14, 165, 233, 0.2)' 
+            : '0 4px 20px rgba(0, 0, 0, 0.3)'
         }}
       >
+        {/* Subtle vignette for depth */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.3) 100%)'
+          }}
+        />
+
         {/* Rook Character Container */}
-        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{ paddingBottom: '80px' }}>
           <div 
             className={`
               relative transition-all duration-500 flex items-center justify-center
               ${isActive ? 'scale-105' : 'scale-100'}
             `}
-            style={{ marginTop: '10px' }}
           >
             {/* Rook Image */}
             <img 
               src={rookCharacter} 
               alt="Online Mode Rook" 
               className={`
-                w-[160px] sm:w-[180px] md:w-[200px] h-auto object-contain
+                w-[140px] sm:w-[160px] md:w-[180px] h-auto object-contain
                 transition-all duration-500
-                ${isActive ? 'brightness-110' : 'brightness-100'}
               `}
               style={{
-                filter: isActive 
-                  ? 'drop-shadow(0 0 20px rgba(14, 165, 233, 0.3))' 
-                  : 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25))'
+                filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4))'
               }}
             />
             
-            {/* Animated Eyes - positioned on the rook's upper body/face area */}
+            {/* Animated Eyes - embedded into the rook with socket effect */}
             <div 
               className="absolute pointer-events-none"
               style={{
-                top: '28%',
+                top: '26%',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 display: 'flex',
-                gap: '20px'
+                gap: '18px'
               }}
             >
-              {/* Left Eye */}
+              {/* Left Eye Socket */}
               <div 
                 className="relative"
                 style={{
-                  width: '18px',
-                  height: isBlinking ? '2px' : '18px',
-                  background: 'white',
-                  borderRadius: isBlinking ? '2px' : '50%',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 -1px 2px rgba(0,0,0,0.1)',
-                  transition: 'height 0.08s ease-out, border-radius 0.08s ease-out',
-                  overflow: 'hidden'
+                  width: '20px',
+                  height: '20px',
+                  background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
-                {!isBlinking && (
-                  <div 
-                    className="absolute rounded-full"
-                    style={{
-                      width: '10px',
-                      height: '10px',
-                      background: '#1e293b',
-                      left: `calc(50% - 5px + ${eyeOffset.x}px)`,
-                      top: `calc(50% - 5px + ${eyeOffset.y}px)`,
-                      transition: isActive ? 'left 0.06s, top 0.06s' : 'all 0.25s ease-out'
-                    }}
-                  >
-                    {/* Eye shine */}
+                {/* Left Eye */}
+                <div 
+                  className="relative"
+                  style={{
+                    width: '16px',
+                    height: isBlinking ? '2px' : '16px',
+                    background: 'radial-gradient(ellipse at 30% 30%, #ffffff 0%, #e8e8e8 50%, #d0d0d0 100%)',
+                    borderRadius: isBlinking ? '2px' : '50%',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.15), inset 0 -1px 2px rgba(255,255,255,0.3), 0 1px 3px rgba(0,0,0,0.3)',
+                    transition: 'height 0.08s ease-out, border-radius 0.08s ease-out',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {!isBlinking && (
                     <div 
-                      className="absolute bg-white rounded-full"
+                      className="absolute rounded-full"
                       style={{
-                        width: '3px',
-                        height: '3px',
-                        top: '1px',
-                        right: '1px'
+                        width: '8px',
+                        height: '8px',
+                        background: 'radial-gradient(ellipse at 40% 40%, #374151 0%, #1e293b 100%)',
+                        left: `calc(50% - 4px + ${eyeOffset.x * 0.8}px)`,
+                        top: `calc(50% - 4px + ${eyeOffset.y * 0.8}px)`,
+                        transition: isActive ? 'left 0.06s, top 0.06s' : 'all 0.25s ease-out',
+                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)'
                       }}
-                    />
-                  </div>
-                )}
+                    >
+                      {/* Eye shine */}
+                      <div 
+                        className="absolute bg-white rounded-full"
+                        style={{
+                          width: '2.5px',
+                          height: '2.5px',
+                          top: '1px',
+                          right: '1px',
+                          opacity: 0.9
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Right Eye */}
+              {/* Right Eye Socket */}
               <div 
                 className="relative"
                 style={{
-                  width: '18px',
-                  height: isBlinking ? '2px' : '18px',
-                  background: 'white',
-                  borderRadius: isBlinking ? '2px' : '50%',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 -1px 2px rgba(0,0,0,0.1)',
-                  transition: 'height 0.08s ease-out, border-radius 0.08s ease-out',
-                  overflow: 'hidden'
+                  width: '20px',
+                  height: '20px',
+                  background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
-                {!isBlinking && (
-                  <div 
-                    className="absolute rounded-full"
-                    style={{
-                      width: '10px',
-                      height: '10px',
-                      background: '#1e293b',
-                      left: `calc(50% - 5px + ${eyeOffset.x}px)`,
-                      top: `calc(50% - 5px + ${eyeOffset.y}px)`,
-                      transition: isActive ? 'left 0.06s, top 0.06s' : 'all 0.25s ease-out'
-                    }}
-                  >
-                    {/* Eye shine */}
+                {/* Right Eye */}
+                <div 
+                  className="relative"
+                  style={{
+                    width: '16px',
+                    height: isBlinking ? '2px' : '16px',
+                    background: 'radial-gradient(ellipse at 30% 30%, #ffffff 0%, #e8e8e8 50%, #d0d0d0 100%)',
+                    borderRadius: isBlinking ? '2px' : '50%',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.15), inset 0 -1px 2px rgba(255,255,255,0.3), 0 1px 3px rgba(0,0,0,0.3)',
+                    transition: 'height 0.08s ease-out, border-radius 0.08s ease-out',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {!isBlinking && (
                     <div 
-                      className="absolute bg-white rounded-full"
+                      className="absolute rounded-full"
                       style={{
-                        width: '3px',
-                        height: '3px',
-                        top: '1px',
-                        right: '1px'
+                        width: '8px',
+                        height: '8px',
+                        background: 'radial-gradient(ellipse at 40% 40%, #374151 0%, #1e293b 100%)',
+                        left: `calc(50% - 4px + ${eyeOffset.x * 0.8}px)`,
+                        top: `calc(50% - 4px + ${eyeOffset.y * 0.8}px)`,
+                        transition: isActive ? 'left 0.06s, top 0.06s' : 'all 0.25s ease-out',
+                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)'
                       }}
-                    />
-                  </div>
-                )}
+                    >
+                      {/* Eye shine */}
+                      <div 
+                        className="absolute bg-white rounded-full"
+                        style={{
+                          width: '2.5px',
+                          height: '2.5px',
+                          top: '1px',
+                          right: '1px',
+                          opacity: 0.9
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+        {/* Bottom gradient for text readability */}
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
 
         {/* Content */}
-        <div className="absolute inset-x-0 bottom-0 p-6 text-center space-y-4">
+        <div className="absolute inset-x-0 bottom-0 p-6 text-center space-y-3">
           <h2 
             className={`
               text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-wider
-              text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]
+              text-white
               transition-all duration-300
               ${isActive ? 'scale-105' : ''}
             `}
+            style={{
+              textShadow: '0 2px 8px rgba(0,0,0,0.6)'
+            }}
           >
             Online
           </h2>
 
-          <p className="text-white/70 text-sm sm:text-base">
+          <p className="text-white/60 text-sm sm:text-base">
             Compete for Skilled Coins
           </p>
 
           <div 
             className={`
-              transition-all duration-300 transform
+              transition-all duration-300 transform pt-1
               ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
             `}
           >
             <Button 
               size="lg"
-              className="px-8 py-6 text-lg font-bold bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 shadow-lg"
+              className="px-8 py-5 text-base font-bold bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 shadow-lg"
             >
               PLAY
             </Button>
           </div>
         </div>
-
-        {/* Shine Effect */}
-        <div 
-          className={`
-            absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent
-            transition-opacity duration-500
-            ${isActive ? 'opacity-100' : 'opacity-0'}
-          `}
-        />
       </div>
     </div>
   );
