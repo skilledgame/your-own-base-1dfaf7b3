@@ -137,11 +137,25 @@ export default function LiveGame() {
   };
 
   // Load game from database if gameId is in URL but no gameState
+  // Also reload if URL gameId doesn't match store gameId (game changed)
   useEffect(() => {
     // Dismiss any "waiting for opponent" notifications when game loads
     toast.dismiss();
     
-    if (!gameId || gameState || loadingGame) return;
+    if (!gameId || loadingGame) return;
+    
+    // If URL gameId doesn't match store gameId, clear store and load new game
+    if (gameState && gameState.gameId !== gameId) {
+      console.log('[LiveGame] GameId mismatch - clearing old game state');
+      setGameState(null);
+      setPhase('idle');
+      setIsPrivateGame(false);
+      setPrivateGamePlayerId(null);
+      // Don't return - continue to load new game
+    }
+    
+    // If we already have the correct gameState, don't reload
+    if (gameState && gameState.gameId === gameId) return;
 
     const loadPrivateGame = async () => {
       setLoadingGame(true);

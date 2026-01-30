@@ -47,10 +47,16 @@ export function usePrivateGame({
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSyncTimeRef = useRef<number>(Date.now());
-  const whiteTimeRef = useRef<number>(60);
-  const blackTimeRef = useRef<number>(60);
+  const whiteTimeRef = useRef<number | null>(null); // null means not loaded yet
+  const blackTimeRef = useRef<number | null>(null); // null means not loaded yet
   const currentTurnRef = useRef<'w' | 'b'>('w');
   const isGameActiveRef = useRef<boolean>(false);
+  const onGameEndRef = useRef(onGameEnd);
+  
+  // Update ref when callback changes (but don't trigger re-subscription)
+  useEffect(() => {
+    onGameEndRef.current = onGameEnd;
+  }, [onGameEnd]);
 
   const isWhite = playerColor === 'white';
   const myColor = isWhite ? 'w' : 'b';
@@ -147,7 +153,7 @@ export function usePrivateGame({
                 ? (winnerId === updated.white_player_id ? 'w' : 'b')
                 : null;
               // Credits change will be determined from settlement - reload game to get it
-              onGameEnd?.(winnerId, updated.status === 'finished' ? 'Game finished' : 'Game cancelled', winnerColor as 'w' | 'b' | undefined);
+              onGameEndRef.current?.(winnerId, updated.status === 'finished' ? 'Game finished' : 'Game cancelled', winnerColor as 'w' | 'b' | undefined);
             }
 
             return newState;
@@ -167,7 +173,7 @@ export function usePrivateGame({
         channelRef.current = null;
       }
     };
-  }, [gameId, myColor, onGameEnd]);
+  }, [gameId]); // Only depend on gameId to prevent subscription loop
 
   // Handle timeout - separate function to avoid async in interval
   // Must be defined before the useEffect that uses it
@@ -214,11 +220,11 @@ export function usePrivateGame({
       }
 
       const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
-      onGameEnd?.(winnerId, 'timeout', winnerColor, creditsChange);
+      onGameEndRef.current?.(winnerId, 'timeout', winnerColor, creditsChange);
     } catch (error) {
       console.error('[usePrivateGame] Exception handling timeout:', error);
     }
-  }, [gameId, onGameEnd]);
+  }, [gameId]);
 
   // Timer countdown - uses refs to avoid race conditions
   useEffect(() => {
@@ -235,9 +241,13 @@ export function usePrivateGame({
       return;
     }
 
-    // Initialize refs from current state
-    whiteTimeRef.current = gameState.whiteTime;
-    blackTimeRef.current = gameState.blackTime;
+    // Initialize refs from current state (only if not already set or if values changed)
+    if (whiteTimeRef.current === null || gameState.whiteTime !== whiteTimeRef.current) {
+      whiteTimeRef.current = gameState.whiteTime;
+    }
+    if (blackTimeRef.current === null || gameState.blackTime !== blackTimeRef.current) {
+      blackTimeRef.current = gameState.blackTime;
+    }
     isGameActiveRef.current = true;
 
     // Countdown timer - updates refs and state every second
@@ -249,6 +259,11 @@ export function usePrivateGame({
       const currentTurn = currentTurnRef.current;
       
       // Decrement the time for the player whose turn it is
+      // Only if refs are initialized (not null)
+      if (whiteTimeRef.current === null || blackTimeRef.current === null) {
+        return; // Wait for game to load
+      }
+      
       if (currentTurn === 'w') {
         whiteTimeRef.current = Math.max(0, whiteTimeRef.current - 1);
         
@@ -260,7 +275,7 @@ export function usePrivateGame({
           return;
         }
       } else {
-        blackTimeRef.current = Math.max(0, blackTimeRef.current - 1);
+        blackTimeRef.current = Math.max(0, blackTimeRef.current! - 1);
         
         // Check for timeout
         if (blackTimeRef.current === 0) {
@@ -272,19 +287,27 @@ export function usePrivateGame({
       }
 
       // Update state with ref values (for UI display)
-      setGameState(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          whiteTime: whiteTimeRef.current,
-          blackTime: blackTimeRef.current,
-        };
-      });
+      // Only if refs are initialized
+      if (whiteTimeRef.current !== null && blackTimeRef.current !== null) {
+        setGameState(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            whiteTime: whiteTimeRef.current!,
+            blackTime: blackTimeRef.current!,
+          };
+        });
+      }
     }, 1000);
 
     // Sync timer with database every 5 seconds
     syncIntervalRef.current = setInterval(async () => {
       if (!isGameActiveRef.current) {
+        return;
+      }
+
+      // Only sync if refs are initialized
+      if (whiteTimeRef.current === null || blackTimeRef.current === null) {
         return;
       }
 
@@ -473,7 +496,7 @@ export function usePrivateGame({
       const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
 
       // Call onGameEnd with proper winner info
-      onGameEnd?.(opponentPlayerId, 'resignation', winnerColor, creditsChange);
+      onGameEndRef.current?.(opponentPlayerId, 'resignation', winnerColor, creditsChange);
     } catch (error) {
       console.error('[usePrivateGame] Exception resigning:', error);
       toast.error('Failed to resign');
