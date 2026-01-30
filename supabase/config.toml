@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.ensure-user]
 verify_jwt = false
+
+[functions.make-move]
+verify_jwt = false
