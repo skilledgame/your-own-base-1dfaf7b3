@@ -153,7 +153,7 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
         </DropdownMenuItem>
         
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
-          <Link to="/profile" className="flex items-center gap-3 px-3 py-2.5">
+          <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5">
             <Settings className="w-4 h-4 text-slate-400" />
             <span className="text-slate-200">Account Settings</span>
           </Link>
