@@ -23,7 +23,7 @@ interface UsePrivateGameOptions {
   gameId: string;
   playerColor: 'white' | 'black';
   playerId: string; // player.id from players table
-  onGameEnd?: (winnerId: string | null, reason: string) => void;
+  onGameEnd?: (winnerId: string | null, reason: string, winnerColor?: 'w' | 'b', creditsChange?: number) => void;
 }
 
 interface UsePrivateGameReturn {
@@ -120,7 +120,11 @@ export function usePrivateGame({
             // Check for game end
             if (updated.status === 'finished' || updated.status === 'cancelled') {
               const winnerId = updated.winner_id || null;
-              onGameEnd?.(winnerId, updated.status === 'finished' ? 'Game finished' : 'Game cancelled');
+              const winnerColor = winnerId 
+                ? (winnerId === updated.white_player_id ? 'w' : 'b')
+                : null;
+              // Credits change will be determined from settlement - reload game to get it
+              onGameEnd?.(winnerId, updated.status === 'finished' ? 'Game finished' : 'Game cancelled', winnerColor as 'w' | 'b' | undefined);
             }
 
             return newState;
@@ -168,16 +172,50 @@ export function usePrivateGame({
           
           // Check for timeout
           if (newWhiteTime === 0) {
-            // White loses on time - need to get black player ID from game
-            // Call end-game Edge Function to handle timeout
-            supabase.functions.invoke('end-game', {
-              body: {
-                gameId,
-                winnerId: null, // Will be determined by server based on timeout
-                reason: 'timeout',
-              },
-            }).catch(err => console.error('[usePrivateGame] Error ending game on timeout:', err));
-            onGameEnd?.(null, 'timeout');
+            // White loses on time - black wins
+            // Get game to find black player ID
+            supabase
+              .from('games')
+              .select('black_player_id, white_player_id')
+              .eq('id', gameId)
+              .maybeSingle()
+              .then(async ({ data: game, error: gameError }) => {
+                if (gameError || !game) {
+                  console.error('[usePrivateGame] Error loading game for timeout:', gameError);
+                  return;
+                }
+
+                // Black wins
+                const winnerId = game.black_player_id;
+                const winnerColor = 'b' as const;
+
+                // Get auth token
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token) {
+                  console.error('[usePrivateGame] No auth token for timeout');
+                  return;
+                }
+
+                // Call end-game Edge Function
+                const { data, error } = await supabase.functions.invoke('end-game', {
+                  body: {
+                    gameId,
+                    winnerId,
+                    reason: 'timeout',
+                  },
+                  headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                  },
+                });
+
+                if (error || !data?.success) {
+                  console.error('[usePrivateGame] Error ending game on timeout:', error || data?.error);
+                  return;
+                }
+
+                const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
+                onGameEnd?.(winnerId, 'timeout', winnerColor, creditsChange);
+              });
             return prev;
           }
         } else {
@@ -185,16 +223,50 @@ export function usePrivateGame({
           
           // Check for timeout
           if (newBlackTime === 0) {
-            // Black loses on time - need to get white player ID from game
-            // Call end-game Edge Function to handle timeout
-            supabase.functions.invoke('end-game', {
-              body: {
-                gameId,
-                winnerId: null, // Will be determined by server based on timeout
-                reason: 'timeout',
-              },
-            }).catch(err => console.error('[usePrivateGame] Error ending game on timeout:', err));
-            onGameEnd?.(null, 'timeout');
+            // Black loses on time - white wins
+            // Get game to find white player ID
+            supabase
+              .from('games')
+              .select('white_player_id, black_player_id')
+              .eq('id', gameId)
+              .maybeSingle()
+              .then(async ({ data: game, error: gameError }) => {
+                if (gameError || !game) {
+                  console.error('[usePrivateGame] Error loading game for timeout:', gameError);
+                  return;
+                }
+
+                // White wins
+                const winnerId = game.white_player_id;
+                const winnerColor = 'w' as const;
+
+                // Get auth token
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token) {
+                  console.error('[usePrivateGame] No auth token for timeout');
+                  return;
+                }
+
+                // Call end-game Edge Function
+                const { data, error } = await supabase.functions.invoke('end-game', {
+                  body: {
+                    gameId,
+                    winnerId,
+                    reason: 'timeout',
+                  },
+                  headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                  },
+                });
+
+                if (error || !data?.success) {
+                  console.error('[usePrivateGame] Error ending game on timeout:', error || data?.error);
+                  return;
+                }
+
+                const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
+                onGameEnd?.(winnerId, 'timeout', winnerColor, creditsChange);
+              });
             return prev;
           }
         }
@@ -260,6 +332,14 @@ export function usePrivateGame({
         ? gameState.blackTime + TIME_INCREMENT 
         : gameState.blackTime;
 
+      // Get auth token for Edge Function
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('[usePrivateGame] No auth token available');
+        toast.error('Please sign in again');
+        return false;
+      }
+
       // Send move via Edge Function
       const { data, error } = await supabase.functions.invoke('make-move', {
         body: {
@@ -270,43 +350,110 @@ export function usePrivateGame({
           whiteTime: newWhiteTime,
           blackTime: newBlackTime,
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
-      if (error || !data?.success) {
-        console.error('[usePrivateGame] Error sending move:', error || data?.error);
-        toast.error(data?.error || 'Failed to make move');
+      // Check for error in response.error or data.error
+      if (error) {
+        console.error('[usePrivateGame] Edge Function error:', error);
+        const errorMessage = error.message || 'Failed to make move';
+        toast.error(errorMessage);
+        return false;
+      }
+
+      if (!data) {
+        console.error('[usePrivateGame] No data in response');
+        toast.error('Failed to make move - no response');
+        return false;
+      }
+
+      if (!data.success) {
+        const errorMessage = data.error || 'Failed to make move';
+        console.error('[usePrivateGame] Move failed:', errorMessage, data);
+        toast.error(errorMessage);
         return false;
       }
 
       // Move will be updated via Realtime subscription
+      console.log('[usePrivateGame] Move sent successfully');
       return true;
     } catch (error) {
       console.error('[usePrivateGame] Exception sending move:', error);
-      toast.error('Failed to make move');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to make move';
+      toast.error(errorMessage);
       return false;
     }
   }, [gameState, gameId, isWhite]);
 
   // Resign game
   const resign = useCallback(async () => {
+    if (!gameState) {
+      console.warn('[usePrivateGame] Cannot resign - no game state');
+      return;
+    }
+
     try {
-      const { error } = await supabase.functions.invoke('end-game', {
+      // Get current game to determine opponent
+      const { data: game, error: gameError } = await supabase
+        .from('games')
+        .select('white_player_id, black_player_id')
+        .eq('id', gameId)
+        .maybeSingle();
+
+      if (gameError || !game) {
+        console.error('[usePrivateGame] Error loading game for resign:', gameError);
+        toast.error('Failed to load game');
+        return;
+      }
+
+      // Determine opponent as winner
+      const opponentPlayerId = isWhite ? game.black_player_id : game.white_player_id;
+
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('[usePrivateGame] No auth token for resign');
+        toast.error('Please sign in again');
+        return;
+      }
+
+      // Call end-game Edge Function
+      const { data, error } = await supabase.functions.invoke('end-game', {
         body: {
           gameId,
-          winnerId: null, // Opponent wins
+          winnerId: opponentPlayerId, // Opponent wins
           reason: 'resignation',
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
 
       if (error) {
         console.error('[usePrivateGame] Error resigning:', error);
-        toast.error('Failed to resign');
+        toast.error(error.message || 'Failed to resign');
+        return;
       }
+
+      if (!data?.success) {
+        console.error('[usePrivateGame] Resign failed:', data);
+        toast.error(data?.error || 'Failed to resign');
+        return;
+      }
+
+      // Determine winner color for callback
+      const winnerColor = isWhite ? 'b' : 'w';
+      const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
+
+      // Call onGameEnd with proper winner info
+      onGameEnd?.(opponentPlayerId, 'resignation', winnerColor, creditsChange);
     } catch (error) {
       console.error('[usePrivateGame] Exception resigning:', error);
       toast.error('Failed to resign');
     }
-  }, [gameId]);
+  }, [gameId, gameState, isWhite, onGameEnd]);
 
   return {
     gameState,

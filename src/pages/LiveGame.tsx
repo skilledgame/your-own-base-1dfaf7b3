@@ -29,7 +29,7 @@ export default function LiveGame() {
   const [privateGamePlayerId, setPrivateGamePlayerId] = useState<string | null>(null);
   
   // Global state from Zustand store
-  const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName } = useChessStore();
+  const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd } = useChessStore();
   const { balance } = useBalance();
   
   // WebSocket connection and actions (only for matchmade games)
@@ -52,11 +52,41 @@ export default function LiveGame() {
     gameId: gameId || '',
     playerColor: gameState?.color === 'w' ? 'white' : 'black',
     playerId: privateGamePlayerId || '',
-    onGameEnd: async (winnerId, reason) => {
+    onGameEnd: async (winnerId, reason, winnerColor, creditsChange) => {
       // Handle game end for private games
-      setPhase('game_over');
+      // winnerColor is 'w' or 'b' or undefined
+      // If winnerId is null, it's a draw
+      // If winnerColor is provided, use it; otherwise determine from winnerId and game state
+      let finalWinnerColor: 'w' | 'b' | null = null;
+      
+      if (winnerColor) {
+        finalWinnerColor = winnerColor;
+      } else if (winnerId && gameState) {
+        // Need to determine winner color from winnerId
+        // Load game to check which player won
+        const { data: game } = await supabase
+          .from('games')
+          .select('white_player_id, black_player_id')
+          .eq('id', gameId)
+          .maybeSingle();
+        
+        if (game) {
+          if (winnerId === game.white_player_id) {
+            finalWinnerColor = 'w';
+          } else if (winnerId === game.black_player_id) {
+            finalWinnerColor = 'b';
+          }
+        }
+      }
+      
+      handleGameEnd({
+        reason: reason || 'Game ended',
+        winnerColor: finalWinnerColor,
+        isOpponentLeft: false,
+        creditsChange: creditsChange,
+      });
+      
       refreshBalance();
-      // Game end result will be handled by the modal
     },
   });
 

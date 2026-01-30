@@ -45,7 +45,7 @@ serve(async (req) => {
       );
     }
 
-    const { gameId, winnerId, reason } = await req.json();
+    const { gameId, winnerId: providedWinnerId, reason } = await req.json();
 
     if (!gameId) {
       return new Response(
@@ -90,14 +90,36 @@ serve(async (req) => {
       );
     }
 
-    console.log('end-game: calling settle_game RPC with:', { gameId, winnerId, reason });
+    // Determine winner if not provided but reason indicates one
+    let finalWinnerId = providedWinnerId;
+    if (!finalWinnerId && reason) {
+      if (reason === 'timeout') {
+        // Determine winner based on who timed out (opponent of current turn)
+        // If it's white's turn and they timed out, black wins
+        // If it's black's turn and they timed out, white wins
+        if (game.current_turn === 'w') {
+          finalWinnerId = game.black_player_id; // White timed out, black wins
+        } else if (game.current_turn === 'b') {
+          finalWinnerId = game.white_player_id; // Black timed out, white wins
+        }
+      } else if (reason === 'resignation') {
+        // The player who called resign loses, opponent wins
+        if (player.id === game.white_player_id) {
+          finalWinnerId = game.black_player_id; // White resigned, black wins
+        } else {
+          finalWinnerId = game.white_player_id; // Black resigned, white wins
+        }
+      }
+    }
+
+    console.log('end-game: calling settle_game RPC with:', { gameId, winnerId: finalWinnerId, reason });
 
     // Use the idempotent settle_game RPC
     // This is transaction-safe and can be retried without double-paying
     const { data: settlementResult, error: settlementError } = await supabaseClient
       .rpc('settle_game', {
         p_game_id: gameId,
-        p_winner_id: winnerId || null,
+        p_winner_id: finalWinnerId || null,
         p_reason: reason || 'unknown'
       });
 
