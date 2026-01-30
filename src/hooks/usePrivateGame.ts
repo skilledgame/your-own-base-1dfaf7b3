@@ -169,6 +169,57 @@ export function usePrivateGame({
     };
   }, [gameId, myColor, onGameEnd]);
 
+  // Handle timeout - separate function to avoid async in interval
+  // Must be defined before the useEffect that uses it
+  const handleTimeout = useCallback(async (timedOutColor: 'w' | 'b') => {
+    try {
+      // Get game to find winner
+      const { data: game, error: gameError } = await supabase
+        .from('games')
+        .select('white_player_id, black_player_id')
+        .eq('id', gameId)
+        .maybeSingle();
+
+      if (gameError || !game) {
+        console.error('[usePrivateGame] Error loading game for timeout:', gameError);
+        return;
+      }
+
+      // Determine winner
+      const winnerId = timedOutColor === 'w' ? game.black_player_id : game.white_player_id;
+      const winnerColor = timedOutColor === 'w' ? 'b' : 'w';
+
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('[usePrivateGame] No auth token for timeout');
+        return;
+      }
+
+      // Call end-game Edge Function
+      const { data, error } = await supabase.functions.invoke('end-game', {
+        body: {
+          gameId,
+          winnerId,
+          reason: 'timeout',
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error || !data?.success) {
+        console.error('[usePrivateGame] Error ending game on timeout:', error || data?.error);
+        return;
+      }
+
+      const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
+      onGameEnd?.(winnerId, 'timeout', winnerColor, creditsChange);
+    } catch (error) {
+      console.error('[usePrivateGame] Exception handling timeout:', error);
+    }
+  }, [gameId, onGameEnd]);
+
   // Timer countdown - uses refs to avoid race conditions
   useEffect(() => {
     if (!gameState || gameState.status !== 'active') {
@@ -261,57 +312,7 @@ export function usePrivateGame({
         syncIntervalRef.current = null;
       }
     };
-  }, [gameState?.status, gameId, onGameEnd, handleTimeout]);
-
-  // Handle timeout - separate function to avoid async in interval
-  const handleTimeout = useCallback(async (timedOutColor: 'w' | 'b') => {
-    try {
-      // Get game to find winner
-      const { data: game, error: gameError } = await supabase
-        .from('games')
-        .select('white_player_id, black_player_id')
-        .eq('id', gameId)
-        .maybeSingle();
-
-      if (gameError || !game) {
-        console.error('[usePrivateGame] Error loading game for timeout:', gameError);
-        return;
-      }
-
-      // Determine winner
-      const winnerId = timedOutColor === 'w' ? game.black_player_id : game.white_player_id;
-      const winnerColor = timedOutColor === 'w' ? 'b' : 'w';
-
-      // Get auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        console.error('[usePrivateGame] No auth token for timeout');
-        return;
-      }
-
-      // Call end-game Edge Function
-      const { data, error } = await supabase.functions.invoke('end-game', {
-        body: {
-          gameId,
-          winnerId,
-          reason: 'timeout',
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (error || !data?.success) {
-        console.error('[usePrivateGame] Error ending game on timeout:', error || data?.error);
-        return;
-      }
-
-      const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
-      onGameEnd?.(winnerId, 'timeout', winnerColor, creditsChange);
-    } catch (error) {
-      console.error('[usePrivateGame] Exception handling timeout:', error);
-    }
-  }, [gameId, onGameEnd]);
+  }, [gameState?.status, gameId, handleTimeout]);
 
   // Send move via Edge Function
   const sendMove = useCallback(async (from: string, to: string, promotion?: string): Promise<boolean> => {
