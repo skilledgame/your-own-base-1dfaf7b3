@@ -204,13 +204,16 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
     setIsJoining(true);
 
     try {
+      console.log('[ChessPrivateMode] Attempting to join lobby with code:', joinCode);
       const response = await supabase.functions.invoke('join-lobby', {
         body: { lobbyCode: joinCode }
       });
+      console.log('[ChessPrivateMode] Join lobby response:', JSON.stringify(response, null, 2));
 
       if (response.error) {
-        console.error('[ChessPrivateMode] Join lobby error:', response.error);
-        const errorMessage = response.error.message || 
+        console.error('[ChessPrivateMode] Join lobby error - full error:', JSON.stringify(response.error, null, 2));
+        console.error('[ChessPrivateMode] Join lobby error - response.data:', response.data);
+        const errorMessage = response.data?.error || response.data?.details || response.error.message || 
                            (typeof response.error === 'string' ? response.error : 'Please try again');
         toast({
           variant: 'destructive',
@@ -222,12 +225,13 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       }
 
       const data = response.data;
+      console.log('[ChessPrivateMode] Join lobby data:', data);
       if (data?.error) {
-        console.error('[ChessPrivateMode] Join lobby data error:', data.error);
+        console.error('[ChessPrivateMode] Join lobby data error:', data.error, 'details:', data.details);
         toast({
           variant: 'destructive',
           title: 'Failed to join lobby',
-          description: data.error || 'Please try again',
+          description: data.details || data.error || 'Please try again',
         });
         setIsJoining(false);
         return;

@@ -65,6 +65,7 @@ serve(async (req) => {
     console.log(`[JOIN-LOBBY] Player: ${player.id} (${player.name})`);
 
     // Find the waiting lobby
+    console.log('[JOIN-LOBBY] Looking for lobby - gameId:', gameId, 'lobbyCode:', lobbyCode);
     let lobbyQuery = supabaseAdmin
       .from('games')
       .select('*')
@@ -72,30 +73,42 @@ serve(async (req) => {
 
     if (gameId) {
       lobbyQuery = lobbyQuery.eq('id', gameId);
+      console.log('[JOIN-LOBBY] Searching by gameId:', gameId);
     } else if (lobbyCode) {
-      lobbyQuery = lobbyQuery.like('fen', `LOBBY:${lobbyCode.toUpperCase()}`);
+      const searchPattern = `LOBBY:${lobbyCode.toUpperCase()}`;
+      console.log('[JOIN-LOBBY] Searching by lobbyCode, pattern:', searchPattern);
+      lobbyQuery = lobbyQuery.like('fen', searchPattern);
+    } else {
+      console.error('[JOIN-LOBBY] Neither gameId nor lobbyCode provided');
+      return new Response(
+        JSON.stringify({ error: 'Lobby code or game ID required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const { data: lobby, error: lobbyError } = await lobbyQuery.maybeSingle();
+    console.log('[JOIN-LOBBY] Lobby query result - hasLobby:', !!lobby, 'lobbyId:', lobby?.id, 'lobbyFen:', lobby?.fen, 'error:', lobbyError?.message);
 
     if (lobbyError) {
       console.error('[JOIN-LOBBY] Lobby query error:', lobbyError);
       return new Response(
-        JSON.stringify({ error: 'Failed to find lobby' }),
+        JSON.stringify({ error: 'Failed to find lobby', details: lobbyError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!lobby) {
-      console.log('[JOIN-LOBBY] Lobby not found');
+      console.log('[JOIN-LOBBY] Lobby not found - returning 404');
       return new Response(
-        JSON.stringify({ error: 'Lobby not found or already started' }),
+        JSON.stringify({ error: 'Lobby not found or already started', details: `No lobby found with code: ${lobbyCode || 'N/A'}` }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Check if trying to join own lobby
+    console.log('[JOIN-LOBBY] Checking if joining own lobby - whitePlayerId:', lobby.white_player_id, 'currentPlayerId:', player.id);
     if (lobby.white_player_id === player.id) {
+      console.log('[JOIN-LOBBY] User trying to join own lobby - returning 400');
       return new Response(
         JSON.stringify({ error: 'Cannot join your own lobby' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
