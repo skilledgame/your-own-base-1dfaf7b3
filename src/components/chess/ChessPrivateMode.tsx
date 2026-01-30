@@ -87,10 +87,13 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       });
 
       if (response.error) {
+        console.error('[ChessPrivateMode] Create lobby error:', response.error);
+        const errorMessage = response.error.message || 
+                           (typeof response.error === 'string' ? response.error : 'Please try again');
         toast({
           variant: 'destructive',
           title: 'Failed to create lobby',
-          description: response.error.message || 'Please try again',
+          description: errorMessage,
         });
         setIsCreating(false);
         return;
@@ -98,10 +101,11 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
 
       const data = response.data;
       if (data?.error) {
+        console.error('[ChessPrivateMode] Create lobby data error:', data.error);
         toast({
           variant: 'destructive',
           title: 'Failed to create lobby',
-          description: data.error,
+          description: data.error || 'Please try again',
         });
         setIsCreating(false);
         return;
