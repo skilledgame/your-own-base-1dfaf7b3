@@ -11,7 +11,7 @@ import { useWalletModal } from '@/contexts/WalletModalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   User, ChevronDown, ChevronUp, Wallet, Settings, 
-  Trophy, History, Users, HelpCircle, LogOut 
+  Trophy, History, Users, HelpCircle, LogOut, BarChart3 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -156,6 +156,13 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
           <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5">
             <Settings className="w-4 h-4 text-slate-400" />
             <span className="text-slate-200">Account Settings</span>
+          </Link>
+        </DropdownMenuItem>
+        
+        <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
+          <Link to="/stats" className="flex items-center gap-3 px-3 py-2.5">
+            <BarChart3 className="w-4 h-4 text-blue-400" />
+            <span className="text-slate-200">Stats</span>
           </Link>
         </DropdownMenuItem>
         
