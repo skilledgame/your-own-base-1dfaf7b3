@@ -1,62 +1,76 @@
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  User, Trophy, Coins, Gamepad2, Settings, LogOut, 
-  Crown, Target, Award, ChevronRight, Shield
+  Trophy, Coins, Gamepad2, TrendingUp, Flame, Target,
+  Calendar, ChevronDown, Zap, Crown, Swords, Medal,
+  ArrowUpRight, ArrowDownRight, Minus, BarChart3
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBalanceStore } from '@/stores/balanceStore';
 import { useProfile } from '@/hooks/useProfile';
-import { formatSkilledCoins } from '@/lib/rankSystem';
+import { formatSkilledCoins, getRankFromTotalWagered, RANK_THRESHOLDS } from '@/lib/rankSystem';
 import skilledLogo from '@/assets/skilled-logo.png';
 
-interface UserStats {
+interface PlayerStats {
+  totalGames: number;
   wins: number;
   losses: number;
-  matchesPlayed: number;
+  draws: number;
   winRate: number;
+  totalWagered: number;
+  totalWon: number;
+  netProfit: number;
+  currentStreak: number;
+  bestStreak: number;
+  avgWager: number;
+  biggestWin: number;
   freePlaysRemaining: number;
 }
 
-// Memoized stats card
-const StatCard = memo(({ icon: Icon, value, label, color }: {
-  icon: React.ElementType;
-  value: number | string;
-  label: string;
-  color: string;
-}) => (
-  <Card className="bg-card border-border">
-    <CardContent className="p-4 text-center">
-      <Icon className={`w-6 h-6 ${color} mx-auto mb-2`} />
-      <p className="text-2xl font-bold text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </CardContent>
-  </Card>
-));
-StatCard.displayName = 'StatCard';
+type TimePeriod = '7d' | '30d' | '90d' | 'all';
+
+const periodLabels: Record<TimePeriod, string> = {
+  '7d': '7 Days',
+  '30d': '30 Days',
+  '90d': '90 Days',
+  'all': 'All Time'
+};
 
 export default function Stats() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isAuthReady, signOut } = useAuth();
+  const { user, isAuthenticated, isAuthReady } = useAuth();
   const authLoading = !isAuthReady;
-  const { balance, fetchBalance } = useBalanceStore();
-  const { totalWageredSc, displayName: profileDisplayName } = useProfile();
+  const { totalWageredSc, skilledCoins } = useProfile();
   
-  const [profile, setProfile] = useState<any>(null);
-  const [stats, setStats] = useState<UserStats>({
+  const [stats, setStats] = useState<PlayerStats>({
+    totalGames: 0,
     wins: 0,
     losses: 0,
-    matchesPlayed: 0,
+    draws: 0,
     winRate: 0,
+    totalWagered: 0,
+    totalWon: 0,
+    netProfit: 0,
+    currentStreak: 0,
+    bestStreak: 0,
+    avgWager: 0,
+    biggestWin: 0,
     freePlaysRemaining: 3
   });
   const [loading, setLoading] = useState(true);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -67,74 +81,138 @@ export default function Stats() {
       return;
     }
     
-    const loadData = async () => {
-      await Promise.all([
-        fetchProfile(user.id),
-        fetchStats(user.id),
-        fetchBalance(user.id)
-      ]);
-      setLoading(false);
-    };
+    fetchStats(user.id, timePeriod);
+  }, [isAuthenticated, user, authLoading, navigate, timePeriod]);
+
+  const fetchStats = async (userId: string, period: TimePeriod) => {
+    setLoading(true);
     
-    loadData();
-  }, [isAuthenticated, user, authLoading, navigate, fetchBalance]);
+    try {
+      // Get player ID
+      const { data: playerId } = await supabase
+        .rpc('get_player_id_for_user', { _user_id: userId });
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    if (data) {
-      setProfile(data);
-    }
-  };
+      if (!playerId) {
+        setLoading(false);
+        return;
+      }
 
-  const fetchStats = async (userId: string) => {
-    // Get player ID first
-    const { data: playerData } = await supabase
-      .rpc('get_player_id_for_user', { _user_id: userId });
+      // Calculate date filter
+      let dateFilter = '';
+      const now = new Date();
+      if (period !== 'all') {
+        const days = parseInt(period);
+        const filterDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+        dateFilter = filterDate.toISOString();
+      }
 
-    if (playerData) {
-      // Get games where user is white or black player
-      const { data: games } = await supabase
+      // Get games
+      let query = supabase
         .from('games')
         .select('*')
-        .or(`white_player_id.eq.${playerData},black_player_id.eq.${playerData}`)
-        .eq('status', 'finished');
+        .or(`white_player_id.eq.${playerId},black_player_id.eq.${playerId}`)
+        .eq('status', 'finished')
+        .order('created_at', { ascending: false });
 
-      if (games) {
-        const wins = games.filter(g => g.winner_id === playerData).length;
-        const matchesPlayed = games.length;
-        const losses = matchesPlayed - wins;
-        const winRate = matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0;
+      if (dateFilter) {
+        query = query.gte('created_at', dateFilter);
+      }
+
+      const { data: games } = await query;
+
+      if (games && games.length > 0) {
+        const wins = games.filter(g => g.winner_id === playerId).length;
+        const losses = games.filter(g => g.winner_id && g.winner_id !== playerId).length;
+        const draws = games.filter(g => !g.winner_id).length;
+        const totalGames = games.length;
+        const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+
+        // Calculate wager stats
+        const totalWagered = games.reduce((sum, g) => sum + (g.wager || 0), 0);
+        const wonGames = games.filter(g => g.winner_id === playerId);
+        const totalWon = wonGames.reduce((sum, g) => sum + (g.wager || 0) * 2, 0);
+        const netProfit = totalWon - totalWagered;
+        const avgWager = totalGames > 0 ? Math.round(totalWagered / totalGames) : 0;
+        const biggestWin = wonGames.length > 0 
+          ? Math.max(...wonGames.map(g => (g.wager || 0) * 2))
+          : 0;
+
+        // Calculate streaks
+        let currentStreak = 0;
+        let bestStreak = 0;
+        let tempStreak = 0;
+        
+        for (const game of games) {
+          if (game.winner_id === playerId) {
+            tempStreak++;
+            if (tempStreak > bestStreak) bestStreak = tempStreak;
+          } else {
+            if (currentStreak === 0 && tempStreak > 0) {
+              currentStreak = tempStreak;
+            }
+            tempStreak = 0;
+          }
+        }
+        // If still on a winning streak
+        if (tempStreak > 0 && currentStreak === 0) {
+          currentStreak = tempStreak;
+        }
 
         setStats(prev => ({
           ...prev,
+          totalGames,
           wins,
           losses,
-          matchesPlayed,
-          winRate
+          draws,
+          winRate,
+          totalWagered,
+          totalWon,
+          netProfit,
+          currentStreak,
+          bestStreak,
+          avgWager,
+          biggestWin
+        }));
+      } else {
+        setStats(prev => ({
+          ...prev,
+          totalGames: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          winRate: 0,
+          totalWagered: 0,
+          totalWon: 0,
+          netProfit: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          avgWager: 0,
+          biggestWin: 0
         }));
       }
-    }
 
-    // Get free plays remaining
-    const { data: freePlays } = await supabase
-      .rpc('get_or_create_free_plays', { p_game_slug: 'chess', p_user_id: userId });
-    
-    if (freePlays !== null) {
-      setStats(prev => ({ ...prev, freePlaysRemaining: freePlays }));
+      // Get free plays
+      const { data: freePlays } = await supabase
+        .rpc('get_or_create_free_plays', { p_game_slug: 'chess', p_user_id: userId });
+      
+      if (freePlays !== null) {
+        setStats(prev => ({ ...prev, freePlaysRemaining: freePlays }));
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
     }
+    
+    setLoading(false);
   };
 
-  const handleSignOut = useCallback(async () => {
-    await signOut();
-    navigate('/');
-  }, [signOut, navigate]);
+  const currentRank = getRankFromTotalWagered(totalWageredSc);
+  
+  // Calculate progress to next rank
+  const rankProgress = currentRank.nextMin 
+    ? Math.min(100, ((totalWageredSc - currentRank.currentMin) / (currentRank.nextMin - currentRank.currentMin)) * 100)
+    : 100;
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -142,139 +220,276 @@ export default function Stats() {
     );
   }
 
-  // Use balance from store, fallback to profile
-  const displayBalance = balance || profile?.skilled_coins || 0;
-
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Desktop Side Menu */}
       <DesktopSideMenu isOpen={sideMenuOpen} onToggle={() => setSideMenuOpen(!sideMenuOpen)} />
-      
-      {/* Overlay for mobile */}
-      {sideMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setSideMenuOpen(false)}
-        />
-      )}
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
           <img src={skilledLogo} alt="Skilled" className="h-8 w-auto" />
-          <h1 className="text-lg font-semibold">Stats</h1>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            <h1 className="text-lg font-semibold">Player Stats</h1>
+          </div>
           <div className="w-8" />
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Profile Card */}
-        <Card className="bg-card border-border overflow-hidden">
-          <div className="h-20 bg-gradient-to-r from-primary/20 to-primary/5" />
-          <CardContent className="pt-0 -mt-10">
-            <div className="flex flex-col items-center">
-              {/* Avatar */}
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center border-4 border-card">
-                <User className="w-10 h-10 text-primary-foreground" />
-              </div>
-              
-              {/* Username */}
-              <h2 className="mt-3 text-xl font-bold text-foreground">
-                {profile?.display_name || user?.email?.split('@')[0] || 'Player'}
-              </h2>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Filter Bar */}
+        <div className="flex gap-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex-1 justify-between bg-card border-border">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  <span>All Stats</span>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuItem>All Stats</DropdownMenuItem>
+              <DropdownMenuItem>Chess Only</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-              {/* Coin Balance */}
-              <div className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border">
-                <Coins className="w-5 h-5 text-yellow-500" />
-                <span className="font-bold text-lg">{displayBalance.toLocaleString()}</span>
-                <span className="text-sm text-muted-foreground">Coins</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex-1 justify-between bg-card border-border">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-emerald-500" />
+                  <span>{periodLabels[timePeriod]}</span>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              {Object.entries(periodLabels).map(([key, label]) => (
+                <DropdownMenuItem 
+                  key={key} 
+                  onClick={() => setTimePeriod(key as TimePeriod)}
+                  className={timePeriod === key ? 'bg-primary/10' : ''}
+                >
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Main Stats - Two Big Cards */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="bg-gradient-to-br from-card to-card/80 border-border overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-8 translate-x-8" />
+            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[180px]">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-4">
+                <Gamepad2 className="w-8 h-8 text-primary" />
+              </div>
+              <span className="text-4xl font-bold text-foreground">{loading ? '...' : stats.totalGames}</span>
+              <span className="text-sm text-muted-foreground mt-1">Games Played</span>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-card to-card/80 border-border overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -translate-y-8 translate-x-8" />
+            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[180px]">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center mb-4">
+                <TrendingUp className="w-8 h-8 text-emerald-500" />
+              </div>
+              <span className="text-4xl font-bold text-foreground">{loading ? '...' : `${stats.winRate}%`}</span>
+              <span className="text-sm text-muted-foreground mt-1">Win Rate</span>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Secondary Stats Grid */}
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 text-center">
+              <Trophy className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
+              <span className="text-2xl font-bold text-foreground block">{loading ? '...' : stats.wins}</span>
+              <span className="text-xs text-muted-foreground">Wins</span>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 text-center">
+              <Target className="w-6 h-6 text-red-500 mx-auto mb-2" />
+              <span className="text-2xl font-bold text-foreground block">{loading ? '...' : stats.losses}</span>
+              <span className="text-xs text-muted-foreground">Losses</span>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 text-center">
+              <Swords className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+              <span className="text-2xl font-bold text-foreground block">{loading ? '...' : stats.draws}</span>
+              <span className="text-xs text-muted-foreground">Draws</span>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Streaks & Performance */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="bg-card border-border">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                  <Flame className="w-5 h-5 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Current Streak</p>
+                  <p className="text-xl font-bold text-foreground">{stats.currentStreak} 🔥</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                  <Medal className="w-5 h-5 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Best Streak</p>
+                  <p className="text-xl font-bold text-foreground">{stats.bestStreak}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Biggest Win</p>
+                  <p className="text-xl font-bold text-foreground">{formatSkilledCoins(stats.biggestWin)} SC</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Coins className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Avg Wager</p>
+                  <p className="text-xl font-bold text-foreground">{formatSkilledCoins(stats.avgWager)} SC</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Financial Summary */}
+        <Card className="bg-gradient-to-r from-card via-card to-primary/5 border-border">
+          <CardContent className="p-5">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-4 flex items-center gap-2">
+              <Coins className="w-4 h-4" />
+              Skilled Coins Summary
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-3 rounded-xl bg-background/50">
+                <p className="text-xs text-muted-foreground mb-1">Total Wagered</p>
+                <p className="text-lg font-bold text-foreground">{formatSkilledCoins(stats.totalWagered)}</p>
+              </div>
+              <div className="text-center p-3 rounded-xl bg-background/50">
+                <p className="text-xs text-muted-foreground mb-1">Total Won</p>
+                <p className="text-lg font-bold text-emerald-500">{formatSkilledCoins(stats.totalWon)}</p>
+              </div>
+              <div className="text-center p-3 rounded-xl bg-background/50">
+                <p className="text-xs text-muted-foreground mb-1">Net Profit</p>
+                <div className="flex items-center justify-center gap-1">
+                  {stats.netProfit > 0 ? (
+                    <ArrowUpRight className="w-4 h-4 text-emerald-500" />
+                  ) : stats.netProfit < 0 ? (
+                    <ArrowDownRight className="w-4 h-4 text-red-500" />
+                  ) : (
+                    <Minus className="w-4 h-4 text-muted-foreground" />
+                  )}
+                  <p className={`text-lg font-bold ${
+                    stats.netProfit > 0 ? 'text-emerald-500' : 
+                    stats.netProfit < 0 ? 'text-red-500' : 'text-foreground'
+                  }`}>
+                    {formatSkilledCoins(Math.abs(stats.netProfit))}
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard icon={Trophy} value={stats.wins} label="Wins" color="text-yellow-500" />
-          <StatCard icon={Target} value={stats.losses} label="Losses" color="text-red-500" />
-          <StatCard icon={Gamepad2} value={stats.matchesPlayed} label="Matches" color="text-primary" />
-          <StatCard icon={Award} value={`${stats.winRate}%`} label="Win Rate" color="text-emerald-500" />
-          <StatCard icon={Coins} value={formatSkilledCoins(totalWageredSc)} label="Total Wagered (SC)" color="text-purple-500" />
-        </div>
+        {/* Rank Progress */}
+        <Card className="bg-card border-border overflow-hidden">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
+                  <Crown className="w-6 h-6 text-yellow-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Current Rank</p>
+                  <p className="text-lg font-bold text-foreground">{currentRank.displayName}</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                {skilledCoins.toLocaleString()} SC
+              </Badge>
+            </div>
+            
+            {currentRank.nextMin && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{currentRank.displayName}</span>
+                  <span>Next Rank</span>
+                </div>
+                <Progress value={rankProgress} className="h-2" />
+                <p className="text-xs text-muted-foreground text-center">
+                  Wager {formatSkilledCoins(currentRank.nextMin - totalWageredSc)} more SC to rank up
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Free Plays */}
         <Card className="bg-card border-border">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-primary" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                  <Gamepad2 className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">Free Games</p>
-                  <p className="text-sm text-muted-foreground">Daily free plays remaining</p>
+                  <p className="font-semibold text-foreground">Daily Free Games</p>
+                  <p className="text-sm text-muted-foreground">Resets every 24 hours</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-2xl font-bold text-primary">{stats.freePlaysRemaining}</span>
-                <span className="text-muted-foreground">/ 3</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-primary">{stats.freePlaysRemaining}</span>
+                <span className="text-muted-foreground text-sm">/ 3</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Menu Items */}
-        <Card className="bg-card border-border">
-          <CardContent className="p-0">
-            <button 
-              onClick={() => navigate('/deposit')}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Coins className="w-5 h-5 text-muted-foreground" />
-                <span className="font-medium">Deposit Coins</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
-            
-            <Separator />
-            
-            <button 
-              onClick={() => navigate('/terms')}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Shield className="w-5 h-5 text-muted-foreground" />
-                <span className="font-medium">Terms & Privacy</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
-            
-            <Separator />
-            
-            <button 
-              onClick={() => navigate('/settings')}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Settings className="w-5 h-5 text-muted-foreground" />
-                <span className="font-medium">Settings</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
-          </CardContent>
-        </Card>
-
-        {/* Sign Out */}
-        <Button 
-          variant="ghost" 
-          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={handleSignOut}
-        >
-          <LogOut className="w-5 h-5 mr-2" />
-          Sign Out
-        </Button>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button 
+            onClick={() => navigate('/chess')}
+            className="h-14 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold"
+          >
+            <Gamepad2 className="w-5 h-5 mr-2" />
+            Play Now
+          </Button>
+          <Button 
+            onClick={() => navigate('/deposit')}
+            variant="outline"
+            className="h-14 border-primary/30 hover:bg-primary/10"
+          >
+            <Coins className="w-5 h-5 mr-2 text-yellow-500" />
+            Get Coins
+          </Button>
+        </div>
       </div>
 
       <MobileBottomNav onMenuClick={() => setSideMenuOpen(true)} />
