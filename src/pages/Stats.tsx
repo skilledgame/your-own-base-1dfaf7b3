@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Trophy, Coins, Gamepad2, TrendingUp, Flame, Target,
@@ -18,9 +18,10 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
+import { DailyStreakRewards } from '@/components/stats/DailyStreakRewards';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
-import { formatSkilledCoins, getRankFromTotalWagered, RANK_THRESHOLDS } from '@/lib/rankSystem';
+import { formatSkilledCoins, getRankFromTotalWagered } from '@/lib/rankSystem';
 import skilledLogo from '@/assets/skilled-logo.png';
 
 interface PlayerStats {
@@ -37,6 +38,7 @@ interface PlayerStats {
   avgWager: number;
   biggestWin: number;
   freePlaysRemaining: number;
+  dailyPlayStreak: number;
 }
 
 type TimePeriod = '7d' | '30d' | '90d' | 'all';
@@ -67,7 +69,8 @@ export default function Stats() {
     bestStreak: 0,
     avgWager: 0,
     biggestWin: 0,
-    freePlaysRemaining: 3
+    freePlaysRemaining: 3,
+    dailyPlayStreak: 0
   });
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
@@ -120,6 +123,35 @@ export default function Stats() {
 
       const { data: games } = await query;
 
+      // Calculate daily play streak from all games
+      let dailyPlayStreak = 0;
+      const { data: allGames } = await supabase
+        .from('games')
+        .select('created_at')
+        .or(`white_player_id.eq.${playerId},black_player_id.eq.${playerId}`)
+        .eq('status', 'finished')
+        .order('created_at', { ascending: false });
+
+      if (allGames && allGames.length > 0) {
+        // Calculate consecutive days played
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const playedDates = new Set<string>();
+        allGames.forEach(game => {
+          const gameDate = new Date(game.created_at);
+          gameDate.setHours(0, 0, 0, 0);
+          playedDates.add(gameDate.toISOString());
+        });
+        
+        // Count consecutive days from today backwards
+        let currentDate = new Date(today);
+        while (playedDates.has(currentDate.toISOString())) {
+          dailyPlayStreak++;
+          currentDate.setDate(currentDate.getDate() - 1);
+        }
+      }
+
       if (games && games.length > 0) {
         const wins = games.filter(g => g.winner_id === playerId).length;
         const losses = games.filter(g => g.winner_id && g.winner_id !== playerId).length;
@@ -137,7 +169,7 @@ export default function Stats() {
           ? Math.max(...wonGames.map(g => (g.wager || 0) * 2))
           : 0;
 
-        // Calculate streaks
+        // Calculate win streaks
         let currentStreak = 0;
         let bestStreak = 0;
         let tempStreak = 0;
@@ -171,7 +203,8 @@ export default function Stats() {
           currentStreak,
           bestStreak,
           avgWager,
-          biggestWin
+          biggestWin,
+          dailyPlayStreak
         }));
       } else {
         setStats(prev => ({
@@ -187,7 +220,8 @@ export default function Stats() {
           currentStreak: 0,
           bestStreak: 0,
           avgWager: 0,
-          biggestWin: 0
+          biggestWin: 0,
+          dailyPlayStreak
         }));
       }
 
@@ -205,12 +239,10 @@ export default function Stats() {
     setLoading(false);
   };
 
-  const currentRank = getRankFromTotalWagered(totalWageredSc);
-  
-  // Calculate progress to next rank
-  const rankProgress = currentRank.nextMin 
-    ? Math.min(100, ((totalWageredSc - currentRank.currentMin) / (currentRank.nextMin - currentRank.currentMin)) * 100)
-    : 100;
+  const handleClaimReward = (type: string) => {
+    console.log('Claiming reward:', type);
+    // TODO: Implement reward claiming logic
+  };
 
   if (authLoading) {
     return (
@@ -279,26 +311,33 @@ export default function Stats() {
           </DropdownMenu>
         </div>
 
+        {/* Daily Streak & VIP Rewards Section */}
+        <DailyStreakRewards 
+          currentStreak={stats.dailyPlayStreak}
+          totalWageredSc={totalWageredSc}
+          onClaimReward={handleClaimReward}
+        />
+
         {/* Main Stats - Two Big Cards */}
         <div className="grid grid-cols-2 gap-4">
           <Card className="bg-gradient-to-br from-card to-card/80 border-border overflow-hidden relative">
             <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-8 translate-x-8" />
-            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[180px]">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-4">
-                <Gamepad2 className="w-8 h-8 text-primary" />
+            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[160px]">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-3">
+                <Gamepad2 className="w-7 h-7 text-primary" />
               </div>
-              <span className="text-4xl font-bold text-foreground">{loading ? '...' : stats.totalGames}</span>
+              <span className="text-3xl font-bold text-foreground">{loading ? '...' : stats.totalGames}</span>
               <span className="text-sm text-muted-foreground mt-1">Games Played</span>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-card to-card/80 border-border overflow-hidden relative">
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -translate-y-8 translate-x-8" />
-            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[180px]">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center mb-4">
-                <TrendingUp className="w-8 h-8 text-emerald-500" />
+            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[160px]">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center mb-3">
+                <TrendingUp className="w-7 h-7 text-emerald-500" />
               </div>
-              <span className="text-4xl font-bold text-foreground">{loading ? '...' : `${stats.winRate}%`}</span>
+              <span className="text-3xl font-bold text-foreground">{loading ? '...' : `${stats.winRate}%`}</span>
               <span className="text-sm text-muted-foreground mt-1">Win Rate</span>
             </CardContent>
           </Card>
@@ -340,7 +379,7 @@ export default function Stats() {
                   <Flame className="w-5 h-5 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Current Streak</p>
+                  <p className="text-xs text-muted-foreground">Win Streak</p>
                   <p className="text-xl font-bold text-foreground">{stats.currentStreak} 🔥</p>
                 </div>
               </div>
@@ -415,39 +454,6 @@ export default function Stats() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Rank Progress */}
-        <Card className="bg-card border-border overflow-hidden">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
-                  <Crown className="w-6 h-6 text-yellow-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Current Rank</p>
-                  <p className="text-lg font-bold text-foreground">{currentRank.displayName}</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                {skilledCoins.toLocaleString()} SC
-              </Badge>
-            </div>
-            
-            {currentRank.nextMin && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{currentRank.displayName}</span>
-                  <span>Next Rank</span>
-                </div>
-                <Progress value={rankProgress} className="h-2" />
-                <p className="text-xs text-muted-foreground text-center">
-                  Wager {formatSkilledCoins(currentRank.nextMin - totalWageredSc)} more SC to rank up
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
