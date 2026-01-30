@@ -89,12 +89,13 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         body: { wager: selectedWager, gameType: 'chess' }
       });
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChessPrivateMode.tsx:87',message:'After invoke create-lobby',data:{hasError:!!response.error,errorMessage:response.error?.message,hasData:!!response.data,dataError:response.data?.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChessPrivateMode.tsx:88',message:'After invoke create-lobby',data:{hasError:!!response.error,errorMessage:response.error?.message,errorContext:response.error?.context,hasData:!!response.data,dataError:response.data?.error,dataDetails:response.data?.details,fullResponse:JSON.stringify(response)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
 
       if (response.error) {
-        console.error('[ChessPrivateMode] Create lobby error:', response.error);
-        const errorMessage = response.error.message || 
+        console.error('[ChessPrivateMode] Create lobby error - full error:', JSON.stringify(response.error, null, 2));
+        console.error('[ChessPrivateMode] Create lobby error - response.data:', response.data);
+        const errorMessage = response.data?.error || response.data?.details || response.error.message || 
                            (typeof response.error === 'string' ? response.error : 'Please try again');
         toast({
           variant: 'destructive',
@@ -107,11 +108,11 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
 
       const data = response.data;
       if (data?.error) {
-        console.error('[ChessPrivateMode] Create lobby data error:', data.error);
+        console.error('[ChessPrivateMode] Create lobby data error:', data.error, 'details:', data.details);
         toast({
           variant: 'destructive',
           title: 'Failed to create lobby',
-          description: data.error || 'Please try again',
+          description: data.details || data.error || 'Please try again',
         });
         setIsCreating(false);
         return;
