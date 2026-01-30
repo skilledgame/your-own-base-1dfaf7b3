@@ -3,7 +3,7 @@
  */
 
 import { useRef, useState, useEffect } from 'react';
-import { Globe, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import rookCharacter from '@/assets/chess-rook-character.png';
 
@@ -95,61 +95,61 @@ export const OnlineModeCard = ({
           }}
         />
 
-        {/* Rook Character Image */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        {/* Rook Character Image - Full size */}
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
           <div 
             className={`
-              relative transition-all duration-500
-              ${isActive ? 'scale-110' : 'scale-100'}
+              relative transition-all duration-500 w-full h-full flex items-center justify-center
+              ${isActive ? 'scale-105' : 'scale-100'}
             `}
           >
             <img 
               src={rookCharacter} 
               alt="Online Mode Rook" 
               className={`
-                w-[160px] sm:w-[200px] md:w-[240px] h-auto object-contain
+                w-full h-full object-cover object-center
                 transition-all duration-500
                 ${isActive 
-                  ? 'drop-shadow-[0_0_40px_rgba(255,255,255,0.6)]' 
-                  : 'drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]'}
+                  ? 'brightness-110' 
+                  : 'brightness-100'}
               `}
               style={{
                 filter: isActive 
-                  ? 'drop-shadow(0 0 60px rgba(14, 165, 233, 0.8))' 
-                  : 'drop-shadow(0 0 30px rgba(14, 165, 233, 0.5))'
+                  ? 'drop-shadow(0 0 40px rgba(14, 165, 233, 0.6))' 
+                  : 'drop-shadow(0 0 20px rgba(14, 165, 233, 0.4))'
               }}
             />
             
-            {/* Animated Eyes Overlay */}
+            {/* Animated Pupils Overlay - These move with cursor */}
             <div 
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                transform: `translate(${eyeOffset.x}px, ${eyeOffset.y}px)`,
-                transition: isActive ? 'transform 0.1s ease-out' : 'transform 0.3s ease-out'
-              }}
+              className="absolute inset-0 pointer-events-none flex items-center justify-center"
             >
-              {/* Left Eye Pupil - Positioned over left eye in image */}
-              <div 
-                className="absolute bg-slate-900 rounded-full"
-                style={{
-                  width: '12%',
-                  height: '6%',
-                  left: '35%',
-                  top: '32%',
-                  boxShadow: '0 0 4px rgba(0,0,0,0.5)'
-                }}
-              />
-              {/* Right Eye Pupil - Positioned over right eye in image */}
-              <div 
-                className="absolute bg-slate-900 rounded-full"
-                style={{
-                  width: '12%',
-                  height: '6%',
-                  left: '53%',
-                  top: '32%',
-                  boxShadow: '0 0 4px rgba(0,0,0,0.5)'
-                }}
-              />
+              <div className="relative w-full h-full">
+                {/* Left Eye Pupil */}
+                <div 
+                  className="absolute bg-slate-900 rounded-full"
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    left: 'calc(38% + ' + eyeOffset.x + 'px)',
+                    top: 'calc(35% + ' + eyeOffset.y + 'px)',
+                    boxShadow: '0 0 4px rgba(0,0,0,0.6)',
+                    transition: isActive ? 'none' : 'all 0.3s ease-out'
+                  }}
+                />
+                {/* Right Eye Pupil */}
+                <div 
+                  className="absolute bg-slate-900 rounded-full"
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    left: 'calc(58% + ' + eyeOffset.x + 'px)',
+                    top: 'calc(35% + ' + eyeOffset.y + 'px)',
+                    boxShadow: '0 0 4px rgba(0,0,0,0.6)',
+                    transition: isActive ? 'none' : 'all 0.3s ease-out'
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -159,17 +159,6 @@ export const OnlineModeCard = ({
 
         {/* Content */}
         <div className="absolute inset-x-0 bottom-0 p-6 text-center space-y-4">
-          {/* Mode Icon */}
-          <div 
-            className={`
-              w-14 h-14 mx-auto rounded-xl flex items-center justify-center
-              bg-white/10 backdrop-blur-sm border border-white/20
-              transition-all duration-300
-              ${isActive ? 'scale-110 bg-white/20' : ''}
-            `}
-          >
-            <Globe className="w-7 h-7 text-blue-400" />
-          </div>
 
           {/* Title */}
           <h2 
