@@ -1,10 +1,10 @@
 /**
- * BattleRoyaleModeCard - Custom card for Battle Royale chess mode (yellow themed, rook piece)
+ * BattleRoyaleModeCard - Custom card for Battle Royale chess mode (yellow themed, bishop piece)
  */
 
 import { useRef } from 'react';
 import { Lock } from 'lucide-react';
-import rookCharacter from '@/assets/chess-rook-battle.png';
+import bishopCharacter from '@/assets/chess-rook-battle.png';
 
 interface BattleRoyaleModeCardProps {
   isHovered: boolean;
@@ -46,16 +46,16 @@ export const BattleRoyaleModeCard = ({
           ${isSelected ? 'ring-4 ring-white/30' : ''}
         `}
         style={{
-          background: '#78350f',
+          background: '#b45309',
           boxShadow: isActive 
             ? '0 0 40px rgba(245, 158, 11, 0.3)' 
             : '0 4px 20px rgba(0, 0, 0, 0.3)'
         }}
       >
-        {/* Rook Character - fills entire card as background */}
+        {/* Bishop Character - fills entire card as background */}
         <img 
-          src={rookCharacter} 
-          alt="Battle Royale Mode Rook" 
+          src={bishopCharacter} 
+          alt="Battle Royale Mode Bishop"
           className={`
             absolute inset-0 w-full h-full object-cover
             transition-all duration-500

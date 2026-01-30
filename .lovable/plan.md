@@ -1,40 +1,31 @@
 
 
-## Fix: Use the Correct Image Asset
+## Fix Battle Royale Card: Bigger Bishop + Brighter Yellow
 
-### The Problem
+### What Went Wrong
+The previous image generation attempts failed to properly save/update the `chess-rook-battle.png` file. The component still references the old asset.
 
-The `OnlineModeCard.tsx` component imports `chess-rook-character.png`:
-```tsx
-import rookCharacter from '@/assets/chess-rook-character.png';
-```
+### What I'll Do
 
-But the recent image updates were made to `online-chess-card.png` - a completely different file that's not being used. That's why you saw no changes.
+**1. Regenerate the Asset (`src/assets/chess-rook-battle.png`)**
+- Create a **large realistic ivory bishop** matching your reference image style
+- Make it **bigger** - filling ~85% of the vertical frame, centered
+- Use a **brighter golden yellow background** (shifting from the current brownish `#78350f` to a more saturated bright yellow like `#ca8a04`)
+- Include dramatic spotlight floor lighting and subtle reflections
 
-### The Solution
+**2. Update the Component (`src/components/chess/BattleRoyaleModeCard.tsx`)**
+| Line | Current | Updated |
+|------|---------|---------|
+| 2 | "rook piece" | "bishop piece" |
+| 7 | `rookCharacter` import | `bishopCharacter` import |
+| 49 | `background: '#78350f'` | `background: '#b45309'` (brighter yellow) |
+| 55 | "Rook Character" comment | "Bishop Character" |
+| 57 | `src={rookCharacter}` | `src={bishopCharacter}` |
+| 58 | alt="Battle Royale Mode Rook" | alt="Battle Royale Mode Bishop" |
 
-**Option A: Update the correct PNG file**
-- Generate a new `chess-rook-character.png` with:
-  - Same rook (no cross, no crown)
-  - Dark blue background (#0f2536) instead of the light blue
-  - Eyes subtly integrated into the rook surface
-  - Transparent or matching background so it blends with the card
-
-**Option B: Switch to the other image**
-- Change the import in `OnlineModeCard.tsx` to use `online-chess-card.png` instead
-- But this would require restructuring since that image was designed as a full card with text baked in
-
-### Recommended Approach
-
-**Option A** is cleaner - update `chess-rook-character.png` properly so the eyes overlay works correctly on top of it.
-
-### What Will Be Changed
-
-| File | Change |
-|------|--------|
-| `src/assets/chess-rook-character.png` | Replace with rook on dark blue (#0f2536) background, integrated eye sockets |
-
-### Technical Note
-
-The animated eyes in the code will overlay on top of the rook image at position `top: 26%`. The rook image itself should NOT have eyes - they're rendered by the React code for the animation effect.
+### Visual Specification
+- **Piece**: Realistic 3D ivory bishop (classical Staunton style like your knight reference)
+- **Size**: Large, filling ~85% of vertical frame
+- **Background**: Bright saturated golden yellow
+- **Lighting**: Dramatic spotlight with floor reflections
 
