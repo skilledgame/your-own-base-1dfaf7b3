@@ -14,6 +14,8 @@ import { LogoLink } from '@/components/LogoLink';
 import { ChessOnlineMode } from '@/components/chess/ChessOnlineMode';
 import { ChessPrivateMode } from '@/components/chess/ChessPrivateMode';
 import { OnlineModeCard } from '@/components/chess/OnlineModeCard';
+import { PrivateModeCard } from '@/components/chess/PrivateModeCard';
+import { BattleRoyaleModeCard } from '@/components/chess/BattleRoyaleModeCard';
 import { 
   ArrowLeft, 
   Users, 
@@ -288,23 +290,15 @@ export default function ChessHome() {
         {/* Game Mode Cards */}
         <div className="flex-1 flex items-center justify-center px-4 pb-8">
           <div className="flex gap-4 sm:gap-6 md:gap-8 items-center justify-center max-w-6xl w-full">
-            {/* Private Mode - Knight piece */}
-            <ModeCard
-              mode="private"
-              title="Private"
-              subtitle="Play with friends using room codes"
-              icon={<UserPlus className="w-7 h-7 text-purple-400" />}
-              chessPiece="♞"
-              gradientFrom="#7c3aed"
-              gradientTo="#2e1065"
-              glowColor="rgba(124, 58, 237, 0.5)"
+            {/* Private Mode - Knight piece (red themed) */}
+            <PrivateModeCard
               isHovered={hoveredMode === 'private'}
               isSelected={selectedMode === 'private'}
-              onHover={setHoveredMode}
+              onHover={(isHovering) => setHoveredMode(isHovering ? 'private' : null)}
               onClick={() => handleModeSelect('private')}
             />
 
-            {/* Online Mode (Center - Main) - Rook character with eye tracking */}
+            {/* Online Mode (Center - Main) - Queen character */}
             <OnlineModeCard
               isHovered={hoveredMode === 'online'}
               isSelected={selectedMode === 'online'}
@@ -312,20 +306,11 @@ export default function ChessHome() {
               onClick={() => handleModeSelect('online')}
             />
 
-            {/* Battle Royale Mode - Rook/Castle piece */}
-            <ModeCard
-              mode="battle-royale"
-              title="Battle Royale"
-              subtitle="Last player standing wins"
-              icon={<Crown className="w-7 h-7 text-yellow-400" />}
-              chessPiece="♜"
-              gradientFrom="#f59e0b"
-              gradientTo="#78350f"
-              glowColor="rgba(245, 158, 11, 0.5)"
+            {/* Battle Royale Mode - Rook piece (yellow themed) */}
+            <BattleRoyaleModeCard
               isHovered={hoveredMode === 'battle-royale'}
               isSelected={selectedMode === 'battle-royale'}
-              comingSoon={true}
-              onHover={setHoveredMode}
+              onHover={(isHovering) => setHoveredMode(isHovering ? 'battle-royale' : null)}
               onClick={() => {}}
             />
           </div>
