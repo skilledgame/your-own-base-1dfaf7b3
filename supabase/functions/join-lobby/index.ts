@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('[JOIN-LOBBY] Function entry - method:', req.method);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,7 +17,9 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     const authHeader = req.headers.get('Authorization');
+    console.log('[JOIN-LOBBY] Auth header present:', !!authHeader);
     if (!authHeader) {
+      console.error('[JOIN-LOBBY] Missing auth header - returning 401');
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -29,20 +32,33 @@ serve(async (req) => {
     });
 
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    console.log('[JOIN-LOBBY] User auth result - hasUser:', !!user, 'userId:', user?.id, 'error:', userError?.message);
     if (userError || !user) {
       console.error('[JOIN-LOBBY] Auth error:', userError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized', details: userError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { lobbyCode, gameId } = await req.json();
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (jsonError) {
+      console.error('[JOIN-LOBBY] JSON parse error:', jsonError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body', details: (jsonError as Error)?.message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const { lobbyCode, gameId } = requestBody;
     console.log(`[JOIN-LOBBY] User ${user.id} joining lobby - code: ${lobbyCode}, gameId: ${gameId}`);
 
     if (!lobbyCode && !gameId) {
+      console.error('[JOIN-LOBBY] Neither lobbyCode nor gameId provided - returning 400');
       return new Response(
-        JSON.stringify({ error: 'Lobby code or game ID required' }),
+        JSON.stringify({ error: 'Lobby code or game ID required', details: 'Please provide either lobbyCode or gameId in the request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -255,9 +271,15 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('[JOIN-LOBBY] Error:', error);
+    console.error('[JOIN-LOBBY] Unhandled error:', error);
+    const errorMessage = (error as Error)?.message || 'Unknown error';
+    const errorStack = (error as Error)?.stack || '';
+    console.error('[JOIN-LOBBY] Error details:', { message: errorMessage, stack: errorStack });
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: errorMessage 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
