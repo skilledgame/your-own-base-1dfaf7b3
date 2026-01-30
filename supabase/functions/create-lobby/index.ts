@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('[CREATE-LOBBY] Function entry - method:', req.method);
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:9',message:'Function entry',data:{method:req.method},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
   // #endregion
@@ -19,10 +20,12 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     const authHeader = req.headers.get('Authorization');
+    console.log('[CREATE-LOBBY] Auth header present:', !!authHeader);
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:19',message:'Auth header check',data:{hasAuthHeader:!!authHeader},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
     // #endregion
     if (!authHeader) {
+      console.error('[CREATE-LOBBY] Missing auth header - returning 401');
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -35,6 +38,7 @@ serve(async (req) => {
     });
 
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    console.log('[CREATE-LOBBY] User auth result - hasUser:', !!user, 'userId:', user?.id, 'error:', userError?.message);
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:31',message:'User auth result',data:{hasUser:!!user,userId:user?.id,userError:userError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
     // #endregion
@@ -46,7 +50,18 @@ serve(async (req) => {
       );
     }
 
-    const { wager = 100, gameType = 'chess', lobbyCode } = await req.json();
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (jsonError) {
+      console.error('[CREATE-LOBBY] JSON parse error:', jsonError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const { wager = 100, gameType = 'chess', lobbyCode } = requestBody;
+    console.log(`[CREATE-LOBBY] Request params - wager: ${wager}, gameType: ${gameType}, lobbyCode: ${lobbyCode || 'auto'}`);
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:40',message:'Request params',data:{wager,gameType,lobbyCode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
     // #endregion
@@ -65,19 +80,21 @@ serve(async (req) => {
     }
 
     // Get user's player record
+    console.log('[CREATE-LOBBY] Looking up player for user:', user.id);
     const { data: player, error: playerError } = await supabaseAdmin
       .from('players')
       .select('id, credits, name')
       .eq('user_id', user.id)
       .single();
+    console.log('[CREATE-LOBBY] Player lookup - hasPlayer:', !!player, 'playerId:', player?.id, 'error:', playerError?.message, 'errorCode:', playerError?.code);
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:56',message:'Player lookup result',data:{hasPlayer:!!player,playerId:player?.id,playerError:playerError?.message,playerErrorCode:playerError?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
     if (playerError || !player) {
-      console.error('[CREATE-LOBBY] Player not found:', playerError);
+      console.error('[CREATE-LOBBY] Player not found - returning 404. Error:', playerError);
       return new Response(
-        JSON.stringify({ error: 'Player not found' }),
+        JSON.stringify({ error: 'Player not found', details: playerError?.message }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -100,19 +117,21 @@ serve(async (req) => {
     const isPrivilegedUser = isPrivileged === true;
 
     // Check skilled_coins from profiles (not players.credits)
+    console.log('[CREATE-LOBBY] Looking up profile for user:', user.id);
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('skilled_coins')
       .eq('user_id', user.id)
       .maybeSingle();
+    console.log('[CREATE-LOBBY] Profile lookup - hasProfile:', !!profile, 'skilledCoins:', profile?.skilled_coins, 'error:', profileError?.message);
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:85',message:'Profile lookup result',data:{hasProfile:!!profile,skilledCoins:profile?.skilled_coins,profileError:profileError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
 
     if (profileError) {
-      console.error('[CREATE-LOBBY] Error fetching profile:', profileError);
+      console.error('[CREATE-LOBBY] Error fetching profile - returning 500. Error:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch profile' }),
+        JSON.stringify({ error: 'Failed to fetch profile', details: profileError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -185,6 +204,7 @@ serve(async (req) => {
 
     // Create a game with status 'waiting' - white player is the host
     // black_player_id will be a placeholder until someone joins
+    console.log('[CREATE-LOBBY] Attempting to insert game - whitePlayerId:', player.id, 'wager:', wager, 'lobbyCode:', finalLobbyCode);
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:161',message:'Before game insert',data:{whitePlayerId:player.id,blackPlayerId:player.id,wager,gameType,status:'waiting',fen:`LOBBY:${finalLobbyCode}`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
@@ -202,14 +222,15 @@ serve(async (req) => {
       })
       .select()
       .single();
+    console.log('[CREATE-LOBBY] Game insert result - hasGameData:', !!gameData, 'gameId:', gameData?.id, 'error:', gameError?.message, 'errorCode:', gameError?.code, 'errorDetails:', gameError?.details);
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:175',message:'Game insert result',data:{hasGameData:!!gameData,gameId:gameData?.id,gameError:gameError?.message,gameErrorCode:gameError?.code,gameErrorDetails:gameError?.details},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
 
     if (gameError) {
-      console.error('[CREATE-LOBBY] Game creation error:', gameError);
+      console.error('[CREATE-LOBBY] Game creation error - returning 500. Full error:', JSON.stringify(gameError, null, 2));
       return new Response(
-        JSON.stringify({ error: 'Failed to create lobby' }),
+        JSON.stringify({ error: 'Failed to create lobby', details: gameError.message, code: gameError.code }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
