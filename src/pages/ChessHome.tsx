@@ -3,7 +3,7 @@
  * 
  * Three modes:
  * - Private (left): Host/Join with codes
- * - Online (center): Wager-based matchmaking
+ * - Online (center): Wager-based matchmaking with eye-tracking rook character
  * - Battle Royale (right): Coming soon
  */
 
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { LogoLink } from '@/components/LogoLink';
 import { ChessOnlineMode } from '@/components/chess/ChessOnlineMode';
 import { ChessPrivateMode } from '@/components/chess/ChessPrivateMode';
+import { OnlineModeCard } from '@/components/chess/OnlineModeCard';
 import { 
   ArrowLeft, 
   Users, 
@@ -303,19 +304,11 @@ export default function ChessHome() {
               onClick={() => handleModeSelect('private')}
             />
 
-            {/* Online Mode (Center - Main) - Queen piece */}
-            <ModeCard
-              mode="online"
-              title="Online"
-              subtitle="Compete for Skilled Coins"
-              icon={<Globe className="w-7 h-7 text-blue-400" />}
-              chessPiece="♛"
-              gradientFrom="#0ea5e9"
-              gradientTo="#0c4a6e"
-              glowColor="rgba(14, 165, 233, 0.5)"
+            {/* Online Mode (Center - Main) - Rook character with eye tracking */}
+            <OnlineModeCard
               isHovered={hoveredMode === 'online'}
               isSelected={selectedMode === 'online'}
-              onHover={setHoveredMode}
+              onHover={(isHovering) => setHoveredMode(isHovering ? 'online' : null)}
               onClick={() => handleModeSelect('online')}
             />
 
