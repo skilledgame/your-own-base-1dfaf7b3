@@ -89,8 +89,12 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         body: { wager: selectedWager, gameType: 'chess' }
       });
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChessPrivateMode.tsx:88',message:'After invoke create-lobby',data:{hasError:!!response.error,errorMessage:response.error?.message,errorContext:response.error?.context,hasData:!!response.data,dataError:response.data?.error,dataDetails:response.data?.details,fullResponse:JSON.stringify(response)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChessPrivateMode.tsx:88',message:'After invoke create-lobby',data:{hasError:!!response.error,errorMessage:response.error?.message,errorContext:response.error?.context,hasData:!!response.data,dataError:response.data?.error,dataDetails:response.data?.details,dataLobbyCode:response.data?.lobbyCode,dataGame:!!response.data?.game,fullResponse:JSON.stringify(response)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
+
+      console.log('[ChessPrivateMode] Full response:', JSON.stringify(response, null, 2));
+      console.log('[ChessPrivateMode] Response data:', response.data);
+      console.log('[ChessPrivateMode] Response error:', response.error);
 
       if (response.error) {
         console.error('[ChessPrivateMode] Create lobby error - full error:', JSON.stringify(response.error, null, 2));
@@ -107,6 +111,10 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       }
 
       const data = response.data;
+      console.log('[ChessPrivateMode] Parsed data:', data);
+      console.log('[ChessPrivateMode] Has lobbyCode?', !!data?.lobbyCode);
+      console.log('[ChessPrivateMode] Has game?', !!data?.game);
+      
       if (data?.error) {
         console.error('[ChessPrivateMode] Create lobby data error:', data.error, 'details:', data.details);
         toast({
@@ -119,6 +127,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       }
 
       if (data?.lobbyCode) {
+        console.log('[ChessPrivateMode] Lobby created successfully! Code:', data.lobbyCode, 'Game ID:', data.game?.id);
         setLobbyCode(data.lobbyCode);
         setLobbyCreated(true);
         setWaitingForOpponent(true);
@@ -157,16 +166,24 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
           .subscribe();
 
         sessionStorage.setItem('lobbyChannel', channel.topic);
+      } else {
+        console.error('[ChessPrivateMode] No lobbyCode in response! Data:', data);
+        toast({
+          variant: 'destructive',
+          title: 'Failed to create lobby',
+          description: 'Invalid response from server. Please try again.',
+        });
       }
     } catch (error) {
+      console.error('[ChessPrivateMode] Exception creating lobby:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to create lobby',
         description: 'Please try again',
       });
+    } finally {
+      setIsCreating(false);
     }
-
-    setIsCreating(false);
   };
 
   const handleJoinLobby = async () => {
