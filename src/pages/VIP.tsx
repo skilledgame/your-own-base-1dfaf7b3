@@ -1,40 +1,109 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Crown, Trophy, Sparkles, ArrowLeft, Check } from 'lucide-react';
+import { 
+  Crown, Trophy, Sparkles, ArrowLeft, Check, Gift, Lock, 
+  Coins, Star, Zap, Clock, ChevronRight, Award, Gem
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { useProfile } from '@/hooks/useProfile';
 import { getRankFromTotalWagered, formatSkilledCoins, RANK_THRESHOLDS, RANK_PERKS } from '@/lib/rankSystem';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
-import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 // Rank ladder data
 const RANK_LADDER = [
-  { tier: 'unranked', name: 'Unranked', threshold: RANK_THRESHOLDS.unranked },
-  { tier: 'bronze', name: 'Bronze', threshold: RANK_THRESHOLDS.bronze },
-  { tier: 'silver', name: 'Silver', threshold: RANK_THRESHOLDS.silver },
-  { tier: 'gold', name: 'Gold', threshold: RANK_THRESHOLDS.gold },
-  { tier: 'platinum', name: 'Platinum', threshold: RANK_THRESHOLDS.platinum },
-  { tier: 'diamond', name: 'Diamond', threshold: RANK_THRESHOLDS.diamond },
+  { tier: 'unranked', name: 'Unranked', threshold: RANK_THRESHOLDS.unranked, icon: Star },
+  { tier: 'bronze', name: 'Bronze', threshold: RANK_THRESHOLDS.bronze, icon: Award },
+  { tier: 'silver', name: 'Silver', threshold: RANK_THRESHOLDS.silver, icon: Gem },
+  { tier: 'gold', name: 'Gold', threshold: RANK_THRESHOLDS.gold, icon: Crown },
+  { tier: 'platinum', name: 'Platinum', threshold: RANK_THRESHOLDS.platinum, icon: Sparkles },
+  { tier: 'diamond', name: 'Diamond', threshold: RANK_THRESHOLDS.diamond, icon: Trophy },
 ] as const;
+
+const RANK_ORDER = ['unranked', 'bronze', 'silver', 'gold', 'platinum', 'diamond'];
+
+// VIP Reward tiers with cooldowns
+const VIP_REWARDS = [
+  { 
+    id: 'daily', 
+    title: 'Daily Bonus', 
+    description: 'Claim once every 24 hours',
+    icon: Coins, 
+    reward: 25,
+    cooldown: null,
+    requiredRank: 'unranked',
+    available: true,
+    frequency: 'daily'
+  },
+  { 
+    id: 'weekly', 
+    title: 'Weekly Bonus', 
+    description: 'Exclusive weekly reward',
+    icon: Gift, 
+    reward: 200,
+    cooldown: '5d 12h',
+    requiredRank: 'bronze',
+    available: false,
+    frequency: 'weekly'
+  },
+  { 
+    id: 'monthly', 
+    title: 'Monthly Bonus', 
+    description: 'Premium monthly reward',
+    icon: Crown, 
+    reward: 1000,
+    cooldown: '23d',
+    requiredRank: 'silver',
+    available: false,
+    frequency: 'monthly'
+  },
+  { 
+    id: 'vip', 
+    title: 'VIP Exclusive', 
+    description: 'Gold+ members only',
+    icon: Sparkles, 
+    reward: 2500,
+    cooldown: null,
+    requiredRank: 'gold',
+    available: true,
+    frequency: 'special'
+  },
+];
+
+// Rakeback tiers
+const RAKEBACK_TIERS = [
+  { rank: 'unranked', percentage: 0 },
+  { rank: 'bronze', percentage: 2 },
+  { rank: 'silver', percentage: 5 },
+  { rank: 'gold', percentage: 8 },
+  { rank: 'platinum', percentage: 12 },
+  { rank: 'diamond', percentage: 15 },
+];
 
 const getRankColor = (tier: string) => {
   switch (tier) {
-    case 'diamond':
-      return 'from-cyan-400 to-blue-500';
-    case 'platinum':
-      return 'from-slate-300 to-slate-500';
-    case 'gold':
-      return 'from-yellow-400 to-amber-500';
-    case 'silver':
-      return 'from-gray-300 to-gray-400';
-    case 'bronze':
-      return 'from-orange-600 to-orange-800';
-    default:
-      return 'from-gray-500 to-gray-600';
+    case 'diamond': return 'from-cyan-400 to-blue-500';
+    case 'platinum': return 'from-slate-300 to-slate-500';
+    case 'gold': return 'from-yellow-400 to-amber-500';
+    case 'silver': return 'from-gray-300 to-gray-400';
+    case 'bronze': return 'from-orange-600 to-orange-800';
+    default: return 'from-gray-500 to-gray-600';
+  }
+};
+
+const getRankBgColor = (tier: string) => {
+  switch (tier) {
+    case 'diamond': return 'bg-cyan-500/10';
+    case 'platinum': return 'bg-slate-400/10';
+    case 'gold': return 'bg-yellow-500/10';
+    case 'silver': return 'bg-gray-300/10';
+    case 'bronze': return 'bg-orange-600/10';
+    default: return 'bg-gray-500/10';
   }
 };
 
@@ -44,10 +113,23 @@ export default function VIP() {
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
 
   const rankInfo = getRankFromTotalWagered(totalWageredSc);
+  const currentRankIndex = RANK_ORDER.indexOf(rankInfo.tierName);
   const progress = rankInfo.nextMin
-    ? (totalWageredSc - rankInfo.currentMin) / (rankInfo.nextMin - rankInfo.currentMin)
-    : 1;
+    ? ((totalWageredSc - rankInfo.currentMin) / (rankInfo.nextMin - rankInfo.currentMin)) * 100
+    : 100;
   const remaining = rankInfo.nextMin ? rankInfo.nextMin - totalWageredSc : 0;
+
+  const checkRankRequirement = (requiredRank: string) => {
+    const requiredIndex = RANK_ORDER.indexOf(requiredRank);
+    return currentRankIndex >= requiredIndex;
+  };
+
+  const currentRakeback = RAKEBACK_TIERS.find(r => r.rank === rankInfo.tierName)?.percentage || 0;
+
+  const handleClaimReward = (rewardId: string) => {
+    console.log('Claiming reward:', rewardId);
+    // TODO: Implement reward claiming logic
+  };
 
   if (isLoading) {
     return (
@@ -71,159 +153,210 @@ export default function VIP() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-bold">VIP & Rank Details</h1>
+          <div className="flex items-center gap-2">
+            <Crown className="w-5 h-5 text-yellow-500" />
+            <h1 className="text-xl font-bold">VIP Rewards</h1>
+          </div>
         </div>
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-6 mt-16 space-y-6">
-        {/* Current Rank Card */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg bg-gradient-to-br ${getRankColor(rankInfo.tierName)}`}>
-                <Crown className="w-6 h-6 text-white" />
+        {/* Current Rank Hero Card */}
+        <Card className={cn(
+          "overflow-hidden border-2",
+          rankInfo.tierName === 'diamond' ? 'border-cyan-500/30' :
+          rankInfo.tierName === 'platinum' ? 'border-slate-400/30' :
+          rankInfo.tierName === 'gold' ? 'border-yellow-500/30' :
+          rankInfo.tierName === 'silver' ? 'border-gray-300/30' :
+          rankInfo.tierName === 'bronze' ? 'border-orange-600/30' :
+          'border-border'
+        )}>
+          <div className={cn(
+            "h-2 bg-gradient-to-r",
+            getRankColor(rankInfo.tierName)
+          )} />
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg",
+                  getRankColor(rankInfo.tierName)
+                )}>
+                  <Crown className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">{displayName || 'Player'}</p>
+                  <h2 className={cn(
+                    "text-2xl font-black bg-gradient-to-r bg-clip-text text-transparent",
+                    getRankColor(rankInfo.tierName)
+                  )}>
+                    {rankInfo.displayName}
+                  </h2>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold">{displayName || 'Player'}</h2>
-                <p className={`text-lg font-semibold bg-gradient-to-r ${getRankColor(rankInfo.tierName)} bg-clip-text text-transparent`}>
-                  {rankInfo.displayName}
-                </p>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Total Wagered */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Total Wagered</span>
-                <span className="text-lg font-bold text-foreground">
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground mb-1">Total Wagered</p>
+                <p className="text-xl font-bold text-foreground">
                   {formatSkilledCoins(totalWageredSc)} SC
-                </span>
+                </p>
               </div>
             </div>
 
-            {/* Progress Bar */}
+            {/* Progress to next rank */}
             {rankInfo.nextMin && (
-              <div>
-                <Progress value={Math.min(progress * 100, 100)} className="h-3 mb-2" />
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>Progress to {rankInfo.displayName}</span>
-                  <span>{formatSkilledCoins(remaining)} SC remaining</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Progress to next rank</span>
+                  <span className="font-medium text-foreground">
+                    {formatSkilledCoins(remaining)} SC to go
+                  </span>
+                </div>
+                <Progress value={progress} className="h-3" />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{rankInfo.displayName}</span>
+                  <span>{RANK_LADDER[currentRankIndex + 1]?.name || 'Max'}</span>
                 </div>
               </div>
             )}
 
             {!rankInfo.nextMin && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 py-3 bg-yellow-500/10 rounded-xl">
                 <Trophy className="w-5 h-5 text-yellow-500" />
-                <span>Maximum rank achieved!</span>
+                <span className="text-sm font-semibold text-yellow-500">Maximum rank achieved!</span>
               </div>
             )}
-
-            {/* Current Perks */}
-            <div className="pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Current Perks
-              </h3>
-              <ul className="space-y-2">
-                {rankInfo.perks.map((perk, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-foreground">
-                    <Sparkles className="w-4 h-4 mt-0.5 text-accent flex-shrink-0" />
-                    <span>{perk}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </CardContent>
         </Card>
 
-        {/* Rank Ladder */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Rank Ladder</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {RANK_LADDER.map((rank, index) => {
-                const isCurrentRank = rank.tier === rankInfo.tierName;
-                const isUnlocked = totalWageredSc >= rank.threshold;
-                const nextRank = RANK_LADDER[index + 1];
-                const progressToNext = nextRank
-                  ? Math.max(0, Math.min(1, (totalWageredSc - rank.threshold) / (nextRank.threshold - rank.threshold)))
-                  : 1;
-
-                return (
-                  <div key={rank.tier}>
-                    <div
-                      className={`
-                        p-4 rounded-lg border-2 transition-all
-                        ${isCurrentRank
-                          ? `border-primary bg-primary/5`
-                          : isUnlocked
-                          ? 'border-border bg-card'
-                          : 'border-border/50 bg-muted/30 opacity-60'}
-                      `}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg bg-gradient-to-br ${getRankColor(rank.tier)}`}>
-                            <Crown className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h3 className={`font-bold text-lg ${isCurrentRank ? 'text-primary' : ''}`}>
-                              {rank.name}
-                              {isCurrentRank && (
-                                <span className="ml-2 text-xs text-primary">(Current)</span>
-                              )}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              {rank.threshold === 0
-                                ? 'Starting rank'
-                                : `Requires ${formatSkilledCoins(rank.threshold)} SC wagered`}
-                            </p>
-                          </div>
-                        </div>
-                        {isUnlocked && (
-                          <div className="flex items-center gap-1 text-emerald-500">
-                            <Check className="w-5 h-5" />
-                            <span className="text-sm font-semibold">Unlocked</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Progress to next rank */}
-                      {nextRank && isUnlocked && (
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                            <span>Progress to {nextRank.name}</span>
-                            <span>
-                              {formatSkilledCoins(totalWageredSc - rank.threshold)} / {formatSkilledCoins(nextRank.threshold - rank.threshold)} SC
-                            </span>
-                          </div>
-                          <Progress value={progressToNext * 100} className="h-2" />
-                        </div>
-                      )}
-
-                      {/* Perks */}
-                      <div className="mt-3 pt-3 border-t border-border/50">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                          Perks
-                        </p>
-                        <ul className="space-y-1">
-                          {(RANK_PERKS[rank.tier] || []).map((perk, perkIndex) => (
-                            <li key={perkIndex} className="flex items-start gap-2 text-xs text-foreground/80">
-                              <Sparkles className="w-3 h-3 mt-0.5 text-accent flex-shrink-0" />
-                              <span>{perk}</span>
-                            </li>
-                          ))}
-                        </ul>
+        {/* VIP Rewards Grid */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Gift className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold text-foreground">Claimable Rewards</h2>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            {VIP_REWARDS.map((reward) => {
+              const RewardIcon = reward.icon;
+              const hasRank = checkRankRequirement(reward.requiredRank);
+              const isAvailable = reward.available && hasRank;
+              
+              return (
+                <Card 
+                  key={reward.id}
+                  className={cn(
+                    "relative overflow-hidden transition-all",
+                    isAvailable 
+                      ? "bg-gradient-to-br from-primary/5 to-primary/10 border-primary/30 hover:border-primary/50" 
+                      : hasRank 
+                        ? "bg-card border-border" 
+                        : "bg-muted/20 border-border/50"
+                  )}
+                >
+                  {/* Lock overlay */}
+                  {!hasRank && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                      <div className="text-center">
+                        <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                        <span className="text-sm font-medium text-muted-foreground capitalize">
+                          Requires {reward.requiredRank}
+                        </span>
                       </div>
                     </div>
-                    {index < RANK_LADDER.length - 1 && (
-                      <div className="flex justify-center my-2">
-                        <div className="w-0.5 h-4 bg-border" />
+                  )}
+
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center",
+                        isAvailable ? "bg-primary/20" : "bg-muted"
+                      )}>
+                        <RewardIcon className={cn(
+                          "w-6 h-6",
+                          isAvailable ? "text-primary" : "text-muted-foreground"
+                        )} />
                       </div>
+                      {reward.cooldown && hasRank && (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <Clock className="w-3 h-3" />
+                          {reward.cooldown}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <h3 className="font-bold text-foreground mb-1">{reward.title}</h3>
+                    <p className="text-xs text-muted-foreground mb-4">{reward.description}</p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <Coins className="w-4 h-4 text-yellow-500" />
+                        <span className="font-bold text-yellow-500">+{formatSkilledCoins(reward.reward)}</span>
+                      </div>
+                      <Button 
+                        size="sm"
+                        className={cn(
+                          "h-8",
+                          !isAvailable && "bg-muted text-muted-foreground cursor-not-allowed"
+                        )}
+                        disabled={!isAvailable}
+                        onClick={() => handleClaimReward(reward.id)}
+                      >
+                        {isAvailable ? 'Claim' : hasRank ? 'Claimed' : 'Locked'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Rakeback Section */}
+        <Card className="bg-gradient-to-br from-card via-card to-emerald-500/5 border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground">Rakeback</h3>
+                  <p className="text-sm text-muted-foreground">Earn back on every wager</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-black text-emerald-500">{currentRakeback}%</p>
+                <p className="text-xs text-muted-foreground">Current rate</p>
+              </div>
+            </div>
+
+            {/* Rakeback tiers */}
+            <div className="grid grid-cols-6 gap-2">
+              {RAKEBACK_TIERS.map((tier, idx) => {
+                const isActive = tier.rank === rankInfo.tierName;
+                const isUnlocked = idx <= currentRankIndex;
+                
+                return (
+                  <div 
+                    key={tier.rank}
+                    className={cn(
+                      "rounded-xl p-3 text-center transition-all border-2",
+                      isActive 
+                        ? "bg-emerald-500/10 border-emerald-500" 
+                        : isUnlocked 
+                          ? getRankBgColor(tier.rank) + " border-transparent"
+                          : "bg-muted/30 border-border/50"
                     )}
+                  >
+                    <p className={cn(
+                      "text-lg font-bold mb-1",
+                      isActive ? "text-emerald-500" : isUnlocked ? "text-foreground" : "text-muted-foreground"
+                    )}>
+                      {tier.percentage}%
+                    </p>
+                    <p className="text-[10px] text-muted-foreground capitalize truncate">
+                      {tier.rank === 'unranked' ? 'New' : tier.rank}
+                    </p>
                   </div>
                 );
               })}
@@ -231,12 +364,111 @@ export default function VIP() {
           </CardContent>
         </Card>
 
+        {/* Rank Ladder */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Trophy className="w-5 h-5 text-yellow-500" />
+            <h2 className="text-lg font-bold text-foreground">Rank Ladder</h2>
+          </div>
+
+          <div className="space-y-3">
+            {RANK_LADDER.map((rank, index) => {
+              const isCurrentRank = rank.tier === rankInfo.tierName;
+              const isUnlocked = totalWageredSc >= rank.threshold;
+              const RankIcon = rank.icon;
+              const nextRank = RANK_LADDER[index + 1];
+              const progressToNext = nextRank
+                ? Math.max(0, Math.min(100, ((totalWageredSc - rank.threshold) / (nextRank.threshold - rank.threshold)) * 100))
+                : 100;
+
+              return (
+                <Card 
+                  key={rank.tier}
+                  className={cn(
+                    "overflow-hidden transition-all",
+                    isCurrentRank 
+                      ? "border-2 border-primary bg-primary/5" 
+                      : isUnlocked 
+                        ? "border-border bg-card" 
+                        : "border-border/50 bg-muted/20 opacity-70"
+                  )}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br",
+                        getRankColor(rank.tier)
+                      )}>
+                        <RankIcon className="w-6 h-6 text-white" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-foreground">{rank.name}</h3>
+                          {isCurrentRank && (
+                            <Badge variant="secondary" className="text-xs bg-primary/20 text-primary">
+                              Current
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {rank.threshold === 0 
+                            ? 'Starting rank' 
+                            : `${formatSkilledCoins(rank.threshold)} SC wagered`
+                          }
+                        </p>
+                        
+                        {/* Progress bar for current rank */}
+                        {isCurrentRank && nextRank && (
+                          <div className="mt-2">
+                            <Progress value={progressToNext} className="h-1.5" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {isUnlocked && (
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                            <Check className="w-4 h-4 text-emerald-500" />
+                          </div>
+                        )}
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    </div>
+
+                    {/* Perks Preview */}
+                    {isCurrentRank && (
+                      <div className="mt-4 pt-4 border-t border-border/50">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                          Your Perks
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(RANK_PERKS[rank.tier] || []).slice(0, 3).map((perk, perkIndex) => (
+                            <Badge 
+                              key={perkIndex} 
+                              variant="secondary" 
+                              className="text-xs bg-muted/50"
+                            >
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              {perk}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Info Note */}
-        <Card className="bg-muted/50 border-border">
+        <Card className="bg-muted/30 border-border">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground text-center">
-              Rank is based on total Skilled Coins wagered over your lifetime. 
-              Both players' wagers count toward their total when a match starts.
+              🎮 Rank is based on total Skilled Coins wagered over your lifetime. 
+              Play more games to unlock higher tiers and exclusive rewards!
             </p>
           </CardContent>
         </Card>
