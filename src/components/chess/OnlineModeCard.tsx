@@ -4,7 +4,7 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import rookPiece from '@/assets/chess-rook-piece.png';
+import rookCharacter from '@/assets/chess-rook-character.png';
 
 interface OnlineModeCardProps {
   isHovered: boolean;
@@ -31,7 +31,6 @@ export const OnlineModeCard = ({
       setTimeout(() => setIsBlinking(false), 150);
     };
 
-    // Random blink interval between 2-5 seconds
     const scheduleBlink = () => {
       const delay = 2000 + Math.random() * 3000;
       return setTimeout(() => {
@@ -51,14 +50,12 @@ export const OnlineModeCard = ({
 
     const rect = cardRef.current.getBoundingClientRect();
     const cardCenterX = rect.left + rect.width / 2;
-    const cardCenterY = rect.top + rect.height * 0.35; // Eyes position
+    const cardCenterY = rect.top + rect.height * 0.32;
 
-    // Calculate relative position from card center
     const relX = e.clientX - cardCenterX;
     const relY = e.clientY - cardCenterY;
 
-    // Normalize and limit eye movement (max 6px offset)
-    const maxOffset = 6;
+    const maxOffset = 5;
     const distance = Math.sqrt(relX * relX + relY * relY);
     const normalizedDistance = Math.min(distance / 200, 1);
 
@@ -101,89 +98,79 @@ export const OnlineModeCard = ({
           ${isSelected ? 'ring-4 ring-white/40' : ''}
         `}
         style={{
-          background: 'linear-gradient(180deg, #1e3a5f 0%, #0c2340 100%)',
+          background: 'linear-gradient(180deg, #1a3a52 0%, #0f2536 100%)',
           boxShadow: isActive 
-            ? '0 0 80px rgba(14, 165, 233, 0.4), inset 0 0 60px rgba(14, 165, 233, 0.15)' 
+            ? '0 0 60px rgba(14, 165, 233, 0.35), inset 0 0 40px rgba(14, 165, 233, 0.1)' 
             : undefined
         }}
       >
-        {/* Subtle Background Pattern */}
-        <div 
-          className="absolute inset-0 opacity-5"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 50% 50%, white 1px, transparent 1px)',
-            backgroundSize: '40px 40px'
-          }}
-        />
-
-        {/* Rook Piece Image - Smaller and centered */}
+        {/* Rook Character Container */}
         <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
           <div 
             className={`
               relative transition-all duration-500 flex items-center justify-center
-              ${isActive ? 'scale-110' : 'scale-100'}
+              ${isActive ? 'scale-105' : 'scale-100'}
             `}
-            style={{ marginTop: '20px' }}
+            style={{ marginTop: '10px' }}
           >
+            {/* Rook Image */}
             <img 
-              src={rookPiece} 
+              src={rookCharacter} 
               alt="Online Mode Rook" 
               className={`
-                w-[180px] sm:w-[200px] md:w-[220px] h-auto object-contain
+                w-[200px] sm:w-[220px] md:w-[240px] h-auto object-contain
                 transition-all duration-500
                 ${isActive ? 'brightness-110' : 'brightness-100'}
               `}
               style={{
                 filter: isActive 
-                  ? 'drop-shadow(0 0 30px rgba(14, 165, 233, 0.5))' 
-                  : 'drop-shadow(0 0 15px rgba(14, 165, 233, 0.3))'
+                  ? 'drop-shadow(0 0 25px rgba(14, 165, 233, 0.4))' 
+                  : 'drop-shadow(0 0 10px rgba(0, 0, 0, 0.3))'
               }}
             />
             
-            {/* Animated Eyes Container - positioned on the rook body */}
+            {/* Animated Eyes Overlay - positioned to match the rook's face */}
             <div 
               className="absolute pointer-events-none"
               style={{
-                top: '38%',
+                top: '24%',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 display: 'flex',
-                gap: '24px'
+                gap: '16px'
               }}
             >
               {/* Left Eye */}
               <div 
-                className="relative transition-all duration-200"
+                className="relative"
                 style={{
-                  width: '28px',
-                  height: isBlinking ? '4px' : '28px',
+                  width: '22px',
+                  height: isBlinking ? '3px' : '22px',
                   background: 'white',
-                  borderRadius: isBlinking ? '4px' : '50%',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 -2px 4px rgba(0,0,0,0.1)',
+                  borderRadius: isBlinking ? '3px' : '50%',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                  transition: 'height 0.1s ease-out, border-radius 0.1s ease-out',
                   overflow: 'hidden'
                 }}
               >
-                {/* Pupil */}
                 {!isBlinking && (
                   <div 
-                    className="absolute bg-slate-900 rounded-full transition-all"
+                    className="absolute bg-slate-900 rounded-full"
                     style={{
-                      width: '14px',
-                      height: '14px',
-                      left: `calc(50% - 7px + ${eyeOffset.x}px)`,
-                      top: `calc(50% - 7px + ${eyeOffset.y}px)`,
-                      boxShadow: 'inset 0 0 2px rgba(0,0,0,0.5)',
+                      width: '11px',
+                      height: '11px',
+                      left: `calc(50% - 5.5px + ${eyeOffset.x}px)`,
+                      top: `calc(50% - 5.5px + ${eyeOffset.y}px)`,
                       transition: isActive ? 'left 0.05s, top 0.05s' : 'all 0.3s ease-out'
                     }}
                   >
-                    {/* Eye shine */}
                     <div 
                       className="absolute bg-white rounded-full"
                       style={{
-                        width: '5px',
-                        height: '5px',
-                        top: '2px',
-                        right: '2px'
+                        width: '4px',
+                        height: '4px',
+                        top: '1px',
+                        right: '1px'
                       }}
                     />
                   </div>
@@ -192,37 +179,35 @@ export const OnlineModeCard = ({
 
               {/* Right Eye */}
               <div 
-                className="relative transition-all duration-200"
+                className="relative"
                 style={{
-                  width: '28px',
-                  height: isBlinking ? '4px' : '28px',
+                  width: '22px',
+                  height: isBlinking ? '3px' : '22px',
                   background: 'white',
-                  borderRadius: isBlinking ? '4px' : '50%',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 -2px 4px rgba(0,0,0,0.1)',
+                  borderRadius: isBlinking ? '3px' : '50%',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                  transition: 'height 0.1s ease-out, border-radius 0.1s ease-out',
                   overflow: 'hidden'
                 }}
               >
-                {/* Pupil */}
                 {!isBlinking && (
                   <div 
-                    className="absolute bg-slate-900 rounded-full transition-all"
+                    className="absolute bg-slate-900 rounded-full"
                     style={{
-                      width: '14px',
-                      height: '14px',
-                      left: `calc(50% - 7px + ${eyeOffset.x}px)`,
-                      top: `calc(50% - 7px + ${eyeOffset.y}px)`,
-                      boxShadow: 'inset 0 0 2px rgba(0,0,0,0.5)',
+                      width: '11px',
+                      height: '11px',
+                      left: `calc(50% - 5.5px + ${eyeOffset.x}px)`,
+                      top: `calc(50% - 5.5px + ${eyeOffset.y}px)`,
                       transition: isActive ? 'left 0.05s, top 0.05s' : 'all 0.3s ease-out'
                     }}
                   >
-                    {/* Eye shine */}
                     <div 
                       className="absolute bg-white rounded-full"
                       style={{
-                        width: '5px',
-                        height: '5px',
-                        top: '2px',
-                        right: '2px'
+                        width: '4px',
+                        height: '4px',
+                        top: '1px',
+                        right: '1px'
                       }}
                     />
                   </div>
@@ -233,11 +218,10 @@ export const OnlineModeCard = ({
         </div>
 
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
         {/* Content */}
         <div className="absolute inset-x-0 bottom-0 p-6 text-center space-y-4">
-          {/* Title */}
           <h2 
             className={`
               text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-wider
@@ -249,12 +233,10 @@ export const OnlineModeCard = ({
             Online
           </h2>
 
-          {/* Subtitle */}
           <p className="text-white/70 text-sm sm:text-base">
             Compete for Skilled Coins
           </p>
 
-          {/* Play Button (shows on hover/active) */}
           <div 
             className={`
               transition-all duration-300 transform
@@ -273,7 +255,7 @@ export const OnlineModeCard = ({
         {/* Shine Effect */}
         <div 
           className={`
-            absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent
+            absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent
             transition-opacity duration-500
             ${isActive ? 'opacity-100' : 'opacity-0'}
           `}
