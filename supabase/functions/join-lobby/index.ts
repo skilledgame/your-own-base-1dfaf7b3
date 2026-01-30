@@ -19,10 +19,10 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     console.log('[JOIN-LOBBY] Auth header present:', !!authHeader);
     if (!authHeader) {
-      console.error('[JOIN-LOBBY] Missing auth header - returning 401');
+      console.error('[JOIN-LOBBY] Missing auth header - returning error');
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Missing authorization header', details: 'Please provide an authorization header' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -36,8 +36,8 @@ serve(async (req) => {
     if (userError || !user) {
       console.error('[JOIN-LOBBY] Auth error:', userError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized', details: userError?.message }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Unauthorized', details: userError?.message || 'Invalid or missing authentication' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -47,8 +47,8 @@ serve(async (req) => {
     } catch (jsonError) {
       console.error('[JOIN-LOBBY] JSON parse error:', jsonError);
       return new Response(
-        JSON.stringify({ error: 'Invalid request body', details: (jsonError as Error)?.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Invalid request body', details: (jsonError as Error)?.message || 'Failed to parse JSON' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
@@ -148,8 +148,8 @@ serve(async (req) => {
     } else {
       console.error('[JOIN-LOBBY] Neither gameId nor lobbyCode provided');
       return new Response(
-        JSON.stringify({ error: 'Lobby code or game ID required', details: 'Please provide either lobbyCode or gameId' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Lobby code or game ID required', details: 'Please provide either lobbyCode or gameId' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -158,8 +158,8 @@ serve(async (req) => {
     if (lobbyError) {
       console.error('[JOIN-LOBBY] Lobby query error:', lobbyError);
       return new Response(
-        JSON.stringify({ error: 'Failed to find lobby', details: lobbyError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Failed to find lobby', details: lobbyError.message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -221,8 +221,8 @@ serve(async (req) => {
     if (profileError) {
       console.error('[JOIN-LOBBY] Error fetching profile:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch profile' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Failed to fetch profile', details: profileError.message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -230,8 +230,8 @@ serve(async (req) => {
     if (!isPrivilegedUser) {
       if (!profile) {
         return new Response(
-          JSON.stringify({ error: 'Profile not found. Please refresh and try again.' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, error: 'Profile not found. Please refresh and try again.', details: 'Your profile could not be found in the database' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -301,10 +301,11 @@ serve(async (req) => {
         .eq('id', updatedGame.id);
       return new Response(
         JSON.stringify({ 
+          success: false,
           error: 'Failed to lock wager', 
-          details: lockResult?.error || lockError?.message 
+          details: lockResult?.error || lockError?.message || 'Unable to lock wager for this game'
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -337,10 +338,11 @@ serve(async (req) => {
     console.error('[JOIN-LOBBY] Error details:', { message: errorMessage, stack: errorStack });
     return new Response(
       JSON.stringify({ 
+        success: false,
         error: 'Internal server error', 
         details: errorMessage 
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

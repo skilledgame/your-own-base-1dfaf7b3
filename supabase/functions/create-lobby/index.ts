@@ -25,10 +25,10 @@ serve(async (req) => {
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:19',message:'Auth header check',data:{hasAuthHeader:!!authHeader},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
     // #endregion
     if (!authHeader) {
-      console.error('[CREATE-LOBBY] Missing auth header - returning 401');
+      console.error('[CREATE-LOBBY] Missing auth header - returning error');
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Missing authorization header', details: 'Please provide an authorization header' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -45,8 +45,8 @@ serve(async (req) => {
     if (userError || !user) {
       console.error('[CREATE-LOBBY] Auth error:', userError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Unauthorized', details: userError?.message || 'Invalid or missing authentication' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -92,10 +92,10 @@ serve(async (req) => {
     // #endregion
 
     if (playerError || !player) {
-      console.error('[CREATE-LOBBY] Player not found - returning 404. Error:', playerError);
+      console.error('[CREATE-LOBBY] Player not found - returning error. Error:', playerError);
       return new Response(
-        JSON.stringify({ error: 'Player not found', details: playerError?.message }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Player not found', details: playerError?.message || 'Your player record could not be found' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -129,10 +129,10 @@ serve(async (req) => {
     // #endregion
 
     if (profileError) {
-      console.error('[CREATE-LOBBY] Error fetching profile - returning 500. Error:', profileError);
+      console.error('[CREATE-LOBBY] Error fetching profile - returning error. Error:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch profile', details: profileError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Failed to fetch profile', details: profileError.message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -199,8 +199,8 @@ serve(async (req) => {
     if (activeGame) {
       console.log('[CREATE-LOBBY] Player already in active game:', activeGame.id);
       return new Response(
-        JSON.stringify({ error: 'Already in an active game', gameId: activeGame.id }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Already in an active game', details: `You are already in game ${activeGame.id}. Please finish that game first.`, gameId: activeGame.id }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -242,10 +242,10 @@ serve(async (req) => {
     // #endregion
 
     if (gameError) {
-      console.error('[CREATE-LOBBY] Game creation error - returning 500. Full error:', JSON.stringify(gameError, null, 2));
+      console.error('[CREATE-LOBBY] Game creation error - returning error. Full error:', JSON.stringify(gameError, null, 2));
       return new Response(
-        JSON.stringify({ error: 'Failed to create lobby', details: gameError.message, code: gameError.code }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Failed to create lobby', details: gameError.message || 'Database error occurred', code: gameError.code }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -266,9 +266,10 @@ serve(async (req) => {
     fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:196',message:'Catch block error',data:{errorMessage:(error as Error)?.message,errorStack:(error as Error)?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
     // #endregion
     console.error('[CREATE-LOBBY] Error:', error);
+    const errorMessage = (error as Error)?.message || 'Unknown error';
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ success: false, error: 'Internal server error', details: errorMessage }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
