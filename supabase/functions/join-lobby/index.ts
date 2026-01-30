@@ -372,6 +372,21 @@ serve(async (req) => {
 
     console.log(`[JOIN-LOBBY] Wager locked successfully for game ${updatedGame.id}`);
 
+    // Refetch the game to get the updated status (lock_wager sets it to 'active')
+    const { data: refetchedGame, error: refetchError } = await supabaseAdmin
+      .from('games')
+      .select('*')
+      .eq('id', updatedGame.id)
+      .single();
+
+    // Use refetched game if available, otherwise fall back to updatedGame
+    const finalGame = refetchedGame || updatedGame;
+    
+    if (refetchError && !refetchedGame) {
+      console.warn('[JOIN-LOBBY] Error refetching game after lock_wager:', refetchError);
+      console.warn('[JOIN-LOBBY] Using updatedGame as fallback (status may be outdated)');
+    }
+
     // Get host player info
     const { data: hostPlayer } = await supabaseAdmin
       .from('players')
@@ -379,12 +394,12 @@ serve(async (req) => {
       .eq('id', lobby.white_player_id)
       .single();
 
-    console.log(`[JOIN-LOBBY] Game ${updatedGame.id} started! Host: ${hostPlayer?.name}, Joiner: ${player.name}`);
+    console.log(`[JOIN-LOBBY] Game ${finalGame.id} started! Status: ${finalGame.status}, Host: ${hostPlayer?.name}, Joiner: ${player.name}`);
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        game: updatedGame,
+        game: finalGame,
         opponent: hostPlayer ? { id: hostPlayer.id, name: hostPlayer.name } : null,
         isWhite: false, // Joiner is always black
         message: 'Game started!'
