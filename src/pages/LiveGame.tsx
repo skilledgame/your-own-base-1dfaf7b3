@@ -138,6 +138,9 @@ export default function LiveGame() {
 
   // Load game from database if gameId is in URL but no gameState
   useEffect(() => {
+    // Dismiss any "waiting for opponent" notifications when game loads
+    toast.dismiss();
+    
     if (!gameId || gameState || loadingGame) return;
 
     const loadPrivateGame = async () => {

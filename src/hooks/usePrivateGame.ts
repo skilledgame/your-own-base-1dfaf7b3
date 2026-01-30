@@ -45,7 +45,12 @@ export function usePrivateGame({
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSyncTimeRef = useRef<number>(Date.now());
+  const whiteTimeRef = useRef<number>(60);
+  const blackTimeRef = useRef<number>(60);
+  const currentTurnRef = useRef<'w' | 'b'>('w');
+  const isGameActiveRef = useRef<boolean>(false);
 
   const isWhite = playerColor === 'white';
   const myColor = isWhite ? 'w' : 'b';
@@ -67,6 +72,12 @@ export function usePrivateGame({
           return;
         }
 
+        // Initialize refs with game times
+        whiteTimeRef.current = game.white_time;
+        blackTimeRef.current = game.black_time;
+        currentTurnRef.current = game.current_turn as 'w' | 'b';
+        isGameActiveRef.current = game.status === 'active';
+        
         setGameState({
           fen: game.fen,
           currentTurn: game.current_turn as 'w' | 'b',
@@ -108,6 +119,18 @@ export function usePrivateGame({
           setGameState(prev => {
             if (!prev) return prev;
             
+            // Update refs when game state changes
+            if (updated.white_time !== undefined) {
+              whiteTimeRef.current = updated.white_time;
+            }
+            if (updated.black_time !== undefined) {
+              blackTimeRef.current = updated.black_time;
+            }
+            if (updated.current_turn) {
+              currentTurnRef.current = updated.current_turn as 'w' | 'b';
+            }
+            isGameActiveRef.current = (updated.status || prev.status) === 'active';
+            
             const newState = {
               fen: updated.fen || prev.fen,
               currentTurn: (updated.current_turn || prev.currentTurn) as 'w' | 'b',
@@ -146,166 +169,149 @@ export function usePrivateGame({
     };
   }, [gameId, myColor, onGameEnd]);
 
-  // Timer countdown - syncs with database every 5 seconds
+  // Timer countdown - uses refs to avoid race conditions
   useEffect(() => {
     if (!gameState || gameState.status !== 'active') {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+      isGameActiveRef.current = false;
       return;
     }
 
-    timerIntervalRef.current = setInterval(async () => {
-      const now = Date.now();
+    // Initialize refs from current state
+    whiteTimeRef.current = gameState.whiteTime;
+    blackTimeRef.current = gameState.blackTime;
+    isGameActiveRef.current = true;
+
+    // Countdown timer - updates refs and state every second
+    timerIntervalRef.current = setInterval(() => {
+      if (!isGameActiveRef.current) {
+        return;
+      }
+
+      const currentTurn = currentTurnRef.current;
       
-      // Update local timer every second
+      // Decrement the time for the player whose turn it is
+      if (currentTurn === 'w') {
+        whiteTimeRef.current = Math.max(0, whiteTimeRef.current - 1);
+        
+        // Check for timeout
+        if (whiteTimeRef.current === 0) {
+          isGameActiveRef.current = false;
+          // White loses on time - black wins
+          handleTimeout('w');
+          return;
+        }
+      } else {
+        blackTimeRef.current = Math.max(0, blackTimeRef.current - 1);
+        
+        // Check for timeout
+        if (blackTimeRef.current === 0) {
+          isGameActiveRef.current = false;
+          // Black loses on time - white wins
+          handleTimeout('b');
+          return;
+        }
+      }
+
+      // Update state with ref values (for UI display)
       setGameState(prev => {
         if (!prev) return prev;
-        
-        let newWhiteTime = prev.whiteTime;
-        let newBlackTime = prev.blackTime;
-        
-        // Decrement the time for the player whose turn it is
-        if (prev.currentTurn === 'w') {
-          newWhiteTime = Math.max(0, prev.whiteTime - 1);
-          
-          // Check for timeout
-          if (newWhiteTime === 0) {
-            // White loses on time - black wins
-            // Get game to find black player ID
-            supabase
-              .from('games')
-              .select('black_player_id, white_player_id')
-              .eq('id', gameId)
-              .maybeSingle()
-              .then(async ({ data: game, error: gameError }) => {
-                if (gameError || !game) {
-                  console.error('[usePrivateGame] Error loading game for timeout:', gameError);
-                  return;
-                }
-
-                // Black wins
-                const winnerId = game.black_player_id;
-                const winnerColor = 'b' as const;
-
-                // Get auth token
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session?.access_token) {
-                  console.error('[usePrivateGame] No auth token for timeout');
-                  return;
-                }
-
-                // Call end-game Edge Function
-                const { data, error } = await supabase.functions.invoke('end-game', {
-                  body: {
-                    gameId,
-                    winnerId,
-                    reason: 'timeout',
-                  },
-                  headers: {
-                    Authorization: `Bearer ${session.access_token}`,
-                  },
-                });
-
-                if (error || !data?.success) {
-                  console.error('[usePrivateGame] Error ending game on timeout:', error || data?.error);
-                  return;
-                }
-
-                const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
-                onGameEnd?.(winnerId, 'timeout', winnerColor, creditsChange);
-              });
-            return prev;
-          }
-        } else {
-          newBlackTime = Math.max(0, prev.blackTime - 1);
-          
-          // Check for timeout
-          if (newBlackTime === 0) {
-            // Black loses on time - white wins
-            // Get game to find white player ID
-            supabase
-              .from('games')
-              .select('white_player_id, black_player_id')
-              .eq('id', gameId)
-              .maybeSingle()
-              .then(async ({ data: game, error: gameError }) => {
-                if (gameError || !game) {
-                  console.error('[usePrivateGame] Error loading game for timeout:', gameError);
-                  return;
-                }
-
-                // White wins
-                const winnerId = game.white_player_id;
-                const winnerColor = 'w' as const;
-
-                // Get auth token
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session?.access_token) {
-                  console.error('[usePrivateGame] No auth token for timeout');
-                  return;
-                }
-
-                // Call end-game Edge Function
-                const { data, error } = await supabase.functions.invoke('end-game', {
-                  body: {
-                    gameId,
-                    winnerId,
-                    reason: 'timeout',
-                  },
-                  headers: {
-                    Authorization: `Bearer ${session.access_token}`,
-                  },
-                });
-
-                if (error || !data?.success) {
-                  console.error('[usePrivateGame] Error ending game on timeout:', error || data?.error);
-                  return;
-                }
-
-                const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
-                onGameEnd?.(winnerId, 'timeout', winnerColor, creditsChange);
-              });
-            return prev;
-          }
-        }
-
-        // Sync with database every 5 seconds
-        if (now - lastSyncTimeRef.current > 5000) {
-          lastSyncTimeRef.current = now;
-          
-          // Update database with current time values
-          supabase
-            .from('games')
-            .update({
-              white_time: newWhiteTime,
-              black_time: newBlackTime,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', gameId)
-            .then(({ error }) => {
-              if (error) {
-                console.error('[usePrivateGame] Error syncing timer:', error);
-              }
-            });
-        }
-
         return {
           ...prev,
-          whiteTime: newWhiteTime,
-          blackTime: newBlackTime,
+          whiteTime: whiteTimeRef.current,
+          blackTime: blackTimeRef.current,
         };
       });
     }, 1000);
+
+    // Sync timer with database every 5 seconds
+    syncIntervalRef.current = setInterval(async () => {
+      if (!isGameActiveRef.current) {
+        return;
+      }
+
+      try {
+        await supabase
+          .from('games')
+          .update({
+            white_time: whiteTimeRef.current,
+            black_time: blackTimeRef.current,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', gameId);
+      } catch (error) {
+        console.error('[usePrivateGame] Error syncing timer:', error);
+      }
+    }, 5000);
 
     return () => {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
     };
-  }, [gameState, gameId, onGameEnd]);
+  }, [gameState?.status, gameId, onGameEnd, handleTimeout]);
+
+  // Handle timeout - separate function to avoid async in interval
+  const handleTimeout = useCallback(async (timedOutColor: 'w' | 'b') => {
+    try {
+      // Get game to find winner
+      const { data: game, error: gameError } = await supabase
+        .from('games')
+        .select('white_player_id, black_player_id')
+        .eq('id', gameId)
+        .maybeSingle();
+
+      if (gameError || !game) {
+        console.error('[usePrivateGame] Error loading game for timeout:', gameError);
+        return;
+      }
+
+      // Determine winner
+      const winnerId = timedOutColor === 'w' ? game.black_player_id : game.white_player_id;
+      const winnerColor = timedOutColor === 'w' ? 'b' : 'w';
+
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('[usePrivateGame] No auth token for timeout');
+        return;
+      }
+
+      // Call end-game Edge Function
+      const { data, error } = await supabase.functions.invoke('end-game', {
+        body: {
+          gameId,
+          winnerId,
+          reason: 'timeout',
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error || !data?.success) {
+        console.error('[usePrivateGame] Error ending game on timeout:', error || data?.error);
+        return;
+      }
+
+      const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
+      onGameEnd?.(winnerId, 'timeout', winnerColor, creditsChange);
+    } catch (error) {
+      console.error('[usePrivateGame] Exception handling timeout:', error);
+    }
+  }, [gameId, onGameEnd]);
 
   // Send move via Edge Function
   const sendMove = useCallback(async (from: string, to: string, promotion?: string): Promise<boolean> => {
@@ -341,31 +347,49 @@ export function usePrivateGame({
       }
 
       // Send move via Edge Function
-      const { data, error } = await supabase.functions.invoke('make-move', {
-        body: {
-          gameId,
-          from,
-          to,
-          promotion: promotion || 'q',
-          whiteTime: newWhiteTime,
-          blackTime: newBlackTime,
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      let data, error;
+      try {
+        const response = await supabase.functions.invoke('make-move', {
+          body: {
+            gameId,
+            from,
+            to,
+            promotion: promotion || 'q',
+            whiteTime: newWhiteTime,
+            blackTime: newBlackTime,
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        data = response.data;
+        error = response.error;
+      } catch (networkError) {
+        // Network error (function not reachable, CORS, etc.)
+        console.error('[usePrivateGame] Network error calling Edge Function:', networkError);
+        const networkErrorMessage = networkError instanceof Error 
+          ? networkError.message 
+          : 'Network error - please check your connection';
+        toast.error(`Failed to connect to game server: ${networkErrorMessage}`);
+        return false;
+      }
 
       // Check for error in response.error or data.error
       if (error) {
         console.error('[usePrivateGame] Edge Function error:', error);
-        const errorMessage = error.message || 'Failed to make move';
-        toast.error(errorMessage);
+        // Check if it's a network/connection error
+        if (error.message?.includes('Failed to send') || error.message?.includes('fetch')) {
+          toast.error('Failed to connect to game server. Please check your internet connection.');
+        } else {
+          const errorMessage = error.message || 'Failed to make move';
+          toast.error(errorMessage);
+        }
         return false;
       }
 
       if (!data) {
         console.error('[usePrivateGame] No data in response');
-        toast.error('Failed to make move - no response');
+        toast.error('Failed to make move - no response from server');
         return false;
       }
 

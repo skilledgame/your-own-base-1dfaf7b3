@@ -177,11 +177,13 @@ export default function ChessLobby() {
             (payload) => {
               const game = payload.new;
               if (game.status === 'active') {
-                // Opponent joined! Navigate to game
-                toast({
+                // Dismiss any existing waiting notifications and show new one
+                const { dismiss } = toast({
                   title: 'Opponent joined!',
                   description: 'The game is starting...',
                 });
+                // Auto-dismiss after 2 seconds
+                setTimeout(() => dismiss(), 2000);
                 navigate('/', { state: { startLobbyGame: true, gameId: game.id } });
               }
             }

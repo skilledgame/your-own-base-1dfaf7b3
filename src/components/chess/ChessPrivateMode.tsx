@@ -156,10 +156,13 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
             (payload) => {
               const game = payload.new;
               if (game.status === 'active') {
-                toast({
+                // Dismiss any existing waiting notifications
+                const { dismiss } = toast({
                   title: 'Opponent joined!',
                   description: 'The game is starting...',
                 });
+                // Auto-dismiss after 2 seconds
+                setTimeout(() => dismiss(), 2000);
                 // Navigate directly to the game
                 navigate(`/game/live/${game.id}`);
               }
