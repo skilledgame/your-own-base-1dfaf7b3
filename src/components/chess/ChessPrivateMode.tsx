@@ -160,7 +160,8 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
                   title: 'Opponent joined!',
                   description: 'The game is starting...',
                 });
-                navigate('/', { state: { startLobbyGame: true, gameId: game.id } });
+                // Navigate directly to the game
+                navigate(`/game/live/${game.id}`);
               }
             }
           )
@@ -245,7 +246,8 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
           title: 'Joined lobby!',
           description: `Playing against ${data.opponent?.name || 'opponent'}`,
         });
-        navigate('/', { state: { startLobbyGame: true, gameId: data.game.id } });
+        // Navigate directly to the game
+        navigate(`/game/live/${data.game.id}`);
       }
     } catch (error) {
       toast({

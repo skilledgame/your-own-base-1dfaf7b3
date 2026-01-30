@@ -8,6 +8,7 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalance } from '@/hooks/useBalance';
@@ -16,13 +17,16 @@ import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { GameResultModal } from '@/components/GameResultModal';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, WifiOff } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function LiveGame() {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
+  const [loadingGame, setLoadingGame] = useState(false);
   
   // Global state from Zustand store
-  const { phase, gameState, gameEndResult } = useChessStore();
+  const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName } = useChessStore();
   const { balance } = useBalance();
   
   // WebSocket connection and actions
@@ -77,8 +81,86 @@ export default function LiveGame() {
     navigate('/');
   };
 
-  // Loading state (connecting)
-  if (status === "connecting" || status === "reconnecting") {
+  // Load game from database if gameId is in URL but no gameState
+  useEffect(() => {
+    if (!gameId || gameState || loadingGame) return;
+
+    const loadPrivateGame = async () => {
+      setLoadingGame(true);
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('[LiveGame] No user found');
+          navigate('/auth');
+          return;
+        }
+
+        // Get user's player record
+        const { data: player } = await supabase
+          .from('players')
+          .select('id, name, user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!player) {
+          console.error('[LiveGame] Player not found');
+          navigate('/');
+          return;
+        }
+
+        // Load game from database
+        const { data: game, error: gameError } = await supabase
+          .from('games')
+          .select('*, white_player:players!games_white_player_id_fkey(name, user_id), black_player:players!games_black_player_id_fkey(name, user_id)')
+          .eq('id', gameId)
+          .maybeSingle();
+
+        if (gameError || !game) {
+          console.error('[LiveGame] Error loading game:', gameError);
+          toast.error('Game not found');
+          navigate('/');
+          return;
+        }
+
+        // Determine player color
+        const isWhite = game.white_player_id === player.id;
+        const color = isWhite ? 'w' : 'b';
+        const opponent = isWhite 
+          ? (game.black_player as any)?.name || 'Opponent'
+          : (game.white_player as any)?.name || 'Opponent';
+
+        // Set up game state
+        setPlayerName(player.name);
+        setGameState({
+          gameId: game.id, // Use database ID as gameId for private games
+          dbGameId: game.id,
+          color,
+          fen: game.fen,
+          turn: game.current_turn as 'w' | 'b',
+          isMyTurn: game.current_turn === color,
+          playerName: player.name,
+          opponentName: opponent,
+          wager: game.wager,
+        });
+        setPhase('in_game');
+        
+        // Connect to WebSocket
+        connect();
+      } catch (error) {
+        console.error('[LiveGame] Error loading private game:', error);
+        toast.error('Failed to load game');
+        navigate('/');
+      } finally {
+        setLoadingGame(false);
+      }
+    };
+
+    loadPrivateGame();
+  }, [gameId, gameState, loadingGame, navigate, setPhase, setGameState, setPlayerName, connect]);
+
+  // Loading state (connecting or loading game)
+  if (loadingGame || status === "connecting" || status === "reconnecting") {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
