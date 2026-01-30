@@ -77,7 +77,8 @@ serve(async (req) => {
     } else if (lobbyCode) {
       const searchPattern = `LOBBY:${lobbyCode.toUpperCase()}`;
       console.log('[JOIN-LOBBY] Searching by lobbyCode, pattern:', searchPattern);
-      lobbyQuery = lobbyQuery.like('fen', searchPattern);
+      // Use ilike for case-insensitive matching with wildcard at the end to match exactly
+      lobbyQuery = lobbyQuery.ilike('fen', `${searchPattern}%`);
     } else {
       console.error('[JOIN-LOBBY] Neither gameId nor lobbyCode provided');
       return new Response(
@@ -98,9 +99,20 @@ serve(async (req) => {
     }
 
     if (!lobby) {
-      console.log('[JOIN-LOBBY] Lobby not found - returning 404');
+      console.log('[JOIN-LOBBY] Lobby not found - checking all waiting lobbies for debugging');
+      // Debug: Get all waiting lobbies to see what's available
+      const { data: allWaitingLobbies } = await supabaseAdmin
+        .from('games')
+        .select('id, fen, white_player_id, status, created_at')
+        .eq('status', 'waiting')
+        .limit(10);
+      console.log('[JOIN-LOBBY] All waiting lobbies:', JSON.stringify(allWaitingLobbies, null, 2));
+      
       return new Response(
-        JSON.stringify({ error: 'Lobby not found or already started', details: `No lobby found with code: ${lobbyCode || 'N/A'}` }),
+        JSON.stringify({ 
+          error: 'Lobby not found or already started', 
+          details: `No lobby found with code: ${lobbyCode || 'N/A'}. Searched for pattern: LOBBY:${lobbyCode?.toUpperCase() || 'N/A'}` 
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
