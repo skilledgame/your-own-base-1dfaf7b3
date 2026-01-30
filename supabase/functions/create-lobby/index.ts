@@ -7,6 +7,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:9',message:'Function entry',data:{method:req.method},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
+  // #endregion
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,6 +19,9 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     const authHeader = req.headers.get('Authorization');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:19',message:'Auth header check',data:{hasAuthHeader:!!authHeader},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
@@ -29,6 +35,9 @@ serve(async (req) => {
     });
 
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:31',message:'User auth result',data:{hasUser:!!user,userId:user?.id,userError:userError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     if (userError || !user) {
       console.error('[CREATE-LOBBY] Auth error:', userError);
       return new Response(
@@ -38,6 +47,9 @@ serve(async (req) => {
     }
 
     const { wager = 100, gameType = 'chess', lobbyCode } = await req.json();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:40',message:'Request params',data:{wager,gameType,lobbyCode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+    // #endregion
     console.log(`[CREATE-LOBBY] User ${user.id} creating lobby - wager: ${wager}, gameType: ${gameType}, code: ${lobbyCode || 'auto'}`);
 
     // Validate wager
@@ -58,6 +70,9 @@ serve(async (req) => {
       .select('id, credits, name')
       .eq('user_id', user.id)
       .single();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:56',message:'Player lookup result',data:{hasPlayer:!!player,playerId:player?.id,playerError:playerError?.message,playerErrorCode:playerError?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     if (playerError || !player) {
       console.error('[CREATE-LOBBY] Player not found:', playerError);
@@ -73,6 +88,9 @@ serve(async (req) => {
     const { data: isPrivileged, error: privilegedError } = await supabaseAdmin.rpc('is_privileged_user', {
       _user_id: user.id,
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:73',message:'Privileged check result',data:{isPrivileged,privilegedError:privilegedError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
 
     if (privilegedError) {
       console.error('[CREATE-LOBBY] Error checking privileged status:', privilegedError);
@@ -87,6 +105,9 @@ serve(async (req) => {
       .select('skilled_coins')
       .eq('user_id', user.id)
       .maybeSingle();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:85',message:'Profile lookup result',data:{hasProfile:!!profile,skilledCoins:profile?.skilled_coins,profileError:profileError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     if (profileError) {
       console.error('[CREATE-LOBBY] Error fetching profile:', profileError);
@@ -99,6 +120,9 @@ serve(async (req) => {
     // Validate balance for non-privileged users
     if (!isPrivilegedUser) {
       if (!profile) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:101',message:'Profile missing - returning error',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         return new Response(
           JSON.stringify({ error: 'Profile not found. Please refresh and try again.' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -106,10 +130,13 @@ serve(async (req) => {
       }
 
       if (wager > profile.skilled_coins) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:108',message:'Insufficient balance',data:{wager,skilledCoins:profile.skilled_coins},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         return new Response(
           JSON.stringify({ error: 'Insufficient credits' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      );
       }
     }
 
@@ -158,6 +185,9 @@ serve(async (req) => {
 
     // Create a game with status 'waiting' - white player is the host
     // black_player_id will be a placeholder until someone joins
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:161',message:'Before game insert',data:{whitePlayerId:player.id,blackPlayerId:player.id,wager,gameType,status:'waiting',fen:`LOBBY:${finalLobbyCode}`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     const { data: gameData, error: gameError } = await supabaseAdmin
       .from('games')
       .insert({
@@ -172,6 +202,9 @@ serve(async (req) => {
       })
       .select()
       .single();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:175',message:'Game insert result',data:{hasGameData:!!gameData,gameId:gameData?.id,gameError:gameError?.message,gameErrorCode:gameError?.code,gameErrorDetails:gameError?.details},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
 
     if (gameError) {
       console.error('[CREATE-LOBBY] Game creation error:', gameError);
@@ -194,6 +227,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:196',message:'Catch block error',data:{errorMessage:error?.message,errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
+    // #endregion
     console.error('[CREATE-LOBBY] Error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),

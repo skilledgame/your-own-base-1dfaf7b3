@@ -82,9 +82,15 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
     setIsCreating(true);
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChessPrivateMode.tsx:84',message:'Before invoke create-lobby',data:{wager:selectedWager,gameType:'chess',userId:user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       const response = await supabase.functions.invoke('create-lobby', {
         body: { wager: selectedWager, gameType: 'chess' }
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChessPrivateMode.tsx:87',message:'After invoke create-lobby',data:{hasError:!!response.error,errorMessage:response.error?.message,hasData:!!response.data,dataError:response.data?.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
 
       if (response.error) {
         console.error('[ChessPrivateMode] Create lobby error:', response.error);
