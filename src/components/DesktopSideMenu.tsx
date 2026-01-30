@@ -204,7 +204,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                   <nav className="space-y-1">
                     {isAuthenticated && (
                       <button
-                        onClick={() => handleNavigation('/profile')}
+                        onClick={() => handleNavigation('/settings')}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground whitespace-nowrap"
                       >
                         <User className="w-5 h-5 flex-shrink-0" />
@@ -285,7 +285,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
-                            onClick={() => handleNavigation('/profile')}
+                            onClick={() => handleNavigation('/settings')}
                             className="w-full flex items-center justify-center p-3 rounded-lg transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
                           >
                             <User className="w-5 h-5" />
