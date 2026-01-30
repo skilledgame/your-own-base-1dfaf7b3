@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, X, Home, Gamepad2, HelpCircle, 
   FileText, Shield, Mail, Crown, Trophy, Coins,
-  LogOut, ChevronRight, Moon, Sun, User, ChevronLeft
+  LogOut, ChevronRight, Moon, Sun, User, ChevronLeft, BarChart3, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -199,17 +199,26 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
 
                 <div className="px-3 mt-6">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3 whitespace-nowrap">
-                    Settings
+                    Account
                   </p>
                   <nav className="space-y-1">
                     {isAuthenticated && (
-                      <button
-                        onClick={() => handleNavigation('/settings')}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground whitespace-nowrap"
-                      >
-                        <User className="w-5 h-5 flex-shrink-0" />
-                        <span className="font-medium">Account Settings</span>
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleNavigation('/stats')}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground whitespace-nowrap"
+                        >
+                          <BarChart3 className="w-5 h-5 flex-shrink-0" />
+                          <span className="font-medium">Stats</span>
+                        </button>
+                        <button
+                          onClick={() => handleNavigation('/settings')}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 text-left text-muted-foreground hover:bg-muted hover:text-foreground whitespace-nowrap"
+                        >
+                          <Settings className="w-5 h-5 flex-shrink-0" />
+                          <span className="font-medium">Settings</span>
+                        </button>
+                      </>
                     )}
                     <div className="flex items-center justify-between px-3 py-2.5 rounded-lg text-muted-foreground whitespace-nowrap">
                       <div className="flex items-center gap-3">
@@ -282,19 +291,34 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                 <div className="px-2 mt-6">
                   <nav className="space-y-1">
                     {isAuthenticated && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => handleNavigation('/settings')}
-                            className="w-full flex items-center justify-center p-3 rounded-lg transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <User className="w-5 h-5" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <p>Account Settings</p>
-                        </TooltipContent>
-                      </Tooltip>
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleNavigation('/stats')}
+                              className="w-full flex items-center justify-center p-3 rounded-lg transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <BarChart3 className="w-5 h-5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            <p>Stats</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleNavigation('/settings')}
+                              className="w-full flex items-center justify-center p-3 rounded-lg transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <Settings className="w-5 h-5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            <p>Settings</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </>
                     )}
                     <Tooltip>
                       <TooltipTrigger asChild>
