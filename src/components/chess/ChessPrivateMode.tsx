@@ -115,8 +115,9 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       console.log('[ChessPrivateMode] Has lobbyCode?', !!data?.lobbyCode);
       console.log('[ChessPrivateMode] Has game?', !!data?.game);
       
-      if (data?.error) {
-        console.error('[ChessPrivateMode] Create lobby data error:', data.error, 'details:', data.details);
+      // Check for error in response (now returns 200 with success: false)
+      if (data?.success === false || data?.error) {
+        console.error('[ChessPrivateMode] Create lobby error:', data.error, 'details:', data.details);
         toast({
           variant: 'destructive',
           title: 'Failed to create lobby',
@@ -126,7 +127,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         return;
       }
 
-      if (data?.lobbyCode) {
+      if (data?.lobbyCode && data?.success !== false) {
         console.log('[ChessPrivateMode] Lobby created successfully! Code:', data.lobbyCode, 'Game ID:', data.game?.id);
         setLobbyCode(data.lobbyCode);
         setLobbyCreated(true);
@@ -226,8 +227,10 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
 
       const data = response.data;
       console.log('[ChessPrivateMode] Join lobby data:', data);
-      if (data?.error) {
-        console.error('[ChessPrivateMode] Join lobby data error:', data.error, 'details:', data.details);
+      
+      // Check for error in response (now returns 200 with success: false)
+      if (data?.success === false || data?.error) {
+        console.error('[ChessPrivateMode] Join lobby error:', data.error, 'details:', data.details);
         toast({
           variant: 'destructive',
           title: 'Failed to join lobby',
@@ -237,7 +240,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         return;
       }
 
-      if (data?.game) {
+      if (data?.game && data?.success !== false) {
         toast({
           title: 'Joined lobby!',
           description: `Playing against ${data.opponent?.name || 'opponent'}`,

@@ -56,8 +56,8 @@ serve(async (req) => {
     } catch (jsonError) {
       console.error('[CREATE-LOBBY] JSON parse error:', jsonError);
       return new Response(
-        JSON.stringify({ error: 'Invalid request body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Invalid request body', details: (jsonError as Error)?.message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     const { wager = 100, gameType = 'chess', lobbyCode } = requestBody;
@@ -74,8 +74,8 @@ serve(async (req) => {
     
     if (wager < minWager || wager > maxWager) {
       return new Response(
-        JSON.stringify({ error: `Wager must be between ${minWager} and ${maxWager} coins` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: `Wager must be between ${minWager} and ${maxWager} coins` }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -143,8 +143,8 @@ serve(async (req) => {
         fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:101',message:'Profile missing - returning error',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         return new Response(
-          JSON.stringify({ error: 'Profile not found. Please refresh and try again.' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, error: 'Profile not found. Please refresh and try again.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -153,8 +153,8 @@ serve(async (req) => {
         fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:108',message:'Insufficient balance',data:{wager,skilledCoins:profile.skilled_coins},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         return new Response(
-          JSON.stringify({ error: 'Insufficient credits' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, error: 'Insufficient credits', details: `Required: ${wager} SC, Available: ${profile.skilled_coins} SC` }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
       }
     }
@@ -258,7 +258,7 @@ serve(async (req) => {
         lobbyCode: finalLobbyCode,
         message: 'Lobby created, waiting for opponent'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {

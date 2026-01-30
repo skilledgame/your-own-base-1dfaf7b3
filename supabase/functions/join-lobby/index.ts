@@ -52,14 +52,18 @@ serve(async (req) => {
       );
     }
     
-    const { lobbyCode, gameId } = requestBody;
+    let { lobbyCode, gameId } = requestBody;
+    // Normalize lobby code - trim whitespace and convert to uppercase
+    if (lobbyCode) {
+      lobbyCode = String(lobbyCode).trim().toUpperCase();
+    }
     console.log(`[JOIN-LOBBY] User ${user.id} joining lobby - code: ${lobbyCode}, gameId: ${gameId}`);
 
     if (!lobbyCode && !gameId) {
-      console.error('[JOIN-LOBBY] Neither lobbyCode nor gameId provided - returning 400');
+      console.error('[JOIN-LOBBY] Neither lobbyCode nor gameId provided - returning error');
       return new Response(
-        JSON.stringify({ error: 'Lobby code or game ID required', details: 'Please provide either lobbyCode or gameId in the request body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Lobby code or game ID required', details: 'Please provide either lobbyCode or gameId in the request body' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -73,8 +77,8 @@ serve(async (req) => {
     if (playerError || !player) {
       console.error('[JOIN-LOBBY] Player not found:', playerError);
       return new Response(
-        JSON.stringify({ error: 'Player not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Player not found', details: playerError?.message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -82,28 +86,73 @@ serve(async (req) => {
 
     // Find the waiting lobby
     console.log('[JOIN-LOBBY] Looking for lobby - gameId:', gameId, 'lobbyCode:', lobbyCode);
-    let lobbyQuery = supabaseAdmin
-      .from('games')
-      .select('*')
-      .eq('status', 'waiting');
+    let lobby = null;
+    let lobbyError = null;
 
     if (gameId) {
-      lobbyQuery = lobbyQuery.eq('id', gameId);
       console.log('[JOIN-LOBBY] Searching by gameId:', gameId);
+      const result = await supabaseAdmin
+        .from('games')
+        .select('*')
+        .eq('id', gameId)
+        .eq('status', 'waiting')
+        .maybeSingle();
+      lobby = result.data;
+      lobbyError = result.error;
     } else if (lobbyCode) {
-      const searchPattern = `LOBBY:${lobbyCode.toUpperCase()}`;
-      console.log('[JOIN-LOBBY] Searching by lobbyCode, pattern:', searchPattern);
-      // Use ilike for case-insensitive matching with wildcard at the end to match exactly
-      lobbyQuery = lobbyQuery.ilike('fen', `${searchPattern}%`);
+      const searchPattern = `LOBBY:${lobbyCode}`;
+      console.log('[JOIN-LOBBY] Searching by lobbyCode, exact pattern:', searchPattern);
+      
+      // Try exact match first (FEN is stored as "LOBBY:CODE" exactly)
+      const exactResult = await supabaseAdmin
+        .from('games')
+        .select('*')
+        .eq('status', 'waiting')
+        .eq('fen', searchPattern)
+        .maybeSingle();
+      
+      lobby = exactResult.data;
+      lobbyError = exactResult.error;
+      
+      console.log('[JOIN-LOBBY] Exact match result - found:', !!lobby, 'error:', lobbyError?.message);
+      
+      // If not found with exact match, try to find any waiting lobby and check FEN manually
+      if (!lobby && !lobbyError) {
+        console.log('[JOIN-LOBBY] Exact match not found, fetching all waiting lobbies to debug');
+        const allWaitingResult = await supabaseAdmin
+          .from('games')
+          .select('id, fen, white_player_id, status, wager')
+          .eq('status', 'waiting')
+          .limit(20);
+        
+        console.log('[JOIN-LOBBY] All waiting lobbies:', JSON.stringify(allWaitingResult.data, null, 2));
+        
+        // Try to find matching lobby manually
+        if (allWaitingResult.data) {
+          const matchingLobby = allWaitingResult.data.find(g => 
+            g.fen && g.fen.toUpperCase() === searchPattern.toUpperCase()
+          );
+          if (matchingLobby) {
+            console.log('[JOIN-LOBBY] Found matching lobby via manual search:', matchingLobby.id);
+            // Fetch full lobby data
+            const fullLobbyResult = await supabaseAdmin
+              .from('games')
+              .select('*')
+              .eq('id', matchingLobby.id)
+              .single();
+            lobby = fullLobbyResult.data;
+            lobbyError = fullLobbyResult.error;
+          }
+        }
+      }
     } else {
       console.error('[JOIN-LOBBY] Neither gameId nor lobbyCode provided');
       return new Response(
-        JSON.stringify({ error: 'Lobby code or game ID required' }),
+        JSON.stringify({ error: 'Lobby code or game ID required', details: 'Please provide either lobbyCode or gameId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { data: lobby, error: lobbyError } = await lobbyQuery.maybeSingle();
     console.log('[JOIN-LOBBY] Lobby query result - hasLobby:', !!lobby, 'lobbyId:', lobby?.id, 'lobbyFen:', lobby?.fen, 'error:', lobbyError?.message);
 
     if (lobbyError) {
@@ -117,29 +166,36 @@ serve(async (req) => {
     if (!lobby) {
       console.log('[JOIN-LOBBY] Lobby not found - checking all waiting lobbies for debugging');
       // Debug: Get all waiting lobbies to see what's available
-      const { data: allWaitingLobbies } = await supabaseAdmin
+      const { data: allWaitingLobbies, error: debugError } = await supabaseAdmin
         .from('games')
-        .select('id, fen, white_player_id, status, created_at')
+        .select('id, fen, white_player_id, status, created_at, wager')
         .eq('status', 'waiting')
         .limit(10);
       console.log('[JOIN-LOBBY] All waiting lobbies:', JSON.stringify(allWaitingLobbies, null, 2));
+      console.log('[JOIN-LOBBY] Debug query error:', debugError);
+      
+      const searchedPattern = lobbyCode ? `LOBBY:${lobbyCode}` : 'N/A';
+      const availableCodes = allWaitingLobbies?.map(g => g.fen).filter(f => f?.startsWith('LOBBY:')).join(', ') || 'None';
       
       return new Response(
         JSON.stringify({ 
+          success: false,
           error: 'Lobby not found or already started', 
-          details: `No lobby found with code: ${lobbyCode || 'N/A'}. Searched for pattern: LOBBY:${lobbyCode?.toUpperCase() || 'N/A'}` 
+          details: `No lobby found with code: ${lobbyCode || 'N/A'}. Searched for: ${searchedPattern}. Available lobby codes: ${availableCodes}`,
+          searchedPattern,
+          availableLobbies: allWaitingLobbies?.length || 0
         }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Check if trying to join own lobby
     console.log('[JOIN-LOBBY] Checking if joining own lobby - whitePlayerId:', lobby.white_player_id, 'currentPlayerId:', player.id);
     if (lobby.white_player_id === player.id) {
-      console.log('[JOIN-LOBBY] User trying to join own lobby - returning 400');
+      console.log('[JOIN-LOBBY] User trying to join own lobby - returning error');
       return new Response(
-        JSON.stringify({ error: 'Cannot join your own lobby' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Cannot join your own lobby', details: 'You cannot join a lobby you created' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -181,8 +237,8 @@ serve(async (req) => {
 
       if (lobby.wager > profile.skilled_coins) {
         return new Response(
-          JSON.stringify({ error: 'Insufficient credits for this wager' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, error: 'Insufficient credits for this wager', details: `Required: ${lobby.wager} SC, Available: ${profile.skilled_coins} SC` }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -197,8 +253,8 @@ serve(async (req) => {
 
     if (activeGame) {
       return new Response(
-        JSON.stringify({ error: 'Already in an active game' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Already in an active game', details: `You are already in game ${activeGame.id}` }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -216,10 +272,14 @@ serve(async (req) => {
       .single();
 
     if (updateError || !updatedGame) {
-      console.error('[JOIN-LOBBY] Update error:', updateError);
+      console.error('[JOIN-LOBBY] Update error:', updateError, 'updateError code:', updateError?.code, 'updateError message:', updateError?.message);
       return new Response(
-        JSON.stringify({ error: 'Failed to join lobby. It may have already started.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: false,
+          error: 'Failed to join lobby. It may have already started.', 
+          details: updateError?.message || 'The lobby may have been joined by someone else or cancelled.' 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -267,7 +327,7 @@ serve(async (req) => {
         isWhite: false, // Joiner is always black
         message: 'Game started!'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
