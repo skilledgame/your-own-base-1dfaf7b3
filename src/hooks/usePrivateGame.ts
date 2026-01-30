@@ -371,6 +371,7 @@ export function usePrivateGame({
       }
 
       // Send move via Edge Function
+      console.log('[usePrivateGame] Sending move:', { gameId, from, to, promotion: promotion || 'q', whiteTime: newWhiteTime, blackTime: newBlackTime });
       let data, error;
       try {
         const response = await supabase.functions.invoke('make-move', {
@@ -388,6 +389,13 @@ export function usePrivateGame({
         });
         data = response.data;
         error = response.error;
+        console.log('[usePrivateGame] Move response:', { 
+          hasData: !!data, 
+          hasError: !!error, 
+          success: data?.success, 
+          error: error?.message || data?.error,
+          status: response.status 
+        });
       } catch (networkError) {
         // Network error (function not reachable, CORS, etc.)
         console.error('[usePrivateGame] Network error calling Edge Function:', networkError);

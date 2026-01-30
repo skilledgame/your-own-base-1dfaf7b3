@@ -217,16 +217,16 @@ serve(async (req) => {
     const finalLobbyCode = lobbyCode || generateCode();
 
     // Create a game with status 'waiting' - white player is the host
-    // black_player_id will be a placeholder until someone joins
-    console.log('[CREATE-LOBBY] Attempting to insert game - whitePlayerId:', player.id, 'wager:', wager, 'lobbyCode:', finalLobbyCode);
+    // black_player_id will be null until someone joins
+    console.log('[CREATE-LOBBY] Attempting to insert game - whitePlayerId:', player.id, 'blackPlayerId: null', 'wager:', wager, 'lobbyCode:', finalLobbyCode);
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:161',message:'Before game insert',data:{whitePlayerId:player.id,blackPlayerId:player.id,wager,gameType,status:'waiting',fen:`LOBBY:${finalLobbyCode}`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create-lobby/index.ts:161',message:'Before game insert',data:{whitePlayerId:player.id,blackPlayerId:null,wager,gameType,status:'waiting',fen:`LOBBY:${finalLobbyCode}`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     const { data: gameData, error: gameError } = await supabaseAdmin
       .from('games')
       .insert({
         white_player_id: player.id,
-        black_player_id: player.id, // Placeholder - will be updated when opponent joins
+        black_player_id: null, // Will be set when opponent joins
         wager: wager,
         white_time: 60,
         black_time: 60,

@@ -340,6 +340,7 @@ serve(async (req) => {
         black_player_id: player.id,
         status: 'created', // Will be set to 'active' by lock_wager()
         fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Reset to starting position
+        current_turn: 'w', // White (host) goes first
       })
       .eq('id', lobby.id)
       .eq('status', 'waiting') // Ensure still waiting (prevent race condition)
