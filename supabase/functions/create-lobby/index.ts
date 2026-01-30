@@ -159,33 +159,47 @@ serve(async (req) => {
       }
     }
 
-    // Check if already in a waiting lobby
-    const { data: existingLobby } = await supabaseAdmin
+    // Check if already in a waiting lobby - if so, cancel it and create a new one
+    console.log('[CREATE-LOBBY] Checking for existing waiting lobby for player:', player.id);
+    const { data: existingLobby, error: existingLobbyError } = await supabaseAdmin
       .from('games')
       .select('id')
       .eq('status', 'waiting')
       .eq('white_player_id', player.id)
       .maybeSingle();
+    console.log('[CREATE-LOBBY] Existing lobby check - hasLobby:', !!existingLobby, 'lobbyId:', existingLobby?.id, 'error:', existingLobbyError?.message);
 
     if (existingLobby) {
-      console.log('[CREATE-LOBBY] Player already has a waiting lobby:', existingLobby.id);
-      return new Response(
-        JSON.stringify({ error: 'You already have a waiting lobby' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log('[CREATE-LOBBY] Player already has a waiting lobby, cancelling it:', existingLobby.id);
+      // Cancel the existing waiting lobby by deleting it
+      const { error: deleteError } = await supabaseAdmin
+        .from('games')
+        .delete()
+        .eq('id', existingLobby.id)
+        .eq('status', 'waiting');
+      
+      if (deleteError) {
+        console.error('[CREATE-LOBBY] Error cancelling existing lobby:', deleteError);
+        // Continue anyway - try to create new lobby
+      } else {
+        console.log('[CREATE-LOBBY] Successfully cancelled existing waiting lobby');
+      }
     }
 
     // Check if already in an active game
-    const { data: activeGame } = await supabaseAdmin
+    console.log('[CREATE-LOBBY] Checking for active game for player:', player.id);
+    const { data: activeGame, error: activeGameError } = await supabaseAdmin
       .from('games')
       .select('id')
       .eq('status', 'active')
       .or(`white_player_id.eq.${player.id},black_player_id.eq.${player.id}`)
       .maybeSingle();
+    console.log('[CREATE-LOBBY] Active game check - hasGame:', !!activeGame, 'gameId:', activeGame?.id, 'error:', activeGameError?.message);
 
     if (activeGame) {
+      console.log('[CREATE-LOBBY] Player already in active game:', activeGame.id);
       return new Response(
-        JSON.stringify({ error: 'Already in an active game' }),
+        JSON.stringify({ error: 'Already in an active game', gameId: activeGame.id }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
