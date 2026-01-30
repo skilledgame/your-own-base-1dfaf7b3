@@ -1,24 +1,25 @@
 /**
- * OnlineModeCard - Custom card for Online chess mode
+ * PrivateModeCard - Custom card for Private chess mode (red themed, knight piece)
  */
 
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import queenCharacter from '@/assets/chess-rook-character.png';
+import { Lock } from 'lucide-react';
+import knightCharacter from '@/assets/chess-knight-character.png';
 
-interface OnlineModeCardProps {
+interface PrivateModeCardProps {
   isHovered: boolean;
   isSelected: boolean;
   onHover: (isHovering: boolean) => void;
   onClick: () => void;
 }
 
-export const OnlineModeCard = ({
+export const PrivateModeCard = ({
   isHovered,
   isSelected,
   onHover,
   onClick
-}: OnlineModeCardProps) => {
+}: PrivateModeCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const isActive = isHovered || isSelected;
 
@@ -34,7 +35,7 @@ export const OnlineModeCard = ({
       onMouseLeave={() => onHover(false)}
       onClick={onClick}
     >
-      {/* Card Container - unified dark blue background */}
+      {/* Card Container - red themed background */}
       <div
         className={`
           relative h-[380px] sm:h-[420px] md:h-[460px] rounded-2xl overflow-hidden
@@ -45,16 +46,16 @@ export const OnlineModeCard = ({
           ${isSelected ? 'ring-4 ring-white/30' : ''}
         `}
         style={{
-          background: '#0f2536',
+          background: '#5c1515',
           boxShadow: isActive 
-            ? '0 0 40px rgba(14, 165, 233, 0.2)' 
+            ? '0 0 40px rgba(220, 38, 38, 0.3)' 
             : '0 4px 20px rgba(0, 0, 0, 0.3)'
         }}
       >
-        {/* Queen Character - fills entire card as background */}
+        {/* Knight Character - fills entire card as background */}
         <img 
-          src={queenCharacter} 
-          alt="Online Mode Queen" 
+          src={knightCharacter} 
+          alt="Private Mode Knight" 
           className={`
             absolute inset-0 w-full h-full object-cover
             transition-all duration-500
@@ -78,11 +79,11 @@ export const OnlineModeCard = ({
               textShadow: '0 2px 8px rgba(0,0,0,0.6)'
             }}
           >
-            Online
+            Private
           </h2>
 
           <p className="text-white/60 text-sm sm:text-base">
-            Compete for Skilled Coins
+            Play with friends using codes
           </p>
 
           <div 
@@ -93,7 +94,7 @@ export const OnlineModeCard = ({
           >
             <Button 
               size="lg"
-              className="px-8 py-5 text-base font-bold bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 shadow-lg"
+              className="px-8 py-5 text-base font-bold bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-400 hover:to-rose-400 text-white border-0 shadow-lg"
             >
               PLAY
             </Button>

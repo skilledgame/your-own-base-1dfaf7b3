@@ -1,24 +1,24 @@
 /**
- * OnlineModeCard - Custom card for Online chess mode
+ * BattleRoyaleModeCard - Custom card for Battle Royale chess mode (yellow themed, rook piece)
  */
 
 import { useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import queenCharacter from '@/assets/chess-rook-character.png';
+import { Lock } from 'lucide-react';
+import rookCharacter from '@/assets/chess-rook-battle.png';
 
-interface OnlineModeCardProps {
+interface BattleRoyaleModeCardProps {
   isHovered: boolean;
   isSelected: boolean;
   onHover: (isHovering: boolean) => void;
   onClick: () => void;
 }
 
-export const OnlineModeCard = ({
+export const BattleRoyaleModeCard = ({
   isHovered,
   isSelected,
   onHover,
   onClick
-}: OnlineModeCardProps) => {
+}: BattleRoyaleModeCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const isActive = isHovered || isSelected;
 
@@ -29,12 +29,13 @@ export const OnlineModeCard = ({
         relative flex-1 min-w-[200px] max-w-[400px] cursor-pointer
         transition-all duration-500 ease-out
         ${isActive ? 'flex-[1.3] z-20' : 'flex-1 z-10'}
+        opacity-70 cursor-not-allowed
       `}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
       onClick={onClick}
     >
-      {/* Card Container - unified dark blue background */}
+      {/* Card Container - yellow/amber themed background */}
       <div
         className={`
           relative h-[380px] sm:h-[420px] md:h-[460px] rounded-2xl overflow-hidden
@@ -45,16 +46,16 @@ export const OnlineModeCard = ({
           ${isSelected ? 'ring-4 ring-white/30' : ''}
         `}
         style={{
-          background: '#0f2536',
+          background: '#78350f',
           boxShadow: isActive 
-            ? '0 0 40px rgba(14, 165, 233, 0.2)' 
+            ? '0 0 40px rgba(245, 158, 11, 0.3)' 
             : '0 4px 20px rgba(0, 0, 0, 0.3)'
         }}
       >
-        {/* Queen Character - fills entire card as background */}
+        {/* Rook Character - fills entire card as background */}
         <img 
-          src={queenCharacter} 
-          alt="Online Mode Queen" 
+          src={rookCharacter} 
+          alt="Battle Royale Mode Rook" 
           className={`
             absolute inset-0 w-full h-full object-cover
             transition-all duration-500
@@ -78,25 +79,19 @@ export const OnlineModeCard = ({
               textShadow: '0 2px 8px rgba(0,0,0,0.6)'
             }}
           >
-            Online
+            Battle Royale
           </h2>
 
           <p className="text-white/60 text-sm sm:text-base">
-            Compete for Skilled Coins
+            Last player standing wins
           </p>
 
-          <div 
-            className={`
-              transition-all duration-300 transform pt-1
-              ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
-            `}
-          >
-            <Button 
-              size="lg"
-              className="px-8 py-5 text-base font-bold bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 shadow-lg"
-            >
-              PLAY
-            </Button>
+          {/* Coming Soon Badge */}
+          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 mx-auto w-fit">
+            <Lock className="w-4 h-4 text-white/70" />
+            <span className="text-white/70 text-sm font-semibold uppercase tracking-wider">
+              Coming Soon
+            </span>
           </div>
         </div>
       </div>
