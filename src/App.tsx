@@ -19,6 +19,7 @@ import ChessHome from "./pages/ChessHome";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import Compete from "./pages/Compete";
 import Search from "./pages/Search";
 import Withdraw from "./pages/Withdraw";
@@ -100,6 +101,7 @@ const App = () => (
                     <Route path="/terms" element={<TermsAndConditions />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/profile" element={<Profile />} />
+                    <Route path="/settings" element={<Settings />} />
                     <Route path="/compete" element={<Compete />} />
                     <Route path="/search" element={<Search />} />
                     <Route path="/leaderboard" element={<Leaderboard />} />

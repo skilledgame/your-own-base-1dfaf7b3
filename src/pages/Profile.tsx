@@ -254,7 +254,7 @@ export default function Profile() {
             <Separator />
             
             <button 
-              onClick={() => {}}
+              onClick={() => navigate('/settings')}
               className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-3">
