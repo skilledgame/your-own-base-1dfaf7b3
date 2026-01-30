@@ -243,41 +243,80 @@ serve(async (req) => {
       }
     }
 
-    // Clean up stale 'created' games (older than 5 minutes, never locked)
-    // These are games that were created but the wager was never locked (failed join attempts)
-    const staleCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { error: cleanupError } = await supabaseAdmin
+    // Clean up stale games for this specific player before checking
+    // This prevents stale game records from blocking new lobby joins
+    const staleCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // 5 minutes ago
+    const oldActiveCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1 hour ago
+    
+    console.log('[JOIN-LOBBY] Cleaning up stale games for player:', player.id);
+    
+    // Cancel stale 'created' games (older than 5 minutes, never locked)
+    const { error: cleanupCreatedError } = await supabaseAdmin
       .from('games')
       .update({ status: 'cancelled' })
+      .or(`white_player_id.eq.${player.id},black_player_id.eq.${player.id}`)
       .eq('status', 'created')
       .is('wager_locked_at', null)
       .lt('created_at', staleCutoff);
     
-    if (cleanupError) {
-      console.warn('[JOIN-LOBBY] Error cleaning up stale games:', cleanupError);
-      // Continue anyway - cleanup failure shouldn't block joining
+    if (cleanupCreatedError) {
+      console.warn('[JOIN-LOBBY] Error cleaning up stale created games:', cleanupCreatedError);
     }
+    
+    // Cancel stale 'active' games (no updates in last hour)
+    const { error: cleanupActiveError } = await supabaseAdmin
+      .from('games')
+      .update({ status: 'cancelled' })
+      .or(`white_player_id.eq.${player.id},black_player_id.eq.${player.id}`)
+      .eq('status', 'active')
+      .lt('updated_at', oldActiveCutoff);
+    
+    if (cleanupActiveError) {
+      console.warn('[JOIN-LOBBY] Error cleaning up stale active games:', cleanupActiveError);
+    }
+    
+    // Cancel invalid 'active' games (both players are the same - invalid state)
+    const { error: cleanupInvalidError } = await supabaseAdmin
+      .from('games')
+      .update({ status: 'cancelled' })
+      .or(`white_player_id.eq.${player.id},black_player_id.eq.${player.id}`)
+      .eq('status', 'active')
+      .eq('white_player_id', 'black_player_id');
+    
+    if (cleanupInvalidError) {
+      console.warn('[JOIN-LOBBY] Error cleaning up invalid games:', cleanupInvalidError);
+    }
+    
+    // Continue anyway - cleanup failures shouldn't block joining
 
-    // Check if already in an active or created game
+    // Check if already in a valid active or created game (after cleanup, stale games are cancelled)
+    // Only check for games that are actually valid - stale games have been cleaned up above
     const { data: activeGame } = await supabaseAdmin
       .from('games')
-      .select('id, status')
+      .select('id, status, white_player_id, black_player_id, updated_at')
       .in('status', ['active', 'created'])
       .or(`white_player_id.eq.${player.id},black_player_id.eq.${player.id}`)
       .maybeSingle();
 
     if (activeGame) {
-      const gameStatus = activeGame.status === 'created' ? 'a game that is being set up' : 'an active game';
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Already in a game', 
-          details: `You are already in ${gameStatus} (${activeGame.id}). Please finish that game first.`,
-          gameId: activeGame.id,
-          gameStatus: activeGame.status
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Additional validation: ensure the game is actually valid
+      // Skip if both players are the same (invalid state)
+      if (activeGame.white_player_id === activeGame.black_player_id && activeGame.status === 'active') {
+        console.log('[JOIN-LOBBY] Found invalid game with same player for both sides, skipping check');
+        // Don't block - this is an invalid game state
+      } else {
+        const gameStatus = activeGame.status === 'created' ? 'a game that is being set up' : 'an active game';
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Already in a game', 
+            details: `You are already in ${gameStatus} (${activeGame.id}). Please finish that game first.`,
+            gameId: activeGame.id,
+            gameStatus: activeGame.status
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Update the lobby to start the game (status 'created' initially, will be set to 'active' by lock_wager)
