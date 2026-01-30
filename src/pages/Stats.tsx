@@ -41,7 +41,7 @@ const StatCard = memo(({ icon: Icon, value, label, color }: {
 ));
 StatCard.displayName = 'StatCard';
 
-export default function Profile() {
+export default function Stats() {
   const navigate = useNavigate();
   const { user, isAuthenticated, isAuthReady, signOut } = useAuth();
   const authLoading = !isAuthReady;
@@ -162,7 +162,7 @@ export default function Profile() {
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
           <img src={skilledLogo} alt="Skilled" className="h-8 w-auto" />
-          <h1 className="text-lg font-semibold">Profile</h1>
+          <h1 className="text-lg font-semibold">Stats</h1>
           <div className="w-8" />
         </div>
       </header>

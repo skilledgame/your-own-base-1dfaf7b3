@@ -10,7 +10,7 @@ const navItems = [
   { icon: Search, label: 'Search', path: '/search', isMenu: false },
   { icon: Wallet, label: 'Wallet', path: '/deposit', isMenu: false },
   { icon: Swords, label: 'Compete', path: '/compete', isMenu: false },
-  { icon: User, label: 'Profile', path: '/profile', isMenu: false },
+  { icon: User, label: 'Stats', path: '/stats', isMenu: false },
 ];
 
 export const MobileBottomNav = ({ onMenuClick }: MobileBottomNavProps) => {
