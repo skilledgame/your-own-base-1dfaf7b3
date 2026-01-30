@@ -27,9 +27,12 @@ interface WSMultiplayerGameViewProps {
   initialFen: string;
   wager: number;
   
-  // From useChessWebSocket
+  // From useChessWebSocket or usePrivateGame
   currentFen: string;
   isMyTurn: boolean;
+  whiteTime?: number; // For private games
+  blackTime?: number; // For private games
+  isPrivateGame?: boolean; // Indicates if this is a private game using Realtime
   
   // Actions
   onSendMove: (from: string, to: string, promotion?: string) => void;
@@ -49,6 +52,9 @@ export const WSMultiplayerGameView = ({
   wager,
   currentFen,
   isMyTurn,
+  whiteTime: propWhiteTime,
+  blackTime: propBlackTime,
+  isPrivateGame = false,
   onSendMove,
   onExit,
   onBack,
@@ -59,9 +65,11 @@ export const WSMultiplayerGameView = ({
   const [localFen, setLocalFen] = useState(currentFen || initialFen);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   
-  // Timers using configured time control (1 min base + 3 sec increment)
-  const [whiteTime, setWhiteTime] = useState<number>(CHESS_TIME_CONTROL.BASE_TIME);
-  const [blackTime, setBlackTime] = useState<number>(CHESS_TIME_CONTROL.BASE_TIME);
+  // Timers - use props for private games, local state for WebSocket games
+  const [whiteTimeLocal, setWhiteTimeLocal] = useState<number>(CHESS_TIME_CONTROL.BASE_TIME);
+  const [blackTimeLocal, setBlackTimeLocal] = useState<number>(CHESS_TIME_CONTROL.BASE_TIME);
+  const whiteTime = isPrivateGame && propWhiteTime !== undefined ? propWhiteTime : whiteTimeLocal;
+  const blackTime = isPrivateGame && propBlackTime !== undefined ? propBlackTime : blackTimeLocal;
   const [isGameOver, setIsGameOver] = useState(false);
   
   // Track whose turn it was when they moved (for increment)
@@ -103,11 +111,13 @@ export const WSMultiplayerGameView = ({
         if (prevTurn !== newTurn && lastMoveByRef.current !== prevTurn) {
           lastMoveByRef.current = prevTurn;
           
-          // Apply increment to the player who just moved
-          if (prevTurn === 'w') {
-            setWhiteTime(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
-          } else {
-            setBlackTime(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
+          // Apply increment to the player who just moved (only for WebSocket games)
+          if (!isPrivateGame) {
+            if (prevTurn === 'w') {
+              setWhiteTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
+            } else {
+              setBlackTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
+            }
           }
         }
       } catch (e) {
@@ -116,8 +126,14 @@ export const WSMultiplayerGameView = ({
     }
   }, [currentFen, chess, localFen]);
 
-  // Timer countdown with time loss handling
+  // Timer countdown with time loss handling (only for WebSocket games)
+  // Private games handle timers in usePrivateGame hook
   useEffect(() => {
+    if (isPrivateGame) {
+      // Don't run local timer for private games - usePrivateGame handles it
+      return;
+    }
+
     if (isGameOver) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -130,7 +146,7 @@ export const WSMultiplayerGameView = ({
       const currentTurn = chess.turn();
       
       if (currentTurn === 'w') {
-        setWhiteTime(prev => {
+        setWhiteTimeLocal(prev => {
           const newTime = Math.max(0, prev - 1);
           if (newTime === 0 && !isGameOver) {
             // White loses on time
@@ -141,7 +157,7 @@ export const WSMultiplayerGameView = ({
           return newTime;
         });
       } else {
-        setBlackTime(prev => {
+        setBlackTimeLocal(prev => {
           const newTime = Math.max(0, prev - 1);
           if (newTime === 0 && !isGameOver) {
             // Black loses on time
@@ -210,11 +226,14 @@ export const WSMultiplayerGameView = ({
       setLocalFen(chess.fen());
       setLastMove({ from, to });
       
-      // Apply increment to the player who just moved (me)
-      if (myColor === 'w') {
-        setWhiteTime(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
-      } else {
-        setBlackTime(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
+      // Apply increment to the player who just moved (me) - only for WebSocket games
+      // Private games handle increment in make-move Edge Function
+      if (!isPrivateGame) {
+        if (myColor === 'w') {
+          setWhiteTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
+        } else {
+          setBlackTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
+        }
       }
       lastMoveByRef.current = myColor;
 
@@ -226,7 +245,7 @@ export const WSMultiplayerGameView = ({
       console.error("[Game] Move error:", e);
       return false;
     }
-  }, [chess, isMyTurn, localFen, onSendMove, isGameOver, whiteTime, blackTime, myColor]);
+  }, [chess, isMyTurn, localFen, onSendMove, isGameOver, whiteTime, blackTime, myColor, isPrivateGame]);
 
   const myTime = isWhite ? whiteTime : blackTime;
   const opponentTime = isWhite ? blackTime : whiteTime;

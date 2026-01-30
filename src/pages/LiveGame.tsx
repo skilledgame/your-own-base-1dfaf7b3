@@ -19,22 +19,25 @@ import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { usePrivateGame } from '@/hooks/usePrivateGame';
 
 export default function LiveGame() {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const [loadingGame, setLoadingGame] = useState(false);
+  const [isPrivateGame, setIsPrivateGame] = useState(false);
+  const [privateGamePlayerId, setPrivateGamePlayerId] = useState<string | null>(null);
   
   // Global state from Zustand store
   const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName } = useChessStore();
   const { balance } = useBalance();
   
-  // WebSocket connection and actions
+  // WebSocket connection and actions (only for matchmade games)
   const {
     status,
     connect,
     disconnect,
-    sendMove,
+    sendMove: wsSendMove,
     resignGame,
     clearGameEnd,
     refreshBalance,
@@ -43,6 +46,19 @@ export default function LiveGame() {
     sendRaw,
     reconnectAttempts,
   } = useChessWebSocket();
+
+  // Private game hook (only used for private games)
+  const privateGame = usePrivateGame({
+    gameId: gameId || '',
+    playerColor: gameState?.color === 'w' ? 'white' : 'black',
+    playerId: privateGamePlayerId || '',
+    onGameEnd: async (winnerId, reason) => {
+      // Handle game end for private games
+      setPhase('game_over');
+      refreshBalance();
+      // Game end result will be handled by the modal
+    },
+  });
 
   const handleBack = () => {
     // If in game, resign first
@@ -58,15 +74,24 @@ export default function LiveGame() {
     navigate('/quick-play');
   };
 
-  const handleSendMove = (from: string, to: string, promotion?: string) => {
-    sendMove(from, to, promotion);
+  const handleSendMove = async (from: string, to: string, promotion?: string) => {
+    if (isPrivateGame && privateGame.sendMove) {
+      // Use Realtime for private games
+      await privateGame.sendMove(from, to, promotion);
+    } else {
+      // Use WebSocket for matchmade games
+      wsSendMove(from, to, promotion);
+    }
   };
 
-  const handleTimeLoss = (loserColor: 'w' | 'b') => {
+  const handleTimeLoss = async (loserColor: 'w' | 'b') => {
     // When time runs out, resign the game
-    // The server should handle determining the winner
     console.log(`[LiveGame] Time loss for ${loserColor === 'w' ? 'white' : 'black'}`);
-    resignGame();
+    if (isPrivateGame && privateGame.resign) {
+      await privateGame.resign();
+    } else {
+      resignGame();
+    }
   };
 
   const handlePlayAgain = () => {
@@ -145,8 +170,11 @@ export default function LiveGame() {
         });
         setPhase('in_game');
         
-        // Connect to WebSocket
-        connect();
+        // Mark as private game and store player ID
+        setIsPrivateGame(true);
+        setPrivateGamePlayerId(player.id);
+        
+        // Don't connect to WebSocket for private games - use Realtime instead
       } catch (error) {
         console.error('[LiveGame] Error loading private game:', error);
         toast.error('Failed to load game');
@@ -160,7 +188,12 @@ export default function LiveGame() {
   }, [gameId, gameState, loadingGame, navigate, setPhase, setGameState, setPlayerName, connect]);
 
   // Loading state (connecting or loading game)
-  if (loadingGame || status === "connecting" || status === "reconnecting") {
+  // For private games, check privateGame.loading instead of WebSocket status
+  const isLoading = isPrivateGame 
+    ? (loadingGame || privateGame.loading)
+    : (loadingGame || status === "connecting" || status === "reconnecting");
+  
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -180,8 +213,8 @@ export default function LiveGame() {
     );
   }
 
-  // Disconnected state
-  if (status === "disconnected") {
+  // Disconnected state (only for WebSocket games, not private games)
+  if (!isPrivateGame && status === "disconnected") {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <WifiOff className="w-12 h-12 text-destructive" />
@@ -288,6 +321,20 @@ export default function LiveGame() {
   // Convert color from "w"/"b" to "white"/"black"
   const playerColor = gameState.color === "w" ? "white" : "black";
 
+  // For private games, use Realtime state; for WebSocket games, use store state
+  const currentFen = isPrivateGame && privateGame.gameState 
+    ? privateGame.gameState.fen 
+    : gameState.fen;
+  const isMyTurn = isPrivateGame && privateGame.gameState
+    ? privateGame.gameState.isMyTurn
+    : gameState.isMyTurn;
+  const whiteTime = isPrivateGame && privateGame.gameState
+    ? privateGame.gameState.whiteTime
+    : 60; // Default fallback
+  const blackTime = isPrivateGame && privateGame.gameState
+    ? privateGame.gameState.blackTime
+    : 60; // Default fallback
+
   return (
     <>
       <WSMultiplayerGameView
@@ -299,22 +346,27 @@ export default function LiveGame() {
         opponentName={gameState.opponentName}
         initialFen={gameState.fen}
         wager={gameState.wager}
-        currentFen={gameState.fen}
-        isMyTurn={gameState.isMyTurn}
+        currentFen={currentFen}
+        isMyTurn={isMyTurn}
+        whiteTime={whiteTime}
+        blackTime={blackTime}
+        isPrivateGame={isPrivateGame}
         onSendMove={handleSendMove}
         onExit={handleExit}
         onBack={handleBack}
         onTimeLoss={handleTimeLoss}
       />
-      <NetworkDebugPanel
-        status={status}
-        logs={logs}
-        reconnectAttempts={reconnectAttempts}
-        onConnect={connect}
-        onDisconnect={disconnect}
-        onSendRaw={sendRaw}
-        onClearLogs={clearLogs}
-      />
+      {!isPrivateGame && (
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
+      )}
     </>
   );
 }
