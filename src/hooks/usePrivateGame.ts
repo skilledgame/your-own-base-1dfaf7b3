@@ -393,8 +393,7 @@ export function usePrivateGame({
           hasData: !!data, 
           hasError: !!error, 
           success: data?.success, 
-          error: error?.message || data?.error,
-          status: response.status 
+          error: error?.message || data?.error
         });
       } catch (networkError) {
         // Network error (function not reachable, CORS, etc.)
