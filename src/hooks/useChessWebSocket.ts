@@ -361,12 +361,7 @@ function initializeGlobalMessageHandler(): void {
         wsClient.setSearching(false);
         wsClient.setInGame(false);
         
-        // Determine if opponent left (resign from opponent is "opponent_resigned", not "resign")
-        const isOpponentLeft = payload.reason === "disconnect" || 
-                               payload.reason === "opponent_disconnect" ||
-                               payload.reason === "opponent_resigned";
-        
-        // Calculate credits change based on outcome
+        // Calculate credits change based on outcome FIRST (before determining isOpponentLeft)
         const myColor = currentState.gameState?.color || null;
         const wager = currentState.gameState?.wager || 0;
         let creditsChange = 0;
@@ -377,6 +372,15 @@ function initializeGlobalMessageHandler(): void {
           creditsChange = -wager;  // Lost the wager
         }
         // Draw = no change (winnerColor is null)
+        
+        // Determine if opponent left/resigned
+        // When opponent resigns, reason is "resign" but winnerColor is NOT myColor
+        // When I resign, reason is "resign" and winnerColor IS NOT myColor (I lost)
+        // So: opponent resigned if reason is "resign" AND winnerColor === myColor (I won)
+        const isOpponentLeft = payload.reason === "disconnect" || 
+                               payload.reason === "opponent_disconnect" ||
+                               payload.reason === "opponent_resigned" ||
+                               (payload.reason === "resign" && payload.winnerColor === myColor);
         
         // Clear timer snapshot on game end
         store.clearTimerSnapshot();
@@ -399,8 +403,26 @@ function initializeGlobalMessageHandler(): void {
         
         // Wrap handleGameEnd in try-catch to prevent crashes
         try {
+          // Additional validation before calling handleGameEnd
+          if (!currentState.gameState) {
+            console.error("[Client] GAME_ENDED - No gameState, cannot process game end", {
+              gameId,
+              phase: currentState.phase,
+            });
+            return; // Don't crash, just log and return
+          }
+          
+          // Ensure we have valid gameId match
+          if (gameId && currentState.gameState.gameId !== gameId) {
+            console.warn("[Client] GAME_ENDED - gameId mismatch, ignoring", {
+              payloadGameId: gameId,
+              storeGameId: currentState.gameState.gameId,
+            });
+            return; // Stale message, ignore
+          }
+          
           store.handleGameEnd({
-            reason: payload.reason,
+            reason: payload.reason || "game_over",  // Ensure reason is never undefined
             winnerColor: payload.winnerColor ?? null,  // Ensure null if undefined
             isOpponentLeft,
             creditsChange,

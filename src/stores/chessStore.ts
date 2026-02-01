@@ -317,33 +317,46 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     
     const myColor = gameState.color || null;
     
+    // Safely determine win/loss/draw
     const isWin = myColor !== null && myColor === winnerColor;
     const isDraw = winnerColor === null && reason !== "disconnect" && reason !== "opponent_disconnect";
     
-    let message = reason;
+    // Format message safely
+    let message = reason || "Game ended";
     if (isOpponentLeft) {
       message = "Opponent left the game - you win!";
     } else if (isDraw) {
-      message = `Draw: ${reason}`;
+      message = `Draw: ${message}`;
     } else if (isWin) {
-      message = `You won! ${reason}`;
+      message = `You won! ${message}`;
     } else {
-      message = `You lost: ${reason}`;
+      message = `You lost: ${message}`;
     }
     
-    console.log("[ChessStore] handleGameEnd - SETTING phase=game_over:", { reason, winnerColor, isWin, isDraw, isOpponentLeft, message, creditsChange, timestamp: new Date().toISOString() });
+    console.log("[ChessStore] handleGameEnd - SETTING phase=game_over:", { 
+      reason, 
+      winnerColor, 
+      isWin, 
+      isDraw, 
+      isOpponentLeft, 
+      message, 
+      creditsChange, 
+      gameId: gameState.gameId,
+      timestamp: new Date().toISOString() 
+    });
     
+    // Batch all state updates in a single set() call for performance
     // Clear timer snapshot immediately to prevent any further timer calculations
     set({
       phase: "game_over",
       gameEndResult: {
-        reason,
-        winnerColor,
+        reason: reason || "game_over",  // Ensure reason is never undefined
+        winnerColor: winnerColor ?? null,  // Ensure null if undefined
         isWin,
         isDraw,
-        isOpponentLeft,
+        isOpponentLeft: isOpponentLeft ?? false,  // Ensure boolean
         message,
-        creditsChange,
+        creditsChange: creditsChange ?? 0,  // Ensure number
       },
       timerSnapshot: null, // Clear timer snapshot on game end
       // Keep gameState so we can still render the final board position

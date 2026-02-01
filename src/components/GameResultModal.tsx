@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trophy, Skull, RotateCcw, Home, Coins, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -70,13 +70,17 @@ const VictorySparkles = () => {
   );
 };
 
-// Confetti for victory
+// Confetti for victory - optimized for mobile (fewer particles, simpler animation)
 const Confetti = () => {
   const [particles, setParticles] = useState<Array<{ id: number; left: number; delay: number; color: string; size: number }>>([]);
 
   useEffect(() => {
+    // Reduce particles on mobile for better performance
+    const isMobile = window.innerWidth < 768;
+    const particleCount = isMobile ? 20 : 40;
+    
     const colors = ['#22c55e', '#10b981', '#14b8a6', '#34d399', '#6ee7b7'];
-    const newParticles = Array.from({ length: 40 }, (_, i) => ({
+    const newParticles = Array.from({ length: particleCount }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       delay: Math.random() * 0.5,
@@ -152,7 +156,7 @@ const StatChip = ({
   </div>
 );
 
-export const GameResultModal = ({
+export const GameResultModal = memo(({
   isWin,
   coinsChange,
   newBalance,
@@ -160,11 +164,15 @@ export const GameResultModal = ({
   onPlayAgain,
   onGoHome,
 }: GameResultModalProps) => {
-  // Guard: Ensure all props have defaults
-  const safeIsWin = isWin ?? false;
-  const safeCoinsChange = coinsChange ?? 0;
-  const safeNewBalance = newBalance ?? 0;
-  const safeReason = reason || "Game ended";
+  // Guard: Ensure all props have defaults and are valid
+  const safeIsWin = Boolean(isWin);
+  const safeCoinsChange = typeof coinsChange === 'number' ? coinsChange : 0;
+  const safeNewBalance = typeof newBalance === 'number' && newBalance >= 0 ? newBalance : 0;
+  const safeReason = typeof reason === 'string' && reason.length > 0 ? reason : "Game ended";
+  
+  // Guard: Ensure callbacks are functions
+  const safeOnPlayAgain = typeof onPlayAgain === 'function' ? onPlayAgain : () => {};
+  const safeOnGoHome = typeof onGoHome === 'function' ? onGoHome : () => {};
   
   const isFreePlay = safeCoinsChange === 0;
   const formattedReason = formatReason(safeReason);
@@ -343,7 +351,7 @@ export const GameResultModal = ({
                   "border-slate-600 hover:border-slate-500 hover:bg-slate-800/50",
                   "hover:-translate-y-0.5 hover:shadow-lg"
                 )}
-                onClick={onGoHome}
+                onClick={safeOnGoHome}
               >
                 <Home className="w-4 h-4 mr-2" />
                 Home
@@ -356,7 +364,7 @@ export const GameResultModal = ({
                     ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)]" 
                     : "bg-slate-600 hover:bg-slate-500 text-white shadow-[0_0_15px_rgba(148,163,184,0.2)] hover:shadow-[0_0_25px_rgba(148,163,184,0.3)]"
                 )}
-                onClick={onPlayAgain}
+                onClick={safeOnPlayAgain}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Play Again
@@ -367,4 +375,4 @@ export const GameResultModal = ({
       </div>
     </>
   );
-};
+});
