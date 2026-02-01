@@ -20,6 +20,9 @@ import { Loader2, ArrowLeft, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePrivateGame } from '@/hooks/usePrivateGame';
+import { useProfile } from '@/hooks/useProfile';
+import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LiveGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -27,10 +30,14 @@ export default function LiveGame() {
   const [loadingGame, setLoadingGame] = useState(false);
   const [isPrivateGame, setIsPrivateGame] = useState(false);
   const [privateGamePlayerId, setPrivateGamePlayerId] = useState<string | null>(null);
+  const [playerRank, setPlayerRank] = useState<RankInfo | undefined>(undefined);
+  const [opponentRank, setOpponentRank] = useState<RankInfo | undefined>(undefined);
   
   // Global state from Zustand store
-  const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd } = useChessStore();
+  const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd, matchmaking } = useChessStore();
   const { balance } = useBalance();
+  const { user } = useAuth();
+  const { totalWageredSc } = useProfile();
   
   // WebSocket connection and actions (only for matchmade games)
   const {
@@ -365,6 +372,77 @@ export default function LiveGame() {
     // Could redirect to correct game or show error
   }
 
+  // Fetch player and opponent ranks
+  useEffect(() => {
+    if (!gameState) return;
+
+    const fetchRanks = async () => {
+      try {
+        // Get player rank from profile hook
+        const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
+        setPlayerRank(playerRankInfo);
+
+        // Get opponent rank
+        let opponentUserId: string | null = null;
+
+        if (isPrivateGame && gameState.dbGameId) {
+          // For private games, get opponent from game data
+          const { data: game } = await supabase
+            .from('games')
+            .select(`
+              white_player_id,
+              black_player_id,
+              white_player:players!games_white_player_id_fkey(user_id),
+              black_player:players!games_black_player_id_fkey(user_id)
+            `)
+            .eq('id', gameState.dbGameId)
+            .maybeSingle();
+
+          if (game && user?.id) {
+            // Find opponent user_id
+            const whitePlayerUserId = (game.white_player as any)?.user_id;
+            const blackPlayerUserId = (game.black_player as any)?.user_id;
+            
+            if (gameState.color === 'w') {
+              opponentUserId = blackPlayerUserId;
+            } else {
+              opponentUserId = whitePlayerUserId;
+            }
+          }
+        } else if (!isPrivateGame) {
+          // For WebSocket games, get from matchmaking state
+          opponentUserId = matchmaking.opponentUserId || null;
+        }
+
+        if (opponentUserId) {
+          // Fetch opponent's profile
+          const { data: opponentProfile } = await supabase
+            .from('profiles')
+            .select('total_wagered_sc')
+            .eq('user_id', opponentUserId)
+            .maybeSingle();
+
+          if (opponentProfile) {
+            const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc);
+            setOpponentRank(opponentRankInfo);
+          } else {
+            // If no profile found, set to unranked
+            setOpponentRank(getRankFromTotalWagered(0));
+          }
+        } else {
+          // No opponent user_id available, set to unranked
+          setOpponentRank(getRankFromTotalWagered(0));
+        }
+      } catch (error) {
+        console.error('[LiveGame] Error fetching ranks:', error);
+        // On error, set to unranked
+        setOpponentRank(getRankFromTotalWagered(0));
+      }
+    };
+
+    fetchRanks();
+  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId]);
+
   // Convert color from "w"/"b" to "white"/"black"
   const playerColor = gameState.color === "w" ? "white" : "black";
 
@@ -398,6 +476,8 @@ export default function LiveGame() {
         whiteTime={whiteTime}
         blackTime={blackTime}
         isPrivateGame={isPrivateGame}
+        playerRank={playerRank}
+        opponentRank={opponentRank}
         onSendMove={handleSendMove}
         onExit={handleExit}
         onBack={handleBack}

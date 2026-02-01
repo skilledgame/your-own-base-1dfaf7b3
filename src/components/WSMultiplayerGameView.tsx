@@ -16,6 +16,8 @@ import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
 import { useChessSound } from '@/hooks/useChessSound';
+import { supabase } from '@/integrations/supabase/client';
+import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 
 interface WSMultiplayerGameViewProps {
   gameId: string;
@@ -33,6 +35,10 @@ interface WSMultiplayerGameViewProps {
   whiteTime?: number; // For private games
   blackTime?: number; // For private games
   isPrivateGame?: boolean; // Indicates if this is a private game using Realtime
+  
+  // Rank info
+  playerRank?: RankInfo;
+  opponentRank?: RankInfo;
   
   // Actions
   onSendMove: (from: string, to: string, promotion?: string) => void;
@@ -55,6 +61,8 @@ export const WSMultiplayerGameView = ({
   whiteTime: propWhiteTime,
   blackTime: propBlackTime,
   isPrivateGame = false,
+  playerRank,
+  opponentRank,
   onSendMove,
   onExit,
   onBack,
@@ -77,6 +85,7 @@ export const WSMultiplayerGameView = ({
   const lastMoveByRef = useRef<'w' | 'b' | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastTickRef = useRef<number>(Date.now());
+  const tabHiddenTimeRef = useRef<number | null>(null);
   
   // Sound effects
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
@@ -142,6 +151,85 @@ export const WSMultiplayerGameView = ({
       }
     }
   }, [currentFen, chess, localFen, myColor, isPrivateGame]);
+
+  // Sync timer when tab visibility changes (only for WebSocket games)
+  useEffect(() => {
+    if (isPrivateGame) {
+      // Private games handle timers in usePrivateGame hook
+      return;
+    }
+
+    const handleVisibilityChange = () => {
+      if (isGameOver) return;
+
+      if (document.visibilityState === 'hidden') {
+        // Tab became hidden - record the time
+        tabHiddenTimeRef.current = Date.now();
+        console.log('[Game] Tab hidden, recording time');
+      } else if (document.visibilityState === 'visible') {
+        // Tab became visible - calculate elapsed time and update timer
+        if (tabHiddenTimeRef.current !== null) {
+          const timeHidden = Date.now() - tabHiddenTimeRef.current;
+          const secondsHidden = Math.floor(timeHidden / 1000);
+          
+          if (secondsHidden > 0) {
+            console.log(`[Game] Tab was hidden for ${secondsHidden} seconds, updating timer`);
+            const currentTurn = chess.turn();
+            
+            if (currentTurn === 'w') {
+              setWhiteTimeLocal(prev => Math.max(0, prev - secondsHidden));
+            } else {
+              setBlackTimeLocal(prev => Math.max(0, prev - secondsHidden));
+            }
+          }
+          
+          // Reset tracking
+          tabHiddenTimeRef.current = null;
+          lastTickRef.current = Date.now();
+        }
+
+        // For games with dbGameId, also try to sync from server as backup
+        if (dbGameId) {
+          const syncTimerFromServer = async () => {
+            try {
+              const { data: game, error } = await supabase
+                .from('games')
+                .select('white_time, black_time')
+                .eq('id', dbGameId)
+                .maybeSingle();
+
+              if (!error && game) {
+                // Only use server values if they're more recent/accurate
+                // For WebSocket games, server might not update, so use as fallback only
+                if (game.white_time !== null && game.white_time !== undefined) {
+                  setWhiteTimeLocal(prev => {
+                    // Use server value if it's significantly different (more than 2 seconds)
+                    const diff = Math.abs(prev - game.white_time);
+                    return diff > 2 ? game.white_time : prev;
+                  });
+                }
+                if (game.black_time !== null && game.black_time !== undefined) {
+                  setBlackTimeLocal(prev => {
+                    const diff = Math.abs(prev - game.black_time);
+                    return diff > 2 ? game.black_time : prev;
+                  });
+                }
+                console.log('[Game] Timer synced from server as backup');
+              }
+            } catch (error) {
+              console.error('[Game] Error syncing timer from server:', error);
+            }
+          };
+          syncTimerFromServer();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [dbGameId, isPrivateGame, isGameOver, chess]);
 
   // Timer countdown with time loss handling (only for WebSocket games)
   // Uses elapsed time calculation to work correctly even when tab is hidden
@@ -279,6 +367,23 @@ export const WSMultiplayerGameView = ({
   const myColorLabel = isWhite ? "White" : "Black";
   const opponentColorLabel = isWhite ? "Black" : "White";
 
+  // Get rank display names
+  const playerRankDisplay = playerRank?.displayName || 'Unranked';
+  const opponentRankDisplay = opponentRank?.displayName || 'Unranked';
+  
+  // Get rank colors for styling
+  const getRankColor = (rank: RankInfo | undefined) => {
+    if (!rank) return 'text-muted-foreground';
+    switch (rank.tierName) {
+      case 'diamond': return 'text-cyan-400';
+      case 'platinum': return 'text-slate-300';
+      case 'gold': return 'text-yellow-400';
+      case 'silver': return 'text-gray-300';
+      case 'bronze': return 'text-orange-500';
+      default: return 'text-muted-foreground';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
@@ -331,7 +436,14 @@ export const WSMultiplayerGameView = ({
             <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
               <User className="w-5 h-5 text-muted-foreground" />
               <div className="flex flex-col">
-                <span className="font-semibold">{opponentName}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{opponentName}</span>
+                  {opponentRank && (
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
+                      {opponentRankDisplay}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Crown className="w-3 h-3" />
                   {opponentColorLabel}
@@ -366,7 +478,14 @@ export const WSMultiplayerGameView = ({
             <div className="flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
               <User className="w-5 h-5 text-primary" />
               <div className="flex flex-col">
-                <span className="font-semibold">{playerName}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{playerName}</span>
+                  {playerRank && (
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
+                      {playerRankDisplay}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Crown className="w-3 h-3" />
                   {myColorLabel} (You)
