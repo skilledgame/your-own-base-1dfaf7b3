@@ -173,21 +173,14 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
           </Link>
         </DropdownMenuItem>
 
+        <DropdownMenuSeparator className="bg-slate-700" />
+
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
           <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5">
             <Settings className="w-4 h-4 text-slate-400" />
             <span className="text-slate-200">Account Settings</span>
           </Link>
         </DropdownMenuItem>
-
-        <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
-          <Link to="/how-it-works" className="flex items-center gap-3 px-3 py-2.5">
-            <HelpCircle className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-200">Help Center</span>
-          </Link>
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator className="bg-slate-700" />
 
         <DropdownMenuSeparator className="bg-slate-700" />
 
