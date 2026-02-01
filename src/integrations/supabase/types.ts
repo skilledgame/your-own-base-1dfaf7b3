@@ -485,6 +485,16 @@ export type Database = {
       }
       get_player_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_user_role: { Args: { _user_id: string }; Returns: string }
+      get_weekly_leaderboard: {
+        Args: never
+        Returns: {
+          games_played: number
+          player_name: string
+          rank: number
+          total_wagered: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
