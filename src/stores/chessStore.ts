@@ -278,11 +278,24 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       },
     });
     
+    console.log("[ChessStore] State transition: searching/idle -> in_game", {
+      gameId,
+      color,
+      playerName,
+      timestamp: new Date().toISOString(),
+    });
+    
     console.log("[ChessStore] handleMatchFound - state updated, phase is now:", get().phase);
   },
   
   handleGameEnd: ({ reason, winnerColor, isOpponentLeft, creditsChange }) => {
-    const { gameState, phase: currentPhase } = get();
+    const { gameState, phase: currentPhase, gameEndResult } = get();
+    
+    // GUARD: If we're already in game_over phase, ignore duplicate game_ended messages
+    if (currentPhase === "game_over") {
+      console.warn("[ChessStore] handleGameEnd IGNORED - already in game_over phase, reason:", reason);
+      return;
+    }
     
     // GUARD: If we're not in a game, ignore stale game_ended messages
     if (currentPhase !== "in_game") {
@@ -293,6 +306,12 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     // GUARD: Ensure gameState exists
     if (!gameState) {
       console.warn("[ChessStore] handleGameEnd IGNORED - no gameState");
+      return;
+    }
+    
+    // GUARD: If gameEndResult already exists, this is a duplicate - ignore
+    if (gameEndResult) {
+      console.warn("[ChessStore] handleGameEnd IGNORED - gameEndResult already exists:", gameEndResult);
       return;
     }
     
@@ -314,6 +333,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     
     console.log("[ChessStore] handleGameEnd - SETTING phase=game_over:", { reason, winnerColor, isWin, isDraw, isOpponentLeft, message, creditsChange, timestamp: new Date().toISOString() });
     
+    // Clear timer snapshot immediately to prevent any further timer calculations
     set({
       phase: "game_over",
       gameEndResult: {

@@ -105,6 +105,16 @@ function initializeGlobalMessageHandler(): void {
       
       case "match_found": {
         const payload = msg as unknown as MatchFoundMessage;
+        const store = useChessStore.getState();
+        
+        // Structured logging
+        console.log("[Chess WS] MATCH_FOUND", {
+          gameId: payload.gameId,
+          userId: store.playerName || 'unknown',
+          phase: store.phase,
+          hasTimer: !!(payload.whiteTime && payload.blackTime && payload.serverTimeMs),
+          timestamp: new Date().toISOString(),
+        });
         
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:105',message:'MATCH_FOUND handler entry',data:{hasPayload:!!payload,hasOpponent:!!payload?.opponent,opponentType:typeof payload?.opponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
@@ -158,16 +168,37 @@ function initializeGlobalMessageHandler(): void {
         // Get opponent name from payload (try new format first, then legacy)
         const opponentName = payload.opponent?.name || (payload as any).opponentName || "Opponent";
         
-        // Initialize timer snapshot if server provided it
-        if (payload.whiteTime !== undefined && payload.blackTime !== undefined && payload.serverTimeMs) {
+        // Initialize timer snapshot if server provided it (with validation)
+        if (payload.whiteTime !== undefined && 
+            payload.blackTime !== undefined && 
+            payload.serverTimeMs &&
+            typeof payload.whiteTime === 'number' &&
+            typeof payload.blackTime === 'number' &&
+            typeof payload.serverTimeMs === 'number' &&
+            payload.whiteTime >= 0 &&
+            payload.blackTime >= 0 &&
+            payload.serverTimeMs > 0) {
           store.updateTimerSnapshot({
             whiteTimeSeconds: payload.whiteTime,
             blackTimeSeconds: payload.blackTime,
             serverTimeMs: payload.serverTimeMs,
             currentTurn: 'w', // White moves first
           });
+          console.log("[Chess WS] Timer snapshot updated (match_found)", {
+            gameId: payload.gameId,
+            whiteTime: payload.whiteTime,
+            blackTime: payload.blackTime,
+            serverTimeMs: payload.serverTimeMs,
+            timestamp: new Date().toISOString(),
+          });
         } else {
           // Fallback: initialize with default values
+          console.warn("[Chess WS] Invalid timer data in match_found, using defaults:", {
+            gameId: payload.gameId,
+            whiteTime: payload.whiteTime,
+            blackTime: payload.blackTime,
+            serverTimeMs: payload.serverTimeMs,
+          });
           store.updateTimerSnapshot({
             whiteTimeSeconds: 60,
             blackTimeSeconds: 60,
@@ -208,19 +239,52 @@ function initializeGlobalMessageHandler(): void {
       
       case "move_applied": {
         const payload = msg as unknown as MoveAppliedMessage;
-        console.log("[Chess WS]", clientId, "Move applied:", payload);
+        const currentState = useChessStore.getState();
+        
+        console.log("[Chess WS] MOVE_APPLIED", {
+          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+          userId: currentState.playerName || 'unknown',
+          phase: currentState.phase,
+          turn: payload.turn,
+          hasTimer: !!(payload.whiteTime && payload.blackTime && payload.serverTimeMs),
+          timestamp: new Date().toISOString(),
+        });
         
         // Update FEN from server (server is authoritative)
         store.updateFromServer(payload.fen, payload.turn);
         
-        // If server sent timer data, update it (server-authoritative)
-        if (payload.whiteTime !== undefined && payload.blackTime !== undefined && payload.serverTimeMs) {
+        // If server sent timer data, update it (server-authoritative) - with validation
+        if (payload.whiteTime !== undefined && 
+            payload.blackTime !== undefined && 
+            payload.serverTimeMs &&
+            typeof payload.whiteTime === 'number' &&
+            typeof payload.blackTime === 'number' &&
+            typeof payload.serverTimeMs === 'number' &&
+            payload.whiteTime >= 0 &&
+            payload.blackTime >= 0 &&
+            payload.serverTimeMs > 0) {
           // Store timer snapshot for server-authoritative calculation
           store.updateTimerSnapshot({
             whiteTimeSeconds: payload.whiteTime,
             blackTimeSeconds: payload.blackTime,
             serverTimeMs: payload.serverTimeMs,
             currentTurn: payload.turn,
+          });
+          console.log("[Chess WS] Timer snapshot updated (move_applied)", {
+            gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+            whiteTime: payload.whiteTime,
+            blackTime: payload.blackTime,
+            serverTimeMs: payload.serverTimeMs,
+            currentTurn: payload.turn,
+            timestamp: new Date().toISOString(),
+          });
+        } else if (payload.whiteTime !== undefined || payload.blackTime !== undefined || payload.serverTimeMs) {
+          // Partial or invalid timer data - log warning but don't update
+          console.warn("[Chess WS] Invalid timer data in move_applied, ignoring:", {
+            gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+            whiteTime: payload.whiteTime,
+            blackTime: payload.blackTime,
+            serverTimeMs: payload.serverTimeMs,
           });
         }
         break;
@@ -234,13 +298,26 @@ function initializeGlobalMessageHandler(): void {
         if (store.gameState && store.gameState.gameId === payload.gameId) {
           store.updateFromServer(payload.fen, payload.turn);
           
-          // Update timer snapshot (server-authoritative)
-          store.updateTimerSnapshot({
-            whiteTimeSeconds: payload.whiteTime,
-            blackTimeSeconds: payload.blackTime,
-            serverTimeMs: payload.serverTimeMs,
-            currentTurn: payload.turn,
-          });
+          // Update timer snapshot (server-authoritative) - with validation
+          if (typeof payload.whiteTime === 'number' &&
+              typeof payload.blackTime === 'number' &&
+              typeof payload.serverTimeMs === 'number' &&
+              payload.whiteTime >= 0 &&
+              payload.blackTime >= 0 &&
+              payload.serverTimeMs > 0) {
+            store.updateTimerSnapshot({
+              whiteTimeSeconds: payload.whiteTime,
+              blackTimeSeconds: payload.blackTime,
+              serverTimeMs: payload.serverTimeMs,
+              currentTurn: payload.turn,
+            });
+          } else {
+            console.warn("[Chess WS] Invalid timer data in game_sync, ignoring:", {
+              whiteTime: payload.whiteTime,
+              blackTime: payload.blackTime,
+              serverTimeMs: payload.serverTimeMs,
+            });
+          }
           
           // If game ended, handle it
           if (payload.status === "ended") {
@@ -255,11 +332,15 @@ function initializeGlobalMessageHandler(): void {
       
       case "game_ended": {
         const payload = msg as unknown as GameEndedMessage;
-        console.log("[Chess WS] GAME_ENDED received:", {
-          clientId,
+        const currentState = useChessStore.getState();
+        
+        console.log("[Chess WS] GAME_ENDED", {
+          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+          userId: currentState.playerName || 'unknown',
+          phase: currentState.phase,
           reason: payload.reason,
           winnerColor: payload.winnerColor,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         
         wsClient.setSearching(false);
@@ -270,7 +351,6 @@ function initializeGlobalMessageHandler(): void {
                                payload.reason === "opponent_resigned";
         
         // Calculate credits change based on outcome
-        const currentState = useChessStore.getState();
         const myColor = currentState.gameState?.color || null;
         const wager = currentState.gameState?.wager || 0;
         let creditsChange = 0;
@@ -284,6 +364,19 @@ function initializeGlobalMessageHandler(): void {
         
         // Clear timer snapshot on game end
         store.clearTimerSnapshot();
+        console.log("[Chess WS] Timer snapshot cleared (game_ended)", {
+          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+          timestamp: new Date().toISOString(),
+        });
+        
+        // Log state transition
+        console.log("[Chess WS] State transition: in_game -> game_over", {
+          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+          reason: payload.reason,
+          winnerColor: payload.winnerColor,
+          creditsChange,
+          timestamp: new Date().toISOString(),
+        });
         
         store.handleGameEnd({
           reason: payload.reason,
