@@ -23,9 +23,9 @@ const faqItems = [
       "At Skilled, maintaining a fair and competitive environment is our top priority. We use a combination of automated anti-cheat systems, real-time monitoring, and player reporting to detect and prevent cheating or abusive behavior. Our platform continuously analyzes gameplay patterns to identify suspicious activity, and any confirmed violations result in penalties, including warnings, temporary suspensions, or permanent bans. We also regularly update our security measures to stay ahead of new threats, ensuring all players can compete on a level playing field based solely on skill.",
   },
   {
-    question: "What games are skill-based?",
+    question: "What happens if a player disconnects?",
     answer:
-      "All games on Skilled are skill-based. This includes classic strategy games like Chess, Checkers, and Go, as well as arcade games like Snake and Tetris where reflexes and decision-making determine success.",
+      "If a player disconnects during a game, Skilled’s system will try to reconnect them automatically within a short time. If the player cannot rejoin, the match may be paused briefly or ended according to the specific game’s rules. In many cases, the disconnected player may forfeit the match, and the opponent will be declared the winner based on skill and progress at the time of disconnection. This approach helps keep gameplay fair and ensures a good experience for all players.",
   },
   {
     question: "Is crypto required to play?",
