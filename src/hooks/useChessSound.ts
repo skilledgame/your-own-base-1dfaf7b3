@@ -86,31 +86,30 @@ export const useChessSound = () => {
     }
     lastPlayedRef.current = now;
 
-    // Play appropriate sound using Web Audio API
+    // Play subtle sound effects using Web Audio API
     switch (type) {
       case 'move':
-        // Short click sound - wooden piece on board
-        playTone(800, 0.08, 'triangle');
-        setTimeout(() => playTone(400, 0.05, 'sine'), 20);
+        // Subtle soft click - gentle wooden tap
+        playTone(300, 0.04, 'sine');
         break;
       
       case 'capture':
-        // More aggressive sound for captures
-        playTone(600, 0.1, 'sawtooth');
-        setTimeout(() => playTone(300, 0.15, 'triangle'), 30);
+        // Slightly stronger but still subtle
+        playTone(250, 0.06, 'sine');
+        setTimeout(() => playTone(180, 0.04, 'sine'), 25);
         break;
       
       case 'check':
-        // Warning tone for check
-        playTone(880, 0.15, 'square');
-        setTimeout(() => playTone(660, 0.1, 'square'), 100);
+        // Soft alert tone
+        playTone(400, 0.08, 'sine');
+        setTimeout(() => playTone(350, 0.06, 'sine'), 60);
         break;
       
       case 'gameEnd':
-        // Final chord
-        playTone(440, 0.3, 'sine');
-        playTone(554, 0.3, 'sine');
-        playTone(659, 0.3, 'sine');
+        // Gentle chord
+        playTone(330, 0.2, 'sine');
+        playTone(415, 0.2, 'sine');
+        playTone(495, 0.2, 'sine');
         break;
     }
   }, [playTone]);
