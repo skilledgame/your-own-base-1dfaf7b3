@@ -1,35 +1,36 @@
-import { HelpCircle } from 'lucide-react';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+import { HelpCircle } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const faqItems = [
   {
-    question: 'Is Skilled gambling?',
-    answer: 'No. Skilled is a skill-based gaming platform. Unlike gambling, outcomes are determined entirely by player skill and strategy, not luck or chance. Every game relies on your abilities, practice, and decision-making.',
+    question: "Is Skilled gambling?",
+    answer:
+      "No. Skilled is a skill-based gaming platform, not gambling. All games on Skilled are decided by player skill, strategy, and decision-making — not luck, randomness, or chance. Players participate in structured matches with predefined rules, and outcomes depend entirely on in-game performance, similar to competitive games like chess or esports.",
   },
   {
-    question: 'How do Skilled Coins work?',
-    answer: 'Skilled Coins are our in-game currency. You can purchase them with cryptocurrency, use them to enter competitions, and withdraw your winnings. The exchange rate is transparent and fixed.',
+    question: "How do Skilled Coins work?",
+    answer:
+      "Skilled Coins are our in-game currency. You can purchase them with cryptocurrency, use them to enter competitions, and withdraw your winnings. The exchange rate is transparent and fixed.",
   },
   {
-    question: 'Can I play for free?',
-    answer: 'Yes! Every new player gets 3 free plays for each game. After that, you can continue practicing in free mode or compete for Skilled Coins against other players.',
+    question: "Can I play for free?",
+    answer:
+      "Yes! Every new player gets 3 free plays for each game. After that, you can continue practicing in free mode or compete for Skilled Coins against other players.",
   },
   {
-    question: 'How are winners decided?',
-    answer: 'Winners are determined by the rules of each game. In Chess, checkmate or resignation decides the winner. In arcade games, the higher score wins. There are no random elements or house edges.',
+    question: "How are winners decided?",
+    answer:
+      "Winners are determined by the rules of each game. In Chess, checkmate or resignation decides the winner. In arcade games, the higher score wins. There are no random elements or house edges.",
   },
   {
-    question: 'What games are skill-based?',
-    answer: 'All games on Skilled are skill-based. This includes classic strategy games like Chess, Checkers, and Go, as well as arcade games like Snake and Tetris where reflexes and decision-making determine success.',
+    question: "What games are skill-based?",
+    answer:
+      "All games on Skilled are skill-based. This includes classic strategy games like Chess, Checkers, and Go, as well as arcade games like Snake and Tetris where reflexes and decision-making determine success.",
   },
   {
-    question: 'Is crypto required to play?',
-    answer: 'No, crypto is not required to play. You can enjoy free plays without depositing. However, to compete for prizes and earn Skilled Coins, you\'ll need to deposit using one of our supported cryptocurrencies.',
+    question: "Is crypto required to play?",
+    answer:
+      "No, crypto is not required to play. You can enjoy free plays without depositing. However, to compete for prizes and earn Skilled Coins, you'll need to deposit using one of our supported cryptocurrencies.",
   },
 ];
 
@@ -54,9 +55,7 @@ export const FAQSection = () => {
               <AccordionTrigger className="text-left font-semibold py-5 hover:no-underline">
                 {item.question}
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground pb-5 leading-relaxed">
-                {item.answer}
-              </AccordionContent>
+              <AccordionContent className="text-muted-foreground pb-5 leading-relaxed">{item.answer}</AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>
