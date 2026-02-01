@@ -5,11 +5,20 @@ import { GameView } from '@/components/GameView';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useProfileStore } from '@/stores/profileStore';
+import { UsernameCreationModal } from '@/components/UsernameCreationModal';
 
 const Index = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isPrivileged } = useUserRole();
+  const { user, isAuthenticated, isAuthReady } = useAuth();
+  const { profile, fetchProfile } = useProfileStore();
+  
+  // Username modal state
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [hasCheckedUsername, setHasCheckedUsername] = useState(false);
   
   // Use Supabase for player data (no longer for chess matchmaking)
   const {
@@ -20,6 +29,41 @@ const Index = () => {
 
   const [showBotGame, setShowBotGame] = useState(false);
   const [botGameBalance, setBotGameBalance] = useState(0);
+
+  // Check if user needs to create a username after login
+  useEffect(() => {
+    if (isAuthReady && isAuthenticated && user && !hasCheckedUsername) {
+      // User is logged in, check if they have a username
+      const checkUsername = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        // Check if display_name is null, empty, or looks like an email prefix
+        const displayName = data?.display_name;
+        const needsUsername = !displayName || 
+          displayName.trim() === '' || 
+          displayName === user.email?.split('@')[0];
+        
+        if (needsUsername) {
+          setShowUsernameModal(true);
+        }
+        setHasCheckedUsername(true);
+      };
+      
+      checkUsername();
+    }
+  }, [isAuthReady, isAuthenticated, user, hasCheckedUsername]);
+
+  // Reset check when user changes
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setHasCheckedUsername(false);
+      setShowUsernameModal(false);
+    }
+  }, [isAuthenticated]);
 
   // Handle navigation state for bot games
   useEffect(() => {
@@ -67,6 +111,14 @@ const Index = () => {
     setBotGameBalance(newBalance);
   };
 
+  const handleUsernameComplete = (username: string) => {
+    setShowUsernameModal(false);
+    // Refresh profile to get the updated username
+    if (user) {
+      fetchProfile(user.id);
+    }
+  };
+
   // Show bot game view
   if (showBotGame) {
     return (
@@ -80,7 +132,18 @@ const Index = () => {
   }
 
   return (
-    <LandingPage onJoinGame={handleJoinGame} isSearching={false} />
+    <>
+      <LandingPage onJoinGame={handleJoinGame} isSearching={false} />
+      
+      {/* Username Creation Modal */}
+      {user && (
+        <UsernameCreationModal
+          isOpen={showUsernameModal}
+          userId={user.id}
+          onComplete={handleUsernameComplete}
+        />
+      )}
+    </>
   );
 };
 

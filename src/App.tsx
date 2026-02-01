@@ -26,6 +26,7 @@ import Compete from "./pages/Compete";
 import Search from "./pages/Search";
 import Withdraw from "./pages/Withdraw";
 import Leaderboard from "./pages/Leaderboard";
+import GameHistory from "./pages/GameHistory";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import QuickPlay from "./pages/QuickPlay";
@@ -108,6 +109,7 @@ const App = () => (
                     <Route path="/compete" element={<Compete />} />
                     <Route path="/search" element={<Search />} />
                     <Route path="/leaderboard" element={<Leaderboard />} />
+                    <Route path="/game-history" element={<GameHistory />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/quick-play" element={<QuickPlay />} />
                     <Route path="/game/live/:gameId" element={

@@ -153,13 +153,6 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
-          <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5">
-            <Settings className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-200">Account Settings</span>
-          </Link>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
           <Link to="/stats" className="flex items-center gap-3 px-3 py-2.5">
             <BarChart3 className="w-4 h-4 text-blue-400" />
             <span className="text-slate-200">Stats</span>
@@ -167,26 +160,25 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
-          <Link to="/leaderboard" className="flex items-center gap-3 px-3 py-2.5">
-            <History className="w-4 h-4 text-slate-400" />
+          <Link to="/game-history" className="flex items-center gap-3 px-3 py-2.5">
+            <History className="w-4 h-4 text-orange-400" />
             <span className="text-slate-200">Game History</span>
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
           <Link to="/affiliate" className="flex items-center gap-3 px-3 py-2.5">
-            <Users className="w-4 h-4 text-cyan-400" />
+            <Users className="w-4 h-4 text-red-400" />
             <span className="text-slate-200">Refer & Earn</span>
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-slate-700" />
 
-        {/* Support section */}
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
-          <Link to="/how-it-works" className="flex items-center gap-3 px-3 py-2.5">
-            <HelpCircle className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-200">Help Center</span>
+          <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5">
+            <Settings className="w-4 h-4 text-slate-400" />
+            <span className="text-slate-200">Account Settings</span>
           </Link>
         </DropdownMenuItem>
 
