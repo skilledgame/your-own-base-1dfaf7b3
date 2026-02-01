@@ -5,12 +5,12 @@ const faqItems = [
   {
     question: "Is Skilled gambling?",
     answer:
-      "No. Skilled is a skill-based gaming platform, not gambling. All games on Skilled are decided by player skill, strategy, and decision-making — not luck, randomness, or chance. Players participate in structured matches with predefined rules, and outcomes depend entirely on in-game performance, similar to competitive games like chess or esports.",
+      "No. Skilled is a skill-based gaming platform. Unlike gambling, outcomes are determined entirely by player skill and strategy, not luck or chance. Every game relies on your abilities, practice, and decision-making.",
   },
   {
     question: "How do Skilled Coins work?",
     answer:
-      "Skilled Coins are our in-game currency. You can purchase them with cryptocurrency, use them to enter competitions, and withdraw your winnings. The exchange rate is transparent and fixed.",
+      "Skilled Coins are in-platform tokens used to participate in games, matches, and tournaments on Skilled. Players can acquire Skilled Coins by purchasing them on the platform or through other available methods, and may also sell or withdraw them where supported. Coins are used to access skill-based competitions and features, but they do not influence game outcomes, which are determined entirely by player skill and performance. Skilled Coins are used within the Skilled ecosystem and are designed to support competitive play, progression, and rewards.",
   },
   {
     question: "Can I play for free?",
