@@ -425,19 +425,23 @@ export default function LiveGame() {
             // #region agent log
             fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:385',message:'About to update opponent name',data:{opponentDisplayName,currentOpponentName:gameState?.opponentName,willUpdate:opponentDisplayName !== gameState?.opponentName || gameState?.opponentName === "Opponent"},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
             // #endregion
-            if (gameState) {
+            // Get latest gameState from store to avoid stale closure
+            // Access store directly to get the latest state (avoids stale closure)
+            const storeState = useChessStore.getState();
+            const currentGameState = storeState.gameState;
+            if (currentGameState) {
               // Always update if name is different or if it's still "Opponent"
-              if (opponentDisplayName !== gameState.opponentName || gameState.opponentName === "Opponent") {
+              if (opponentDisplayName !== currentGameState.opponentName || currentGameState.opponentName === "Opponent") {
                 // Update the gameState with the actual opponent name from profile
                 setGameState({
-                  ...gameState,
+                  ...currentGameState,
                   opponentName: opponentDisplayName,
                 });
                 // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:393',message:'setGameState called',data:{oldName:gameState.opponentName,newName:opponentDisplayName,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:393',message:'setGameState called',data:{oldName:currentGameState.opponentName,newName:opponentDisplayName,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                 // #endregion
                 console.log('[LiveGame] Updated opponent name from profile:', {
-                  oldName: gameState.opponentName,
+                  oldName: currentGameState.opponentName,
                   newName: opponentDisplayName,
                   opponentUserId,
                 });
