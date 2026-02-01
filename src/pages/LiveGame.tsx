@@ -37,7 +37,7 @@ export default function LiveGame() {
   const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd, matchmaking } = useChessStore();
   const { balance } = useBalance();
   const { user } = useAuth();
-  const { totalWageredSc } = useProfile();
+  const { totalWageredSc, displayName: playerDisplayName } = useProfile();
   
   // WebSocket connection and actions (only for matchmade games)
   const {
@@ -290,9 +290,36 @@ export default function LiveGame() {
       fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:288',message:'fetchRanks started',data:{isPrivateGame,hasGameState:!!gameState,hasMatchmaking:!!matchmaking,opponentUserIdFromMatchmaking:matchmaking?.opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:293',message:'Calculating player rank and name',data:{totalWageredSc,playerName:gameState?.playerName,playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
         // Get player rank from profile hook
         const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:295',message:'Player rank calculated',data:{playerRankInfo,displayName:playerRankInfo?.displayName,tierName:playerRankInfo?.tierName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
         setPlayerRank(playerRankInfo);
+        
+        // Update player's own name from profile if available (for WebSocket games)
+        if (playerDisplayName && gameState && !isPrivateGame) {
+          // Get latest gameState from store to avoid stale closure
+          const storeState = useChessStore.getState();
+          const currentGameState = storeState.gameState;
+          
+          if (currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)) {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:304',message:'Updating player name from profile',data:{oldName:currentGameState.playerName,newName:playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+            // #endregion
+            setGameState({
+              ...currentGameState,
+              playerName: playerDisplayName,
+            });
+            console.log('[LiveGame] Updated player name from profile:', {
+              oldName: currentGameState.playerName,
+              newName: playerDisplayName,
+            });
+          }
+        }
 
         // Get opponent rank
         let opponentUserId: string | null = null;
@@ -469,7 +496,7 @@ export default function LiveGame() {
     };
 
     fetchRanks();
-  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId]);
+  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId, playerDisplayName, setGameState]);
 
   // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
   useEffect(() => {
