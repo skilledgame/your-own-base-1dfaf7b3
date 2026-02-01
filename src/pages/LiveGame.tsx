@@ -321,6 +321,47 @@ export default function LiveGame() {
         } else if (!isPrivateGame) {
           // For WebSocket games, get from matchmaking state
           opponentUserId = matchmaking.opponentUserId || null;
+          
+          // If opponentUserId is not in matchmaking state, try to get it from gameState.dbGameId
+          // by querying the game to find the opponent
+          if (!opponentUserId && gameState?.dbGameId) {
+            try {
+              const { data: game } = await supabase
+                .from('games')
+                .select('white_player_id, black_player_id')
+                .eq('id', gameState.dbGameId)
+                .maybeSingle();
+              
+              if (game && user?.id) {
+                // Find opponent user_id by checking which player we are
+                const { data: myPlayer } = await supabase
+                  .from('players')
+                  .select('id, user_id')
+                  .or(`user_id.eq.${user.id},id.eq.${gameState.color === 'w' ? game.white_player_id : game.black_player_id}`)
+                  .maybeSingle();
+                
+                if (gameState.color === 'w') {
+                  // We're white, opponent is black
+                  const { data: blackPlayer } = await supabase
+                    .from('players')
+                    .select('user_id')
+                    .eq('id', game.black_player_id)
+                    .maybeSingle();
+                  opponentUserId = blackPlayer?.user_id || null;
+                } else {
+                  // We're black, opponent is white
+                  const { data: whitePlayer } = await supabase
+                    .from('players')
+                    .select('user_id')
+                    .eq('id', game.white_player_id)
+                    .maybeSingle();
+                  opponentUserId = whitePlayer?.user_id || null;
+                }
+              }
+            } catch (err) {
+              console.error('[LiveGame] Error fetching opponent from game:', err);
+            }
+          }
         }
 
         if (opponentUserId) {
@@ -335,22 +376,36 @@ export default function LiveGame() {
             const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc);
             setOpponentRank(opponentRankInfo);
             
-            // Update opponent name if it's still "Opponent" or missing
-            const opponentDisplayName = opponentProfile.display_name || opponentProfile.name || opponentProfile.username || null;
-            if (opponentDisplayName && gameState && gameState.opponentName === "Opponent") {
-              // Update the gameState with the actual opponent name
-              setGameState({
-                ...gameState,
-                opponentName: opponentDisplayName,
-              });
+            // Always update opponent name from profile (more reliable than server payload)
+            const opponentDisplayName = opponentProfile.display_name || opponentProfile.name || opponentProfile.username || "Opponent";
+            if (gameState) {
+              // Always update if name is different or if it's still "Opponent"
+              if (opponentDisplayName !== gameState.opponentName || gameState.opponentName === "Opponent") {
+                // Update the gameState with the actual opponent name from profile
+                setGameState({
+                  ...gameState,
+                  opponentName: opponentDisplayName,
+                });
+                console.log('[LiveGame] Updated opponent name from profile:', {
+                  oldName: gameState.opponentName,
+                  newName: opponentDisplayName,
+                  opponentUserId,
+                });
+              }
             }
           } else {
             // If no profile found, set to unranked
             setOpponentRank(getRankFromTotalWagered(0));
+            console.warn('[LiveGame] No profile found for opponentUserId:', opponentUserId);
           }
         } else {
           // No opponent user_id available, set to unranked
           setOpponentRank(getRankFromTotalWagered(0));
+          console.warn('[LiveGame] No opponentUserId available for WebSocket game', {
+            hasMatchmaking: !!matchmaking,
+            opponentUserIdFromMatchmaking: matchmaking.opponentUserId,
+            hasDbGameId: !!gameState?.dbGameId,
+          });
         }
       } catch (error) {
         console.error('[LiveGame] Error fetching ranks:', error);
