@@ -160,7 +160,7 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
-          <Link to="/leaderboard" className="flex items-center gap-3 px-3 py-2.5">
+          <Link to="/game-history" className="flex items-center gap-3 px-3 py-2.5">
             <History className="w-4 h-4 text-orange-400" />
             <span className="text-slate-200">Game History</span>
           </Link>
