@@ -365,19 +365,24 @@ export default function LiveGame() {
         }
 
         if (opponentUserId) {
-          // Fetch opponent's profile (name and rank)
-          const { data: opponentProfile } = await supabase
+          // Fetch opponent's profile (display_name and rank)
+          // Note: profiles table only has: user_id, display_name, total_wagered_sc, skilled_coins, email
+          const { data: opponentProfile, error: profileError } = await supabase
             .from('profiles')
-            .select('total_wagered_sc, name, username, display_name')
+            .select('total_wagered_sc, display_name')
             .eq('user_id', opponentUserId)
             .maybeSingle();
 
-          if (opponentProfile) {
-            const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc);
+          if (profileError) {
+            console.error('[LiveGame] Error fetching opponent profile:', profileError);
+            // Set to unranked on error
+            setOpponentRank(getRankFromTotalWagered(0));
+          } else if (opponentProfile) {
+            const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
             setOpponentRank(opponentRankInfo);
             
             // Always update opponent name from profile (more reliable than server payload)
-            const opponentDisplayName = opponentProfile.display_name || opponentProfile.name || opponentProfile.username || "Opponent";
+            const opponentDisplayName = opponentProfile.display_name || "Opponent";
             if (gameState) {
               // Always update if name is different or if it's still "Opponent"
               if (opponentDisplayName !== gameState.opponentName || gameState.opponentName === "Opponent") {
