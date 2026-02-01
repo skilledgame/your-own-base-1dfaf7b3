@@ -9,12 +9,7 @@ import {
 const faqItems = [
   {
     question: 'Is Skilled gambling?',
-    answer: 'No. Skilled is a skill-based gaming platform, not gambling.
-All games on Skilled are decided by player skill, strategy, and decision-making — not luck, randomness, or chance.
-
-Players participate in structured matches and tournaments with predefined rules and outcomes based entirely on in-game performance. Success depends on experience, practice, and skill, similar to competitive games like chess or esports.
-
-Skilled does not offer games of chance. The better player wins because they play better.',
+    answer: 'No. Skilled is a skill-based gaming platform. Unlike gambling, outcomes are determined entirely by player skill and strategy, not luck or chance. Every game relies on your abilities, practice, and decision-making.',
   },
   {
     question: 'How do Skilled Coins work?',
