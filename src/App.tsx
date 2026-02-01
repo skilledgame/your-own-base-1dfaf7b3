@@ -9,6 +9,7 @@ import { AuthLoadingScreen } from "@/components/AuthLoadingScreen";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { WalletModal } from "@/components/WalletModal";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import Auth from "./pages/Auth";
@@ -87,6 +88,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <ScrollToTop />
               <AppWithAuth>
                 <ErrorBoundary>
                   <Routes>
