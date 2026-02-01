@@ -1,31 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trophy, Medal, Crown, ArrowLeft } from 'lucide-react';
+import { Trophy, Medal, Crown, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LogoLink } from '@/components/LogoLink';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LeaderboardEntry {
   rank: number;
   playerName: string;
-  coinsWon: number;
-  gamesWon: number;
+  totalWagered: number;
+  gamesPlayed: number;
 }
-
-const generateFullLeaderboard = (): LeaderboardEntry[] => {
-  const names = [
-    'Marcus_Chen', 'Elena_Rodriguez', 'James_Wilson', 'Sophia_Kim', 'David_Okonkwo',
-    'Emma_Johansson', 'Lucas_Santos', 'Aisha_Patel', 'Ryan_Murphy', 'Yuki_Tanaka',
-    'Oliver_Schmidt', 'Isabella_Costa', 'Noah_Williams', 'Mia_Anderson', 'Ethan_Brown',
-    'Ava_Martinez', 'Liam_Taylor', 'Charlotte_Lee', 'Mason_Garcia', 'Amelia_Davis'
-  ];
-  
-  return names.map((name, index) => ({
-    rank: index + 1,
-    playerName: name,
-    coinsWon: Math.floor(15000 - (index * 600) + Math.random() * 200),
-    gamesWon: Math.floor(80 - (index * 3) + Math.random() * 5),
-  }));
-};
 
 const getRankIcon = (rank: number) => {
   switch (rank) {
@@ -54,14 +39,58 @@ const getRankStyle = (rank: number) => {
 };
 
 const Leaderboard = () => {
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(generateFullLeaderboard());
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [daysUntilReset, setDaysUntilReset] = useState(0);
+  const [hoursUntilReset, setHoursUntilReset] = useState(0);
 
   useEffect(() => {
+    // Calculate time until next Monday 00:00 UTC
     const now = new Date();
-    const dayOfWeek = now.getDay();
-    const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+    const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek) % 7 || 7;
+    
+    // Calculate hours remaining in today (UTC)
+    const hoursLeft = 23 - now.getUTCHours();
+    
     setDaysUntilReset(daysUntilMonday);
+    setHoursUntilReset(hoursLeft);
+  }, []);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('get_weekly_leaderboard');
+        
+        if (error) {
+          console.error('Error fetching leaderboard:', error);
+          setLeaderboard([]);
+          return;
+        }
+
+        const entries: LeaderboardEntry[] = (data || []).map((row: {
+          rank: number;
+          player_name: string;
+          total_wagered: number;
+          games_played: number;
+        }) => ({
+          rank: Number(row.rank),
+          playerName: row.player_name || 'Anonymous',
+          totalWagered: Number(row.total_wagered),
+          gamesPlayed: Number(row.games_played),
+        }));
+
+        setLeaderboard(entries);
+      } catch (err) {
+        console.error('Failed to fetch leaderboard:', err);
+        setLeaderboard([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
   }, []);
 
   return (
@@ -78,7 +107,7 @@ const Leaderboard = () => {
             <LogoLink className="h-10" />
           </div>
           <div className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
-            Resets in {daysUntilReset} day{daysUntilReset !== 1 ? 's' : ''}
+            Resets in {daysUntilReset}d {hoursUntilReset}h
           </div>
         </div>
       </header>
@@ -90,7 +119,7 @@ const Leaderboard = () => {
             <Trophy className="w-8 h-8 text-primary" />
             <div>
               <h1 className="text-2xl font-bold text-foreground">Weekly Leaderboard</h1>
-              <p className="text-sm text-muted-foreground">Top 20 players this week</p>
+              <p className="text-sm text-muted-foreground">Top 20 players by SC wagered this week</p>
             </div>
           </div>
 
@@ -99,35 +128,53 @@ const Leaderboard = () => {
             <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-secondary/50 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <div className="col-span-1">Rank</div>
               <div className="col-span-5">Player</div>
-              <div className="col-span-3 text-right">Coins Won</div>
-              <div className="col-span-3 text-right">Games Won</div>
+              <div className="col-span-3 text-right">SC Wagered</div>
+              <div className="col-span-3 text-right">Games</div>
             </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!loading && leaderboard.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Trophy className="w-12 h-12 mb-4 opacity-50" />
+                <p className="text-lg font-medium">No games played this week yet</p>
+                <p className="text-sm">Be the first to compete and top the leaderboard!</p>
+              </div>
+            )}
+
             {/* Entries */}
-            <div className="divide-y divide-border">
-              {leaderboard.map((entry) => (
-                <div
-                  key={entry.rank}
-                  className={`grid grid-cols-12 gap-4 px-4 py-4 items-center transition-colors hover:bg-secondary/30 ${getRankStyle(entry.rank)} border-l-2`}
-                >
-                  <div className="col-span-1 flex items-center justify-center">
-                    {getRankIcon(entry.rank)}
-                  </div>
-                  <div className="col-span-5 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                      {entry.playerName[0]}
+            {!loading && leaderboard.length > 0 && (
+              <div className="divide-y divide-border">
+                {leaderboard.map((entry) => (
+                  <div
+                    key={entry.rank}
+                    className={`grid grid-cols-12 gap-4 px-4 py-4 items-center transition-colors hover:bg-secondary/30 ${getRankStyle(entry.rank)} border-l-2`}
+                  >
+                    <div className="col-span-1 flex items-center justify-center">
+                      {getRankIcon(entry.rank)}
                     </div>
-                    <span className="font-medium text-foreground truncate">{entry.playerName.replace('_', ' ')}</span>
+                    <div className="col-span-5 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                        {entry.playerName[0]?.toUpperCase() || '?'}
+                      </div>
+                      <span className="font-medium text-foreground truncate">{entry.playerName}</span>
+                    </div>
+                    <div className="col-span-3 text-right font-bold text-accent">
+                      {entry.totalWagered.toLocaleString()} SC
+                    </div>
+                    <div className="col-span-3 text-right text-muted-foreground">
+                      {entry.gamesPlayed}
+                    </div>
                   </div>
-                  <div className="col-span-3 text-right font-bold text-accent">
-                    {entry.coinsWon.toLocaleString()} SC
-                  </div>
-                  <div className="col-span-3 text-right text-muted-foreground">
-                    {entry.gamesWon}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
