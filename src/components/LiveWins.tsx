@@ -62,7 +62,7 @@ export const LiveWins = () => {
       const recentWins: Win[] = games.map((game) => ({
         id: game.id,
         playerName: playerMap.get(game.winner_id!) || 'Anonymous',
-        amount: game.wager * 2, // Winner gets both wagers (simplified display)
+        amount: game.wager,
         game: 'Chess',
         gameIcon: '♟️',
         timestamp: new Date(game.settled_at || Date.now()),
