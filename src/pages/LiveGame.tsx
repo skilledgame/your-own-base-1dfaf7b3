@@ -374,16 +374,42 @@ export default function LiveGame() {
           // #region agent log
           fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:367',message:'Fetching opponent profile',data:{opponentUserId,currentOpponentName:gameState?.opponentName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
           // #endregion
-          // Fetch opponent's profile (display_name and rank)
-          // Note: profiles table only has: user_id, display_name, total_wagered_sc, skilled_coins, email
-          const { data: opponentProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('total_wagered_sc, display_name')
-            .eq('user_id', opponentUserId)
-            .maybeSingle();
+          // Fetch opponent's profile using RPC function (bypasses RLS)
+          // Fallback to direct query if RPC fails
+          let opponentProfile: { display_name: string | null; total_wagered_sc: number | null } | null = null;
+          let profileError: any = null;
+          
+          try {
+            const { data: rpcData, error: rpcError } = await supabase
+              .rpc('get_opponent_profile', { p_user_id: opponentUserId });
+            
+            if (!rpcError && rpcData && rpcData.length > 0) {
+              opponentProfile = rpcData[0];
+            } else if (rpcError) {
+              // Fallback to direct query if RPC function doesn't exist yet
+              const { data: directData, error: directError } = await supabase
+                .from('profiles')
+                .select('total_wagered_sc, display_name')
+                .eq('user_id', opponentUserId)
+                .maybeSingle();
+              
+              opponentProfile = directData;
+              profileError = directError;
+            }
+          } catch (err) {
+            // If RPC fails, try direct query
+            const { data: directData, error: directError } = await supabase
+              .from('profiles')
+              .select('total_wagered_sc, display_name')
+              .eq('user_id', opponentUserId)
+              .maybeSingle();
+            
+            opponentProfile = directData;
+            profileError = directError;
+          }
 
           // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:375',message:'Profile query result',data:{hasProfile:!!opponentProfile,hasError:!!profileError,displayName:opponentProfile?.display_name,errorCode:profileError?.code,errorMessage:profileError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:395',message:'Profile query result',data:{hasProfile:!!opponentProfile,hasError:!!profileError,displayName:opponentProfile?.display_name,errorCode:profileError?.code,errorMessage:profileError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
           // #endregion
 
           if (profileError) {
