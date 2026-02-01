@@ -297,14 +297,28 @@ export default function LiveGame() {
 
   // Game end modal - show before checking gameState
   if (phase === "game_over" && gameEndResult) {
-    const tokensChange = gameEndResult.creditsChange || 0;
+    // Guard: Ensure all required fields exist with defaults
+    const tokensChange = gameEndResult.creditsChange ?? 0;
+    const isWin = gameEndResult.isWin ?? false;
+    const reason = gameEndResult.message || gameEndResult.reason || "Game ended";
+    
+    console.log("[LiveGame] Showing GameResultModal", {
+      phase,
+      hasGameEndResult: !!gameEndResult,
+      isWin,
+      tokensChange,
+      reason,
+      balance,
+      timestamp: new Date().toISOString(),
+    });
+    
     return (
       <>
         <GameResultModal
-          isWin={gameEndResult.isWin}
+          isWin={isWin}
           coinsChange={tokensChange}
           newBalance={balance}
-          reason={gameEndResult.message}
+          reason={reason}
           onPlayAgain={handlePlayAgain}
           onGoHome={handleGoHome}
         />

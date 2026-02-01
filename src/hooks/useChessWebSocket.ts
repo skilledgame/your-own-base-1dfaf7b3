@@ -335,18 +335,33 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as GameEndedMessage;
         const currentState = useChessStore.getState();
         
-        console.log("[Chess WS] GAME_ENDED", {
-          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+        // Validate payload and extract gameId
+        const gameId = payload.gameId || currentState.gameState?.gameId || null;
+        
+        console.log("[Client] GAME_ENDED received", {
+          gameId,
+          dbGameId: payload.dbGameId || currentState.gameState?.dbGameId || 'unknown',
           userId: currentState.playerName || 'unknown',
           phase: currentState.phase,
           reason: payload.reason,
           winnerColor: payload.winnerColor,
+          hasReason: !!payload.reason,
+          hasWinnerColor: payload.winnerColor !== undefined,
+          fullPayload: payload,
           timestamp: new Date().toISOString(),
         });
+        
+        // Validate required fields
+        if (!payload.reason) {
+          console.error("[Client] GAME_ENDED - Missing reason field", payload);
+          // Use default reason but don't crash
+          payload.reason = "game_over";
+        }
         
         wsClient.setSearching(false);
         wsClient.setInGame(false);
         
+        // Determine if opponent left (resign from opponent is "opponent_resigned", not "resign")
         const isOpponentLeft = payload.reason === "disconnect" || 
                                payload.reason === "opponent_disconnect" ||
                                payload.reason === "opponent_resigned";
@@ -358,33 +373,61 @@ function initializeGlobalMessageHandler(): void {
         
         if (payload.winnerColor === myColor) {
           creditsChange = wager;  // Won the wager
-        } else if (payload.winnerColor !== null) {
+        } else if (payload.winnerColor !== null && payload.winnerColor !== undefined) {
           creditsChange = -wager;  // Lost the wager
         }
-        // Draw = no change
+        // Draw = no change (winnerColor is null)
         
         // Clear timer snapshot on game end
         store.clearTimerSnapshot();
-        console.log("[Chess WS] Timer snapshot cleared (game_ended)", {
-          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+        console.log("[Client] Timer snapshot cleared (game_ended)", {
+          gameId,
           timestamp: new Date().toISOString(),
         });
         
         // Log state transition
-        console.log("[Chess WS] State transition: in_game -> game_over", {
-          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
-          reason: payload.reason,
-          winnerColor: payload.winnerColor,
-          creditsChange,
-          timestamp: new Date().toISOString(),
-        });
-        
-        store.handleGameEnd({
+        console.log("[Client] Calling handleGameEnd", {
+          gameId,
           reason: payload.reason,
           winnerColor: payload.winnerColor,
           isOpponentLeft,
           creditsChange,
+          myColor,
+          wager,
+          timestamp: new Date().toISOString(),
         });
+        
+        // Wrap handleGameEnd in try-catch to prevent crashes
+        try {
+          store.handleGameEnd({
+            reason: payload.reason,
+            winnerColor: payload.winnerColor ?? null,  // Ensure null if undefined
+            isOpponentLeft,
+            creditsChange,
+          });
+          
+          console.log("[Client] handleGameEnd completed successfully", {
+            gameId,
+            newPhase: useChessStore.getState().phase,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (error) {
+          console.error("[Client] GAME_ENDED - Error in handleGameEnd:", error, {
+            gameId,
+            payload,
+            currentState: {
+              phase: currentState.phase,
+              hasGameState: !!currentState.gameState,
+            },
+          });
+          toast.error("Error processing game end. Please refresh.");
+          // Still try to transition to game_over even if handleGameEnd failed
+          try {
+            store.setPhase("game_over");
+          } catch (e) {
+            console.error("[Client] Failed to set phase to game_over:", e);
+          }
+        }
         
         // Trigger balance refresh via callback (throttled)
         if (balanceRefreshCallback) {
@@ -393,7 +436,7 @@ function initializeGlobalMessageHandler(): void {
         
         if (isOpponentLeft) {
           toast.info("Opponent left the game");
-        } else if (payload.winnerColor === null) {
+        } else if (payload.winnerColor === null || payload.winnerColor === undefined) {
           toast.info(`Game over: ${payload.reason}`);
         }
         break;
@@ -785,15 +828,34 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
   const resignGame = useCallback(() => {
     const currentState = useChessStore.getState();
     const currentGameState = currentState.gameState;
+    const wsStatus = wsClient.getStatus();
+    
+    console.log("[Client] RESIGN clicked", {
+      gameId: currentGameState?.gameId || 'unknown',
+      dbGameId: currentGameState?.dbGameId || 'unknown',
+      userId: currentState.playerName || 'unknown',
+      phase: currentState.phase,
+      wsStatus,
+      hasGameState: !!currentGameState,
+      timestamp: new Date().toISOString(),
+    });
     
     // Idempotent: if game already ended, do nothing
     if (currentState.phase === "game_over") {
-      console.log("[Chess WS] Game already ended, resign is no-op");
+      console.log("[Client] RESIGN - Game already ended, resign is no-op");
       return;
     }
     
     if (!currentGameState) {
-      console.warn("[Chess WS] Cannot resign - no game state");
+      console.warn("[Client] RESIGN - Cannot resign - no game state");
+      toast.error("Cannot resign - no active game");
+      return;
+    }
+    
+    // Check if WS is connected
+    if (wsStatus !== "connected") {
+      console.warn("[Client] RESIGN - WebSocket not connected, status:", wsStatus);
+      toast.error("Not connected to server. Please reconnect.");
       return;
     }
 
@@ -803,8 +865,13 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       dbGameId: currentGameState.dbGameId,
     };
 
-    console.log("[Chess WS] Sending resign:", payload);
-    wsClient.send(payload);
+    console.log("[Client] RESIGN payload being sent", payload);
+    try {
+      wsClient.send(payload);
+    } catch (error) {
+      console.error("[Client] RESIGN - Error sending resign:", error);
+      toast.error("Failed to send resign request");
+    }
   }, []);
 
   const syncGame = useCallback(() => {

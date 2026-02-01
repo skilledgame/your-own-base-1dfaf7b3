@@ -160,12 +160,18 @@ export const GameResultModal = ({
   onPlayAgain,
   onGoHome,
 }: GameResultModalProps) => {
-  const isFreePlay = coinsChange === 0;
-  const formattedReason = formatReason(reason);
+  // Guard: Ensure all props have defaults
+  const safeIsWin = isWin ?? false;
+  const safeCoinsChange = coinsChange ?? 0;
+  const safeNewBalance = newBalance ?? 0;
+  const safeReason = reason || "Game ended";
+  
+  const isFreePlay = safeCoinsChange === 0;
+  const formattedReason = formatReason(safeReason);
 
   return (
     <>
-      {isWin && <Confetti />}
+      {safeIsWin && <Confetti />}
       
       {/* Backdrop with radial glow */}
       <div className="fixed inset-0 bg-background/90 backdrop-blur-md flex items-center justify-center z-40 p-4">
@@ -227,12 +233,12 @@ export const GameResultModal = ({
               <span 
                 className={cn(
                   "px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full border",
-                  isWin 
+                  safeIsWin 
                     ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400" 
                     : "bg-slate-500/20 border-slate-500/40 text-slate-400"
                 )}
               >
-                {isWin ? "+WIN" : "GG"}
+                {safeIsWin ? "+WIN" : "GG"}
               </span>
             </div>
 
@@ -241,7 +247,7 @@ export const GameResultModal = ({
               <div
                 className={cn(
                   "relative w-24 h-24 rounded-full flex items-center justify-center",
-                  isWin 
+                  safeIsWin 
                     ? "bg-emerald-500/10" 
                     : "bg-slate-500/10"
                 )}
@@ -250,14 +256,14 @@ export const GameResultModal = ({
                 <div 
                   className={cn(
                     "absolute inset-0 rounded-full animate-pulse",
-                    isWin 
+                    safeIsWin 
                       ? "shadow-[0_0_30px_rgba(34,197,94,0.4)]" 
                       : "shadow-[0_0_20px_rgba(148,163,184,0.2)]"
                   )}
                   style={{ animationDuration: '2s' }}
                 />
                 
-                {isWin ? (
+                {safeIsWin ? (
                   <Trophy className="w-12 h-12 text-emerald-400 animate-float drop-shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
                 ) : (
                   <Skull className="w-12 h-12 text-slate-400 drop-shadow-[0_0_10px_rgba(148,163,184,0.3)]" />
@@ -269,62 +275,62 @@ export const GameResultModal = ({
             <h2
               className={cn(
                 "text-4xl sm:text-5xl font-bold text-center mb-2 tracking-tight",
-                isWin 
+                safeIsWin 
                   ? "text-emerald-400 drop-shadow-[0_0_20px_rgba(34,197,94,0.5)]" 
                   : "text-slate-300"
               )}
               style={{ fontFamily: 'Space Grotesk, sans-serif' }}
             >
-              {isWin ? "VICTORY" : "DEFEAT"}
+              {safeIsWin ? "VICTORY" : "DEFEAT"}
             </h2>
 
             {/* Subtext */}
             <p className={cn(
               "text-center mb-6 text-sm",
-              isWin ? "text-emerald-300/70" : "text-slate-400"
+              safeIsWin ? "text-emerald-300/70" : "text-slate-400"
             )}>
-              {isWin ? `You won by ${formattedReason}` : `You lost by ${formattedReason}`}
+              {safeIsWin ? `You won by ${formattedReason}` : `You lost by ${formattedReason}`}
             </p>
 
             {/* Stats chips */}
             <div className="grid grid-cols-3 gap-3 mb-6">
               <StatChip 
                 label="Wager" 
-                value={isFreePlay ? "Free" : `${Math.abs(coinsChange)}`}
+                value={isFreePlay ? "Free" : `${Math.abs(safeCoinsChange)}`}
                 icon={Coins}
-                isWin={isWin}
+                isWin={safeIsWin}
               />
               <StatChip 
                 label="Result" 
-                value={isWin ? "Win" : "Loss"}
-                icon={isWin ? TrendingUp : TrendingDown}
-                isWin={isWin}
+                value={safeIsWin ? "Win" : "Loss"}
+                icon={safeIsWin ? TrendingUp : TrendingDown}
+                isWin={safeIsWin}
               />
               <StatChip 
                 label="Change" 
-                value={coinsChange === 0 ? "+0" : (coinsChange > 0 ? `+${coinsChange}` : `${coinsChange}`)}
+                value={safeCoinsChange === 0 ? "+0" : (safeCoinsChange > 0 ? `+${safeCoinsChange}` : `${safeCoinsChange}`)}
                 icon={Coins}
-                isWin={isWin}
+                isWin={safeIsWin}
               />
             </div>
 
             {/* New Balance */}
             <div className={cn(
               "flex items-center justify-center gap-2 py-3 px-4 rounded-xl mb-6 border",
-              isWin 
+              safeIsWin 
                 ? "bg-emerald-500/5 border-emerald-500/20" 
                 : "bg-slate-500/5 border-slate-500/20"
             )}>
               <span className="text-muted-foreground text-sm">New Balance:</span>
               <span className={cn(
                 "font-bold text-xl",
-                isWin ? "text-emerald-400" : "text-slate-300"
+                safeIsWin ? "text-emerald-400" : "text-slate-300"
               )}>
-                {newBalance.toLocaleString()}
+                {safeNewBalance.toLocaleString()}
               </span>
               <Coins className={cn(
                 "w-4 h-4 ml-1",
-                isWin ? "text-emerald-400" : "text-slate-400"
+                safeIsWin ? "text-emerald-400" : "text-slate-400"
               )} />
             </div>
 
@@ -346,7 +352,7 @@ export const GameResultModal = ({
                 className={cn(
                   "flex-1 h-12 font-semibold transition-all duration-200",
                   "hover:-translate-y-0.5",
-                  isWin 
+                  safeIsWin 
                     ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)]" 
                     : "bg-slate-600 hover:bg-slate-500 text-white shadow-[0_0_15px_rgba(148,163,184,0.2)] hover:shadow-[0_0_25px_rgba(148,163,184,0.3)]"
                 )}
