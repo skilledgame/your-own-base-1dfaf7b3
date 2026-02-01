@@ -127,6 +127,7 @@ export interface MatchFoundMessage {
  */
 export interface MoveAppliedMessage {
   type: "move_applied";
+  gameId?: string;  // Optional game ID for logging
   fen: string;
   move: {
     from: string;
@@ -160,6 +161,7 @@ export interface GameSyncMessage {
  */
 export interface GameEndedMessage {
   type: "game_ended";
+  gameId?: string;                // Optional WS game ID for logging
   reason: string;
   winnerColor: "w" | "b" | null;  // null = draw
   dbGameId?: string;              // For refreshing credits

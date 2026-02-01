@@ -281,6 +281,109 @@ export default function LiveGame() {
     loadPrivateGame();
   }, [gameId, gameState, loadingGame, navigate, setPhase, setGameState, setPlayerName, connect]);
 
+  // Fetch player and opponent ranks
+  useEffect(() => {
+    if (!gameState) return;
+
+    const fetchRanks = async () => {
+      try {
+        // Get player rank from profile hook
+        const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
+        setPlayerRank(playerRankInfo);
+
+        // Get opponent rank
+        let opponentUserId: string | null = null;
+
+        if (isPrivateGame && gameState.dbGameId) {
+          // For private games, get opponent from game data
+          const { data: game } = await supabase
+            .from('games')
+            .select(`
+              white_player_id,
+              black_player_id,
+              white_player:players!games_white_player_id_fkey(user_id),
+              black_player:players!games_black_player_id_fkey(user_id)
+            `)
+            .eq('id', gameState.dbGameId)
+            .maybeSingle();
+
+          if (game && user?.id) {
+            // Find opponent user_id
+            const whitePlayerUserId = (game.white_player as any)?.user_id;
+            const blackPlayerUserId = (game.black_player as any)?.user_id;
+            
+            if (gameState.color === 'w') {
+              opponentUserId = blackPlayerUserId;
+            } else {
+              opponentUserId = whitePlayerUserId;
+            }
+          }
+        } else if (!isPrivateGame) {
+          // For WebSocket games, get from matchmaking state
+          opponentUserId = matchmaking.opponentUserId || null;
+        }
+
+        if (opponentUserId) {
+          // Fetch opponent's profile
+          const { data: opponentProfile } = await supabase
+            .from('profiles')
+            .select('total_wagered_sc')
+            .eq('user_id', opponentUserId)
+            .maybeSingle();
+
+          if (opponentProfile) {
+            const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc);
+            setOpponentRank(opponentRankInfo);
+          } else {
+            // If no profile found, set to unranked
+            setOpponentRank(getRankFromTotalWagered(0));
+          }
+        } else {
+          // No opponent user_id available, set to unranked
+          setOpponentRank(getRankFromTotalWagered(0));
+        }
+      } catch (error) {
+        console.error('[LiveGame] Error fetching ranks:', error);
+        // On error, set to unranked
+        setOpponentRank(getRankFromTotalWagered(0));
+      }
+    };
+
+    fetchRanks();
+  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId]);
+
+  // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
+  useEffect(() => {
+    // Only sync for WebSocket games, not private games
+    const isWebSocketGameIdLocal = gameId?.startsWith('g_') ?? false;
+    if (isPrivateGame || !isWebSocketGameIdLocal || !gameState || phase !== 'in_game') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[LiveGame] Tab became visible, syncing game...');
+        syncGame();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('[LiveGame] Window focused, syncing game...');
+      syncGame();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Sync on reconnect
+    if (status === 'connected') {
+      syncGame();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [gameId, isPrivateGame, gameState, phase, status, syncGame]);
+
   // Loading state (connecting or loading game)
   // For private games, check privateGame.loading instead of WebSocket status
   // Only check privateGame.loading if it's actually a private game (not WebSocket)
@@ -445,109 +548,6 @@ export default function LiveGame() {
     // Could redirect to correct game or show error
   }
 
-  // Fetch player and opponent ranks
-  useEffect(() => {
-    if (!gameState) return;
-
-    const fetchRanks = async () => {
-      try {
-        // Get player rank from profile hook
-        const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
-        setPlayerRank(playerRankInfo);
-
-        // Get opponent rank
-        let opponentUserId: string | null = null;
-
-        if (isPrivateGame && gameState.dbGameId) {
-          // For private games, get opponent from game data
-          const { data: game } = await supabase
-            .from('games')
-            .select(`
-              white_player_id,
-              black_player_id,
-              white_player:players!games_white_player_id_fkey(user_id),
-              black_player:players!games_black_player_id_fkey(user_id)
-            `)
-            .eq('id', gameState.dbGameId)
-            .maybeSingle();
-
-          if (game && user?.id) {
-            // Find opponent user_id
-            const whitePlayerUserId = (game.white_player as any)?.user_id;
-            const blackPlayerUserId = (game.black_player as any)?.user_id;
-            
-            if (gameState.color === 'w') {
-              opponentUserId = blackPlayerUserId;
-            } else {
-              opponentUserId = whitePlayerUserId;
-            }
-          }
-        } else if (!isPrivateGame) {
-          // For WebSocket games, get from matchmaking state
-          opponentUserId = matchmaking.opponentUserId || null;
-        }
-
-        if (opponentUserId) {
-          // Fetch opponent's profile
-          const { data: opponentProfile } = await supabase
-            .from('profiles')
-            .select('total_wagered_sc')
-            .eq('user_id', opponentUserId)
-            .maybeSingle();
-
-          if (opponentProfile) {
-            const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc);
-            setOpponentRank(opponentRankInfo);
-          } else {
-            // If no profile found, set to unranked
-            setOpponentRank(getRankFromTotalWagered(0));
-          }
-        } else {
-          // No opponent user_id available, set to unranked
-          setOpponentRank(getRankFromTotalWagered(0));
-        }
-      } catch (error) {
-        console.error('[LiveGame] Error fetching ranks:', error);
-        // On error, set to unranked
-        setOpponentRank(getRankFromTotalWagered(0));
-      }
-    };
-
-    fetchRanks();
-  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId]);
-
-  // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
-  useEffect(() => {
-    // Only sync for WebSocket games, not private games
-    const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
-    if (isPrivateGame || !isWebSocketGameId || !gameState || phase !== 'in_game') return;
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('[LiveGame] Tab became visible, syncing game...');
-        syncGame();
-      }
-    };
-
-    const handleFocus = () => {
-      console.log('[LiveGame] Window focused, syncing game...');
-      syncGame();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    // Sync on reconnect
-    if (status === 'connected') {
-      syncGame();
-    }
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [isPrivateGame, gameState, phase, status, syncGame]);
-
   // Guard against null gameState (prevents React error #300)
   if (!gameState) {
     return (
@@ -563,7 +563,7 @@ export default function LiveGame() {
 
   // For private games, use Realtime state; for WebSocket games, use store state
   // Only use privateGame state if it's actually a private game (not WebSocket)
-  const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
+  // Note: isWebSocketGameId is already defined at component level (line 60)
   const usePrivateGameState = isPrivateGame && !isWebSocketGameId && privateGame.gameState;
   
   const currentFen = usePrivateGameState
