@@ -17,7 +17,7 @@ interface ChessBoardProps {
   onCheckSound?: () => void;
 }
 
-export const ChessBoard = ({ 
+const ChessBoardComponent = ({ 
   game, 
   onMove, 
   isPlayerTurn, 
