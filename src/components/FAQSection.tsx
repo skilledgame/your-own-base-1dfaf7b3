@@ -28,9 +28,9 @@ const faqItems = [
       "If a player disconnects during a game, Skilled’s system will try to reconnect them automatically within a short time. If the player cannot rejoin, the match may be paused briefly or ended according to the specific game’s rules. In many cases, the disconnected player may forfeit the match, and the opponent will be declared the winner based on skill and progress at the time of disconnection. This approach helps keep gameplay fair and ensures a good experience for all players.",
   },
   {
-    question: "Is crypto required to play?",
+    question: "Can I play against friends?",
     answer:
-      "No, crypto is not required to play. You can enjoy free plays without depositing. However, to compete for prizes and earn Skilled Coins, you'll need to deposit using one of our supported cryptocurrencies.",
+      "Yes! Skilled lets you challenge your friends to one-on-one matches and compete in tournaments together. You can invite friends directly through the platform and set up games with custom rules. Playing against people you know is a great way to practice, improve your skills, and enjoy competitive fun in a trusted environment.",
   },
 ];
 
