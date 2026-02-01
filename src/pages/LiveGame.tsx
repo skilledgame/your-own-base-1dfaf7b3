@@ -46,6 +46,7 @@ export default function LiveGame() {
     disconnect,
     sendMove: wsSendMove,
     resignGame,
+    syncGame,
     clearGameEnd,
     refreshBalance,
     logs,
@@ -442,6 +443,46 @@ export default function LiveGame() {
 
     fetchRanks();
   }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId]);
+
+  // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
+  useEffect(() => {
+    if (isPrivateGame || !gameState || phase !== 'in_game') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[LiveGame] Tab became visible, syncing game...');
+        syncGame();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('[LiveGame] Window focused, syncing game...');
+      syncGame();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Sync on reconnect
+    if (status === 'connected') {
+      syncGame();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isPrivateGame, gameState, phase, status, syncGame]);
+
+  // Guard against null gameState (prevents React error #300)
+  if (!gameState) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">Game state not available</p>
+        <Button onClick={handleBack}>Go Home</Button>
+      </div>
+    );
+  }
 
   // Convert color from "w"/"b" to "white"/"black"
   const playerColor = gameState.color === "w" ? "white" : "black";

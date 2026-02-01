@@ -46,6 +46,7 @@ interface UseChessWebSocketReturn {
   // Game actions
   sendMove: (from: string, to: string, promotion?: string) => void;
   resignGame: () => void;
+  syncGame: () => void;
   clearGameEnd: () => void;
   
   // Balance
@@ -157,6 +158,24 @@ function initializeGlobalMessageHandler(): void {
         // Get opponent name from payload (try new format first, then legacy)
         const opponentName = payload.opponent?.name || (payload as any).opponentName || "Opponent";
         
+        // Initialize timer snapshot if server provided it
+        if (payload.whiteTime !== undefined && payload.blackTime !== undefined && payload.serverTimeMs) {
+          store.updateTimerSnapshot({
+            whiteTimeSeconds: payload.whiteTime,
+            blackTimeSeconds: payload.blackTime,
+            serverTimeMs: payload.serverTimeMs,
+            currentTurn: 'w', // White moves first
+          });
+        } else {
+          // Fallback: initialize with default values
+          store.updateTimerSnapshot({
+            whiteTimeSeconds: 60,
+            blackTimeSeconds: 60,
+            serverTimeMs: Date.now(),
+            currentTurn: 'w',
+          });
+        }
+        
         // STEP D: Update normalized matchmaking state
         store.setMatchmakingMatch({
           matchId,
@@ -193,6 +212,44 @@ function initializeGlobalMessageHandler(): void {
         
         // Update FEN from server (server is authoritative)
         store.updateFromServer(payload.fen, payload.turn);
+        
+        // If server sent timer data, update it (server-authoritative)
+        if (payload.whiteTime !== undefined && payload.blackTime !== undefined && payload.serverTimeMs) {
+          // Store timer snapshot for server-authoritative calculation
+          store.updateTimerSnapshot({
+            whiteTimeSeconds: payload.whiteTime,
+            blackTimeSeconds: payload.blackTime,
+            serverTimeMs: payload.serverTimeMs,
+            currentTurn: payload.turn,
+          });
+        }
+        break;
+      }
+      
+      case "game_sync": {
+        const payload = msg as unknown as GameSyncMessage;
+        console.log("[Chess WS]", clientId, "Game sync received:", payload);
+        
+          // Update game state from server sync
+        if (store.gameState && store.gameState.gameId === payload.gameId) {
+          store.updateFromServer(payload.fen, payload.turn);
+          
+          // Update timer snapshot (server-authoritative)
+          store.updateTimerSnapshot({
+            whiteTimeSeconds: payload.whiteTime,
+            blackTimeSeconds: payload.blackTime,
+            serverTimeMs: payload.serverTimeMs,
+            currentTurn: payload.turn,
+          });
+          
+          // If game ended, handle it
+          if (payload.status === "ended") {
+            // Game already ended - this is just a sync, don't trigger game end again
+            console.log("[Chess WS] Sync shows game already ended");
+            // But we should still clear timer snapshot
+            store.clearTimerSnapshot();
+          }
+        }
         break;
       }
       
@@ -224,6 +281,9 @@ function initializeGlobalMessageHandler(): void {
           creditsChange = -wager;  // Lost the wager
         }
         // Draw = no change
+        
+        // Clear timer snapshot on game end
+        store.clearTimerSnapshot();
         
         store.handleGameEnd({
           reason: payload.reason,
@@ -629,7 +689,14 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
   }, []);
 
   const resignGame = useCallback(() => {
-    const currentGameState = useChessStore.getState().gameState;
+    const currentState = useChessStore.getState();
+    const currentGameState = currentState.gameState;
+    
+    // Idempotent: if game already ended, do nothing
+    if (currentState.phase === "game_over") {
+      console.log("[Chess WS] Game already ended, resign is no-op");
+      return;
+    }
     
     if (!currentGameState) {
       console.warn("[Chess WS] Cannot resign - no game state");
@@ -639,8 +706,27 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     const payload = {
       type: "resign",
       gameId: currentGameState.gameId,
+      dbGameId: currentGameState.dbGameId,
     };
 
+    console.log("[Chess WS] Sending resign:", payload);
+    wsClient.send(payload);
+  }, []);
+
+  const syncGame = useCallback(() => {
+    const currentGameState = useChessStore.getState().gameState;
+    
+    if (!currentGameState) {
+      console.warn("[Chess WS] Cannot sync - no game state");
+      return;
+    }
+
+    const payload = {
+      type: "sync_game",
+      gameId: currentGameState.gameId,
+    };
+
+    console.log("[Chess WS] Requesting game sync:", payload);
     wsClient.send(payload);
   }, []);
 
@@ -673,6 +759,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     cancelSearch,
     sendMove,
     resignGame,
+    syncGame,
     clearGameEnd,
     refreshBalance,
     logs,
@@ -689,6 +776,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     cancelSearch,
     sendMove,
     resignGame,
+    syncGame,
     clearGameEnd,
     refreshBalance,
     logs,

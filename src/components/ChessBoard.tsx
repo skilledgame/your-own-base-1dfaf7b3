@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { Chess, Square as ChessSquare, Move } from 'chess.js';
 import { cn } from '@/lib/utils';
 import { PIECE_SYMBOLS, FILES, RANKS } from '@/lib/chessConstants';
@@ -252,3 +252,17 @@ export const ChessBoard = ({
     </div>
   );
 };
+
+// Memoize to prevent unnecessary re-renders
+export const ChessBoard = memo(ChessBoardComponent, (prevProps, nextProps) => {
+  // Only re-render if these props change
+  return (
+    prevProps.game.fen() === nextProps.game.fen() &&
+    prevProps.isPlayerTurn === nextProps.isPlayerTurn &&
+    prevProps.lastMove?.from === nextProps.lastMove?.from &&
+    prevProps.lastMove?.to === nextProps.lastMove?.to &&
+    prevProps.isCheck === nextProps.isCheck &&
+    prevProps.flipped === nextProps.flipped &&
+    prevProps.isGameOver === nextProps.isGameOver
+  );
+});

@@ -63,13 +63,23 @@ export interface LeaveGameMessage {
   type: "leave_game";
 }
 
+/**
+ * Request game sync - sent when client needs to resync game state
+ * (e.g., after reconnect, tab focus, or refresh)
+ */
+export interface SyncGameMessage {
+  type: "sync_game";
+  gameId: string;
+}
+
 // All outbound message types
 export type OutboundMessage =
   | FindMatchMessage
   | CancelSearchMessage
   | MoveMessage
   | ResignMessage
-  | LeaveGameMessage;
+  | LeaveGameMessage
+  | SyncGameMessage;
 
 // ============ Inbound Messages ============
 
@@ -101,6 +111,9 @@ export interface MatchFoundMessage {
   color: "w" | "b";         // "w" for white, "b" for black
   fen: string;
   wager: number;            // Wager amount for this game
+  whiteTime?: number;       // Initial white time in seconds
+  blackTime?: number;       // Initial black time in seconds
+  serverTimeMs?: number;    // Server timestamp
   opponent?: {
     name: string;
     playerId?: string;
@@ -121,6 +134,25 @@ export interface MoveAppliedMessage {
     promotion?: string;
   } | string;  // Can be object or UCI string
   turn: "w" | "b";
+  whiteTime?: number;  // Server-authoritative time in seconds
+  blackTime?: number;  // Server-authoritative time in seconds
+  serverTimeMs?: number;  // Server timestamp when this state was calculated
+}
+
+/**
+ * Game sync - server response to sync_game request
+ * Contains full authoritative game state including clocks
+ */
+export interface GameSyncMessage {
+  type: "game_sync";
+  gameId: string;
+  fen: string;
+  turn: "w" | "b";
+  whiteTime: number;  // Remaining time in seconds
+  blackTime: number;  // Remaining time in seconds
+  serverTimeMs: number;  // Server timestamp (milliseconds since epoch)
+  status: "active" | "ended";
+  wager?: number;
 }
 
 /**
@@ -156,6 +188,7 @@ export type InboundMessage =
   | SearchingMessage
   | MatchFoundMessage
   | MoveAppliedMessage
+  | GameSyncMessage
   | GameEndedMessage
   | OpponentLeftMessage
   | ErrorMessage

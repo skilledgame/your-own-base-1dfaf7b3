@@ -6,7 +6,7 @@
  * Displays wager, balance, captured pieces, and material advantage.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { ChessBoard } from './ChessBoard';
 import { GameTimer } from './GameTimer';
 import { CapturedPieces } from './CapturedPieces';
@@ -18,6 +18,7 @@ import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chess
 import { useChessSound } from '@/hooks/useChessSound';
 import { supabase } from '@/integrations/supabase/client';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
+import { useChessStore } from '@/stores/chessStore';
 
 interface WSMultiplayerGameViewProps {
   gameId: string;
@@ -74,19 +75,49 @@ export const WSMultiplayerGameView = ({
   // Track OPPONENT's last move only (not your own)
   const [opponentLastMove, setOpponentLastMove] = useState<{ from: string; to: string } | null>(null);
   
-  // Timers - use props for private games, local state for WebSocket games
-  const [whiteTimeLocal, setWhiteTimeLocal] = useState<number>(CHESS_TIME_CONTROL.BASE_TIME);
-  const [blackTimeLocal, setBlackTimeLocal] = useState<number>(CHESS_TIME_CONTROL.BASE_TIME);
-  const whiteTime = isPrivateGame && propWhiteTime !== undefined ? propWhiteTime : whiteTimeLocal;
-  const blackTime = isPrivateGame && propBlackTime !== undefined ? propBlackTime : blackTimeLocal;
+  // Get timer snapshot from store (server-authoritative for WebSocket games)
+  const timerSnapshot = useChessStore((state) => state.timerSnapshot);
+  
+  // Timers - use props for private games, calculate from snapshot for WebSocket games
   const [isGameOver, setIsGameOver] = useState(false);
   
   // Track whose turn it was when they moved (for increment)
   const lastMoveByRef = useRef<'w' | 'b' | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTickRef = useRef<number>(Date.now());
-  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const gameChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const renderFrameRef = useRef<number | null>(null);
+  
+  // Calculate effective time from server snapshot (only for WebSocket games)
+  const { whiteTime, blackTime } = useMemo(() => {
+    if (isPrivateGame) {
+      return {
+        whiteTime: propWhiteTime ?? CHESS_TIME_CONTROL.BASE_TIME,
+        blackTime: propBlackTime ?? CHESS_TIME_CONTROL.BASE_TIME,
+      };
+    }
+    
+    // For WebSocket games, calculate from server snapshot
+    if (!timerSnapshot || isGameOver) {
+      return {
+        whiteTime: CHESS_TIME_CONTROL.BASE_TIME,
+        blackTime: CHESS_TIME_CONTROL.BASE_TIME,
+      };
+    }
+    
+    const nowMs = Date.now();
+    const elapsedMs = nowMs - timerSnapshot.serverTimeMs;
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    
+    let whiteTime = timerSnapshot.whiteTimeSeconds;
+    let blackTime = timerSnapshot.blackTimeSeconds;
+    
+    // Only count down for the side whose turn it is
+    if (timerSnapshot.currentTurn === 'w') {
+      whiteTime = Math.max(0, whiteTime - elapsedSeconds);
+    } else {
+      blackTime = Math.max(0, blackTime - elapsedSeconds);
+    }
+    
+    return { whiteTime, blackTime };
+  }, [isPrivateGame, propWhiteTime, propBlackTime, timerSnapshot, isGameOver]);
   
   // Sound effects
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
@@ -94,17 +125,29 @@ export const WSMultiplayerGameView = ({
   const isWhite = playerColor === "white";
   const myColor = isWhite ? 'w' : 'b';
 
-  // Calculate captured pieces and material
-  const capturedPieces = calculateCapturedPieces(chess);
-  const materialAdvantage = calculateMaterialAdvantage(chess);
+  // Calculate captured pieces and material (memoized to prevent recalculation)
+  const capturedPieces = useMemo(() => calculateCapturedPieces(chess), [chess.fen()]);
+  const materialAdvantage = useMemo(() => calculateMaterialAdvantage(chess), [chess.fen()]);
   
   // My captured pieces (pieces I captured = opponent's missing pieces)
-  const myCaptured = isWhite ? capturedPieces.white : capturedPieces.black;
-  const opponentCaptured = isWhite ? capturedPieces.black : capturedPieces.white;
+  const myCaptured = useMemo(() => 
+    isWhite ? capturedPieces.white : capturedPieces.black,
+    [isWhite, capturedPieces]
+  );
+  const opponentCaptured = useMemo(() => 
+    isWhite ? capturedPieces.black : capturedPieces.white,
+    [isWhite, capturedPieces]
+  );
   
   // Material advantage from my perspective
-  const myMaterialAdvantage = isWhite ? materialAdvantage.difference : -materialAdvantage.difference;
-  const opponentMaterialAdvantage = -myMaterialAdvantage;
+  const myMaterialAdvantage = useMemo(() => 
+    isWhite ? materialAdvantage.difference : -materialAdvantage.difference,
+    [isWhite, materialAdvantage.difference]
+  );
+  const opponentMaterialAdvantage = useMemo(() => 
+    -myMaterialAdvantage,
+    [myMaterialAdvantage]
+  );
 
   // Sync with server FEN (server is authoritative)
   useEffect(() => {
@@ -137,14 +180,10 @@ export const WSMultiplayerGameView = ({
           }
           
           // Track for increment (only apply once)
+          // Note: Server handles increment, we just track for display
           if (lastMoveByRef.current !== prevTurn && !isPrivateGame) {
             lastMoveByRef.current = prevTurn;
-            // Opponent gets increment for their move
-            if (prevTurn === 'w') {
-              setWhiteTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
-            } else {
-              setBlackTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
-            }
+            // Server will send updated timer snapshot in move_applied message
           }
         }
       } catch (e) {
@@ -153,173 +192,60 @@ export const WSMultiplayerGameView = ({
     }
   }, [currentFen, chess, localFen, myColor, isPrivateGame]);
 
-  // Initialize timer from database and subscribe to realtime updates (only for WebSocket games)
+  // Render loop for timer display (server-authoritative calculation)
   useEffect(() => {
-    if (isPrivateGame || !dbGameId) {
-      // Private games handle timers in usePrivateGame hook
-      return;
-    }
-
-    // Initial load from database
-    const loadInitialTimer = async () => {
-      try {
-        const { data: game, error } = await supabase
-          .from('games')
-          .select('white_time, black_time')
-          .eq('id', dbGameId)
-          .maybeSingle();
-
-        if (!error && game) {
-          if (game.white_time !== null && game.white_time !== undefined) {
-            setWhiteTimeLocal(game.white_time);
-          }
-          if (game.black_time !== null && game.black_time !== undefined) {
-            setBlackTimeLocal(game.black_time);
-          }
-          lastTickRef.current = Date.now();
-          console.log('[Game] Timer initialized from database:', { white: game.white_time, black: game.black_time });
-        }
-      } catch (error) {
-        console.error('[Game] Error loading initial timer:', error);
-      }
-    };
-
-    loadInitialTimer();
-
-    // Subscribe to realtime updates for timer sync
-    gameChannelRef.current = supabase
-      .channel(`game-timer-${dbGameId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'games',
-        filter: `id=eq.${dbGameId}`,
-      }, (payload) => {
-        const updated = payload.new as any;
-        if (updated.white_time !== null && updated.white_time !== undefined) {
-          setWhiteTimeLocal(updated.white_time);
-        }
-        if (updated.black_time !== null && updated.black_time !== undefined) {
-          setBlackTimeLocal(updated.black_time);
-        }
-        lastTickRef.current = Date.now();
-        console.log('[Game] Timer synced from realtime:', { white: updated.white_time, black: updated.black_time });
-      })
-      .subscribe();
-
-    // Sync timer to server every 3 seconds (less frequent to reduce load)
-    syncTimerRef.current = setInterval(async () => {
-      if (isGameOver || !dbGameId) {
-        if (syncTimerRef.current) {
-          clearInterval(syncTimerRef.current);
-          syncTimerRef.current = null;
-        }
-        return;
-      }
-
-      try {
-        const { error } = await supabase
-          .from('games')
-          .update({
-            white_time: whiteTimeLocal,
-            black_time: blackTimeLocal,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', dbGameId)
-          .eq('status', 'active'); // Only update if game is still active
-
-        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows updated (game might be over)
-          console.error('[Game] Error syncing timer to server:', error);
-        }
-      } catch (error) {
-        // Silently fail - don't spam console if game is already over
-        if (!isGameOver) {
-          console.error('[Game] Error syncing timer to server:', error);
-        }
-      }
-    }, 3000);
-
-    return () => {
-      if (gameChannelRef.current) {
-        supabase.removeChannel(gameChannelRef.current);
-        gameChannelRef.current = null;
-      }
-      if (syncTimerRef.current) {
-        clearInterval(syncTimerRef.current);
-        syncTimerRef.current = null;
-      }
-    };
-  }, [dbGameId, isPrivateGame]);
-
-  // Timer countdown with time loss handling (only for WebSocket games)
-  // Uses elapsed time calculation to work correctly even when tab is hidden
-  // Private games handle timers in usePrivateGame hook
-  useEffect(() => {
-    if (isPrivateGame) {
-      // Don't run local timer for private games - usePrivateGame handles it
-      return;
-    }
-
-    if (isGameOver) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      if (syncTimerRef.current) {
-        clearInterval(syncTimerRef.current);
-        syncTimerRef.current = null;
-      }
-      if (gameChannelRef.current) {
-        supabase.removeChannel(gameChannelRef.current);
-        gameChannelRef.current = null;
+    if (isPrivateGame || isGameOver) {
+      if (renderFrameRef.current) {
+        cancelAnimationFrame(renderFrameRef.current);
+        renderFrameRef.current = null;
       }
       return;
     }
 
-    // Reset last tick time when starting timer
-    lastTickRef.current = Date.now();
-
-    timerRef.current = setInterval(() => {
-      const now = Date.now();
-      const elapsedSeconds = Math.floor((now - lastTickRef.current) / 1000);
-      
-      if (elapsedSeconds < 1) return;
-      
-      lastTickRef.current = now;
-      const currentTurn = chess.turn();
-      
-      if (currentTurn === 'w') {
-        setWhiteTimeLocal(prev => {
-          const newTime = Math.max(0, prev - elapsedSeconds);
-          if (newTime === 0 && !isGameOver) {
-            // White loses on time
+    // Use requestAnimationFrame for smooth updates without mutating time
+    const render = () => {
+      // Check for time loss (calculated from snapshot)
+      // Only check if we have a valid snapshot
+      if (timerSnapshot && timerSnapshot.serverTimeMs > 0) {
+        const nowMs = Date.now();
+        const elapsedMs = nowMs - timerSnapshot.serverTimeMs;
+        const elapsedSeconds = Math.floor(elapsedMs / 1000);
+        
+        if (timerSnapshot.currentTurn === 'w') {
+          const remaining = timerSnapshot.whiteTimeSeconds - elapsedSeconds;
+          if (remaining <= 0 && !isGameOver) {
             setIsGameOver(true);
             playGameEnd();
             onTimeLoss?.('w');
+            return;
           }
-          return newTime;
-        });
-      } else {
-        setBlackTimeLocal(prev => {
-          const newTime = Math.max(0, prev - elapsedSeconds);
-          if (newTime === 0 && !isGameOver) {
-            // Black loses on time
+        } else {
+          const remaining = timerSnapshot.blackTimeSeconds - elapsedSeconds;
+          if (remaining <= 0 && !isGameOver) {
             setIsGameOver(true);
             playGameEnd();
             onTimeLoss?.('b');
+            return;
           }
-          return newTime;
-        });
+        }
       }
-    }, 1000); // Update every second
+
+      // Schedule next render (throttle to ~60fps)
+      renderFrameRef.current = requestAnimationFrame(render);
+    };
+
+    renderFrameRef.current = requestAnimationFrame(render);
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (renderFrameRef.current) {
+        cancelAnimationFrame(renderFrameRef.current);
+        renderFrameRef.current = null;
       }
     };
-  }, [chess, isGameOver, onTimeLoss, playGameEnd, isPrivateGame]);
+  }, [timerSnapshot, isGameOver, isPrivateGame, onTimeLoss, playGameEnd]);
+
+  // Timer display is now server-authoritative - no local countdown needed
+  // The render loop above handles time loss detection based on server snapshot
 
   // Handle local move with sound and increment
   const handleMove = useCallback((from: string, to: string, promotion?: string): boolean => {
@@ -370,16 +296,7 @@ export const WSMultiplayerGameView = ({
       setLocalFen(chess.fen());
       // Don't set opponent's last move for our own moves - we only highlight opponent's moves
       
-      // Apply increment to the player who just moved (me) - only for WebSocket games
-      // Private games handle increment in make-move Edge Function
-      if (!isPrivateGame) {
-        if (myColor === 'w') {
-          setWhiteTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
-        } else {
-          setBlackTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
-        }
-        // The periodic sync will handle updating the server
-      }
+      // Server handles increment - it will send updated timer snapshot in move_applied message
       lastMoveByRef.current = myColor;
 
       // Send to server
@@ -390,7 +307,7 @@ export const WSMultiplayerGameView = ({
       console.error("[Game] Move error:", e);
       return false;
     }
-  }, [chess, isMyTurn, localFen, onSendMove, isGameOver, whiteTime, blackTime, myColor, isPrivateGame]);
+  }, [chess, isMyTurn, localFen, onSendMove, isGameOver, myColor, isPrivateGame]);
 
   const myTime = isWhite ? whiteTime : blackTime;
   const opponentTime = isWhite ? blackTime : whiteTime;

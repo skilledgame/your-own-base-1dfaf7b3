@@ -8,6 +8,7 @@ import { WalletModalProvider } from "@/contexts/WalletModalContext";
 import { AuthLoadingScreen } from "@/components/AuthLoadingScreen";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { GameErrorBoundary } from "@/components/GameErrorBoundary";
 import { WalletModal } from "@/components/WalletModal";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import Index from "./pages/Index";
@@ -109,7 +110,11 @@ const App = () => (
                     <Route path="/leaderboard" element={<Leaderboard />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/quick-play" element={<QuickPlay />} />
-                    <Route path="/game/live/:gameId" element={<LiveGame />} />
+                    <Route path="/game/live/:gameId" element={
+                      <GameErrorBoundary>
+                        <LiveGame />
+                      </GameErrorBoundary>
+                    } />
                     <Route path="/affiliate" element={<Affiliate />} />
                     <Route path="/vip" element={<VIP />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

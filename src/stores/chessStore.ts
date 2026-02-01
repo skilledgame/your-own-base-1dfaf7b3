@@ -9,6 +9,13 @@
 
 import { create } from 'zustand';
 
+export interface TimerSnapshot {
+  whiteTimeSeconds: number;
+  blackTimeSeconds: number;
+  serverTimeMs: number;
+  currentTurn: 'w' | 'b';
+}
+
 export type GamePhase = "idle" | "searching" | "in_game" | "game_over";
 
 // Normalized matchmaking state (primitives only, no raw objects)
@@ -56,6 +63,7 @@ interface ChessStore {
   selectedWager: number;       // Selected wager for next match
   isAuthenticated: boolean;    // Whether user is signed in
   matchmaking: MatchmakingState;  // Normalized matchmaking state
+  timerSnapshot: TimerSnapshot | null;  // Server-authoritative timer snapshot
   
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -98,6 +106,10 @@ interface ChessStore {
   setMatchmakingMatch: (data: { matchId: string; dbMatchId?: string; opponentUserId?: string; color?: "w" | "b"; wager?: number }) => void;
   setMatchmakingError: (error: string) => void;
   resetMatchmaking: () => void;
+  
+  // Timer snapshot (server-authoritative)
+  updateTimerSnapshot: (snapshot: TimerSnapshot) => void;
+  clearTimerSnapshot: () => void;
 }
 
 export const useChessStore = create<ChessStore>((set, get) => ({
@@ -117,6 +129,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     opponentUserId: null,
     color: null,
   },
+  timerSnapshot: null,
   
   // Actions
   setPhase: (phase) => {
@@ -173,6 +186,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       phase: "idle",
       gameState: null,
       gameEndResult: null,
+      timerSnapshot: null,
       matchmaking: {
         status: "idle",
         wager: null,
@@ -229,6 +243,14 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     });
   },
   
+  updateTimerSnapshot: (snapshot) => {
+    set({ timerSnapshot: snapshot });
+  },
+  
+  clearTimerSnapshot: () => {
+    set({ timerSnapshot: null });
+  },
+  
   clearGameEnd: () => {
     console.log("[ChessStore] clearGameEnd");
     set({ gameEndResult: null });
@@ -268,7 +290,13 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       return;
     }
     
-    const myColor = gameState?.color || null;
+    // GUARD: Ensure gameState exists
+    if (!gameState) {
+      console.warn("[ChessStore] handleGameEnd IGNORED - no gameState");
+      return;
+    }
+    
+    const myColor = gameState.color || null;
     
     const isWin = myColor !== null && myColor === winnerColor;
     const isDraw = winnerColor === null && reason !== "disconnect" && reason !== "opponent_disconnect";
@@ -297,6 +325,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
         message,
         creditsChange,
       },
+      timerSnapshot: null, // Clear timer snapshot on game end
       // Keep gameState so we can still render the final board position
     });
   },
