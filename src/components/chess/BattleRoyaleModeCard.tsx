@@ -26,9 +26,9 @@ export const BattleRoyaleModeCard = ({
     <div
       ref={cardRef}
       className={`
-        relative flex-1 min-w-[200px] max-w-[400px] cursor-pointer
+        relative w-full md:flex-1 md:min-w-[200px] md:max-w-[400px] cursor-pointer
         transition-all duration-500 ease-out
-        ${isActive ? 'flex-[1.3] z-20' : 'flex-1 z-10'}
+        ${isActive ? 'md:flex-[1.3] z-20' : 'md:flex-1 z-10'}
         opacity-70 cursor-not-allowed
       `}
       onMouseEnter={() => onHover(true)}
@@ -38,7 +38,7 @@ export const BattleRoyaleModeCard = ({
       {/* Card Container - yellow/amber themed background */}
       <div
         className={`
-          relative h-[380px] sm:h-[420px] md:h-[460px] rounded-2xl overflow-hidden
+          relative h-[200px] sm:h-[280px] md:h-[460px] rounded-2xl overflow-hidden
           border-2 transition-all duration-500
           ${isActive 
             ? 'border-white/40' 

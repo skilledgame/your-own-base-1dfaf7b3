@@ -289,7 +289,7 @@ export default function ChessHome() {
 
         {/* Game Mode Cards */}
         <div className="flex-1 flex items-center justify-center px-4 pb-8">
-          <div className="flex gap-4 sm:gap-6 md:gap-8 items-center justify-center max-w-6xl w-full">
+          <div className="flex flex-col md:flex-row gap-4 sm:gap-6 md:gap-8 items-center justify-center max-w-6xl w-full">
             {/* Private Mode - Knight piece (red themed) */}
             <PrivateModeCard
               isHovered={hoveredMode === 'private'}
