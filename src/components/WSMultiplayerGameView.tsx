@@ -63,7 +63,8 @@ export const WSMultiplayerGameView = ({
   // Local chess instance for move validation
   const [chess] = useState(() => new Chess(currentFen || initialFen));
   const [localFen, setLocalFen] = useState(currentFen || initialFen);
-  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
+  // Track OPPONENT's last move only (not your own)
+  const [opponentLastMove, setOpponentLastMove] = useState<{ from: string; to: string } | null>(null);
   
   // Timers - use props for private games, local state for WebSocket games
   const [whiteTimeLocal, setWhiteTimeLocal] = useState<number>(CHESS_TIME_CONTROL.BASE_TIME);
@@ -75,6 +76,7 @@ export const WSMultiplayerGameView = ({
   // Track whose turn it was when they moved (for increment)
   const lastMoveByRef = useRef<'w' | 'b' | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTickRef = useRef<number>(Date.now());
   
   // Sound effects
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
@@ -99,20 +101,35 @@ export const WSMultiplayerGameView = ({
     if (currentFen && currentFen !== localFen) {
       try {
         const previousFen = localFen;
+        
+        // Try to detect what move the opponent made
+        const prevChess = new Chess(previousFen);
+        const prevTurn = prevChess.turn();
+        
         chess.load(currentFen);
         setLocalFen(currentFen);
         
-        // Detect if this was an opponent's move and apply increment to them
-        const prevChess = new Chess(previousFen);
-        const prevTurn = prevChess.turn();
         const newTurn = chess.turn();
         
-        // If turn changed, the previous turn's player made a move
-        if (prevTurn !== newTurn && lastMoveByRef.current !== prevTurn) {
-          lastMoveByRef.current = prevTurn;
+        // If turn changed AND it's now my turn, the opponent just moved
+        // Try to figure out what move they made to highlight it
+        if (prevTurn !== newTurn && newTurn === myColor) {
+          // Opponent just moved - try to find their move
+          const possibleMoves = prevChess.moves({ verbose: true });
+          for (const move of possibleMoves) {
+            const testChess = new Chess(previousFen);
+            testChess.move(move);
+            if (testChess.fen().split(' ')[0] === currentFen.split(' ')[0]) {
+              // Found the opponent's move
+              setOpponentLastMove({ from: move.from, to: move.to });
+              break;
+            }
+          }
           
-          // Apply increment to the player who just moved (only for WebSocket games)
-          if (!isPrivateGame) {
+          // Track for increment (only apply once)
+          if (lastMoveByRef.current !== prevTurn && !isPrivateGame) {
+            lastMoveByRef.current = prevTurn;
+            // Opponent gets increment for their move
             if (prevTurn === 'w') {
               setWhiteTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
             } else {
@@ -124,9 +141,10 @@ export const WSMultiplayerGameView = ({
         console.error("[Game] Invalid FEN from server:", currentFen);
       }
     }
-  }, [currentFen, chess, localFen]);
+  }, [currentFen, chess, localFen, myColor, isPrivateGame]);
 
   // Timer countdown with time loss handling (only for WebSocket games)
+  // Uses elapsed time calculation to work correctly even when tab is hidden
   // Private games handle timers in usePrivateGame hook
   useEffect(() => {
     if (isPrivateGame) {
@@ -142,12 +160,21 @@ export const WSMultiplayerGameView = ({
       return;
     }
 
+    // Reset last tick time when starting timer
+    lastTickRef.current = Date.now();
+
     timerRef.current = setInterval(() => {
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - lastTickRef.current) / 1000);
+      
+      if (elapsedSeconds < 1) return;
+      
+      lastTickRef.current = now;
       const currentTurn = chess.turn();
       
       if (currentTurn === 'w') {
         setWhiteTimeLocal(prev => {
-          const newTime = Math.max(0, prev - 1);
+          const newTime = Math.max(0, prev - elapsedSeconds);
           if (newTime === 0 && !isGameOver) {
             // White loses on time
             setIsGameOver(true);
@@ -158,7 +185,7 @@ export const WSMultiplayerGameView = ({
         });
       } else {
         setBlackTimeLocal(prev => {
-          const newTime = Math.max(0, prev - 1);
+          const newTime = Math.max(0, prev - elapsedSeconds);
           if (newTime === 0 && !isGameOver) {
             // Black loses on time
             setIsGameOver(true);
@@ -168,14 +195,14 @@ export const WSMultiplayerGameView = ({
           return newTime;
         });
       }
-    }, 1000);
+    }, 200); // Check more frequently for smoother updates
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, [chess, isGameOver, onTimeLoss, playGameEnd]);
+  }, [chess, isGameOver, onTimeLoss, playGameEnd, isPrivateGame]);
 
   // Handle local move with sound and increment
   const handleMove = useCallback((from: string, to: string, promotion?: string): boolean => {
@@ -224,7 +251,7 @@ export const WSMultiplayerGameView = ({
       // Optimistic update - show move immediately
       chess.move({ from, to, promotion: promoChar });
       setLocalFen(chess.fen());
-      setLastMove({ from, to });
+      // Don't set opponent's last move for our own moves - we only highlight opponent's moves
       
       // Apply increment to the player who just moved (me) - only for WebSocket games
       // Private games handle increment in make-move Edge Function
@@ -320,12 +347,12 @@ export const WSMultiplayerGameView = ({
             <GameTimer timeLeft={opponentTime} isActive={!isMyTurn && !isGameOver} />
           </div>
 
-          {/* Chess Board with sound callbacks */}
+          {/* Chess Board with sound callbacks - only show opponent's last move */}
           <ChessBoard
             game={chess}
             onMove={handleMove}
             isPlayerTurn={isMyTurn && !isGameOver}
-            lastMove={lastMove}
+            lastMove={opponentLastMove}
             isCheck={chess.isCheck()}
             flipped={!isWhite}
             isGameOver={isGameOver}

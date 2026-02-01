@@ -157,8 +157,8 @@ export const ChessBoard = ({
   // We want to highlight opponent's king when WE put them in check (after our move, it's their turn)
   const opponentKingSquare = isCheck && !isPlayerTurn ? getOpponentKingSquare() : null;
 
-  // Only show lastMove highlight if it's opponent's move (when it's now our turn)
-  const showOpponentLastMove = lastMove && isPlayerTurn;
+  // Show opponent's last move highlight (now always shown since lastMove only contains opponent's move)
+  const showLastMove = lastMove !== null;
 
   const validMoveSquares = validMoves.map(m => m.to);
 
@@ -172,7 +172,7 @@ export const ChessBoard = ({
             const isSelected = selectedSquare === square;
             const isValidMove = validMoveSquares.includes(square);
             const isCaptureMove = captureMoves.includes(square);
-            const isOpponentLastMoveSquare = showOpponentLastMove && (lastMove.from === square || lastMove.to === square);
+            const isLastMoveSquare = showLastMove && (lastMove.from === square || lastMove.to === square);
             const isOpponentKingInCheck = opponentKingSquare === square;
             const isCapturing = captureAnimation === square;
 
@@ -184,8 +184,8 @@ export const ChessBoard = ({
                   "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center cursor-pointer relative transition-all duration-150",
                   isLightSquare(row, col) ? "chess-square-light" : "chess-square-dark",
                   isSelected && "ring-4 ring-primary ring-inset",
-                  // Gray highlight for opponent's last move only
-                  isOpponentLastMoveSquare && "bg-muted-foreground/30",
+                  // Gray highlight for opponent's last move
+                  isLastMoveSquare && "bg-muted-foreground/30",
                   // Red highlight only for opponent's king when in check
                   isOpponentKingInCheck && "bg-destructive/40",
                   // Capture highlighting - red tint for capturable squares
@@ -214,19 +214,19 @@ export const ChessBoard = ({
                   </>
                 )}
 
-                {/* Piece */}
+                {/* Piece - explicit colors for white and black pieces */}
                 {piece && (
                   <span
                     className={cn(
-                      "text-4xl sm:text-5xl md:text-6xl select-none transition-transform duration-200 z-30",
-                      piece.color === 'w' ? "text-foreground drop-shadow-lg" : "text-muted-foreground drop-shadow-lg",
+                      "text-4xl sm:text-5xl md:text-6xl select-none transition-transform duration-200 z-30 drop-shadow-lg",
                       isSelected && "scale-110",
                       isCapturing && "animate-bounce-in"
                     )}
                     style={{
+                      color: piece.color === 'w' ? '#FFFFFF' : '#1a1a1a',
                       textShadow: piece.color === 'w' 
-                        ? '2px 2px 4px rgba(0,0,0,0.5)' 
-                        : '2px 2px 4px rgba(0,0,0,0.3)'
+                        ? '1px 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.4)' 
+                        : '1px 1px 2px rgba(255,255,255,0.3), 0 0 4px rgba(0,0,0,0.4)'
                     }}
                   >
                     {PIECE_SYMBOLS[`${piece.color}${piece.type}`]}
