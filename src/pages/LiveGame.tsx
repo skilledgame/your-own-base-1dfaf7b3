@@ -324,16 +324,26 @@ export default function LiveGame() {
         }
 
         if (opponentUserId) {
-          // Fetch opponent's profile
+          // Fetch opponent's profile (name and rank)
           const { data: opponentProfile } = await supabase
             .from('profiles')
-            .select('total_wagered_sc')
+            .select('total_wagered_sc, name, username, display_name')
             .eq('user_id', opponentUserId)
             .maybeSingle();
 
           if (opponentProfile) {
             const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc);
             setOpponentRank(opponentRankInfo);
+            
+            // Update opponent name if it's still "Opponent" or missing
+            const opponentDisplayName = opponentProfile.display_name || opponentProfile.name || opponentProfile.username || null;
+            if (opponentDisplayName && gameState && gameState.opponentName === "Opponent") {
+              // Update the gameState with the actual opponent name
+              setGameState({
+                ...gameState,
+                opponentName: opponentDisplayName,
+              });
+            }
           } else {
             // If no profile found, set to unranked
             setOpponentRank(getRankFromTotalWagered(0));

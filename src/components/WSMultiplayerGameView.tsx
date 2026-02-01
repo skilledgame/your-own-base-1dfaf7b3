@@ -384,12 +384,10 @@ export const WSMultiplayerGameView = ({
               <User className="w-5 h-5 text-muted-foreground" />
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{opponentName}</span>
-                  {opponentRank && (
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
-                      {opponentRankDisplay}
-                    </span>
-                  )}
+                  <span className="font-semibold">{opponentName || "Opponent"}</span>
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
+                    {opponentRankDisplay}
+                  </span>
                 </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Crown className="w-3 h-3" />
@@ -427,11 +425,9 @@ export const WSMultiplayerGameView = ({
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{playerName}</span>
-                  {playerRank && (
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
-                      {playerRankDisplay}
-                    </span>
-                  )}
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
+                    {playerRankDisplay}
+                  </span>
                 </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Crown className="w-3 h-3" />
