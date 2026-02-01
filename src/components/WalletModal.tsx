@@ -54,11 +54,15 @@ export const WalletModal = memo(() => {
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeWallet()}>
       <DialogContent 
         className={cn(
-          "max-w-md w-[95vw] sm:w-full",
+          // Full screen on mobile, constrained modal on desktop
+          "w-full h-full max-w-none max-h-none rounded-none",
+          "md:max-w-md md:w-[95vw] md:h-auto md:max-h-[85vh] md:rounded-2xl",
           "bg-slate-900 border-slate-700/50",
-          "rounded-2xl shadow-2xl shadow-black/50",
+          "shadow-2xl shadow-black/50",
           "p-0 gap-0",
-          "flex flex-col"
+          "flex flex-col",
+          // Remove default dialog positioning on mobile
+          "fixed inset-0 md:inset-auto"
         )}
       >
         {/* Accessible title for screen readers */}
