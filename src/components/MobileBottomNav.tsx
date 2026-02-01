@@ -1,25 +1,28 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, Search, Wallet, BarChart3, User } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, Home, Wallet, BarChart3, User } from 'lucide-react';
 import { MobileFullScreenMenu } from './MobileFullScreenMenu';
 import { MobileProfileSheet } from './MobileProfileSheet';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWalletModal } from '@/contexts/WalletModalContext';
 
 interface MobileBottomNavProps {
   onMenuClick?: () => void;
 }
 
 const navItems = [
-  { icon: Menu, label: 'Menu', path: null, isMenu: true, isProfile: false },
-  { icon: Search, label: 'Search', path: '/search', isMenu: false, isProfile: false },
-  { icon: Wallet, label: 'Wallet', path: '/deposit', isMenu: false, isProfile: false },
-  { icon: BarChart3, label: 'Stats', path: '/stats', isMenu: false, isProfile: false },
-  { icon: User, label: 'Profile', path: null, isMenu: false, isProfile: true },
+  { icon: Menu, label: 'Menu', path: null, isMenu: true, isProfile: false, isHome: false, isWallet: false },
+  { icon: Wallet, label: 'Wallet', path: null, isMenu: false, isProfile: false, isHome: false, isWallet: true },
+  { icon: Home, label: 'Home', path: null, isMenu: false, isProfile: false, isHome: true, isWallet: false },
+  { icon: BarChart3, label: 'Stats', path: '/stats', isMenu: false, isProfile: false, isHome: false, isWallet: false },
+  { icon: User, label: 'Profile', path: null, isMenu: false, isProfile: true, isHome: false, isWallet: false },
 ];
 
 export const MobileBottomNav = ({ onMenuClick }: MobileBottomNavProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { openWallet } = useWalletModal();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -31,9 +34,20 @@ export const MobileBottomNav = ({ onMenuClick }: MobileBottomNavProps) => {
     if (isAuthenticated) {
       setProfileOpen(true);
     } else {
-      // Navigate to auth if not authenticated
       window.location.href = '/auth';
     }
+  };
+
+  const handleHomeClick = () => {
+    if (location.pathname === '/') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleWalletClick = () => {
+    openWallet('deposit');
   };
 
   return (
@@ -61,6 +75,32 @@ export const MobileBottomNav = ({ onMenuClick }: MobileBottomNavProps) => {
                 <button
                   key={index}
                   onClick={handleProfileClick}
+                  className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors duration-200 text-muted-foreground active:text-primary"
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </button>
+              );
+            }
+
+            if (item.isHome) {
+              return (
+                <button
+                  key={index}
+                  onClick={handleHomeClick}
+                  className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors duration-200 ${location.pathname === '/' ? 'text-primary' : 'text-muted-foreground'} active:text-primary`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </button>
+              );
+            }
+
+            if (item.isWallet) {
+              return (
+                <button
+                  key={index}
+                  onClick={handleWalletClick}
                   className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors duration-200 text-muted-foreground active:text-primary"
                 >
                   <item.icon className="w-5 h-5" />
