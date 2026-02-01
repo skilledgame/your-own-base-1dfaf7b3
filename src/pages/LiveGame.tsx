@@ -172,6 +172,14 @@ export default function LiveGame() {
       setIsPrivateGame(false);
       setPrivateGamePlayerId(null);
       
+      // If URL gameId doesn't match store gameId, clear store (including stale gameEndResult)
+      if (gameState && gameState.gameId !== gameId) {
+        console.log('[LiveGame] WebSocket gameId mismatch - clearing old game state and gameEndResult');
+        setGameState(null);
+        setPhase('idle');
+        clearGameEnd(); // Clear any stale game end result from previous game
+      }
+      
       // If we already have the correct gameState from WebSocket, we're good
       if (gameState && gameState.gameId === gameId) {
         return;
@@ -184,9 +192,10 @@ export default function LiveGame() {
     
     // If URL gameId doesn't match store gameId, clear store and load new game
     if (gameState && gameState.gameId !== gameId) {
-      console.log('[LiveGame] GameId mismatch - clearing old game state');
+      console.log('[LiveGame] GameId mismatch - clearing old game state and gameEndResult');
       setGameState(null);
       setPhase('idle');
+      clearGameEnd(); // Clear any stale game end result from previous game
       setIsPrivateGame(false);
       setPrivateGamePlayerId(null);
       // Don't return - continue to load new game
@@ -327,43 +336,61 @@ export default function LiveGame() {
   }
 
   // Game end modal - show before checking gameState
+  // CRITICAL: Only show if phase is game_over AND gameEndResult exists AND we're in the correct game
+  // This prevents showing stale game results from previous games
   if (phase === "game_over" && gameEndResult) {
-    // Guard: Ensure all required fields exist with defaults
-    const tokensChange = gameEndResult.creditsChange ?? 0;
-    const isWin = gameEndResult.isWin ?? false;
-    const reason = gameEndResult.message || gameEndResult.reason || "Game ended";
+    // Guard: Only show modal if we have a gameState that matches the current gameId
+    // If gameState doesn't match gameId, this is a stale result from a previous game - don't show
+    const shouldShowModal = gameState && gameState.gameId === gameId;
     
-    console.log("[LiveGame] Showing GameResultModal", {
-      phase,
-      hasGameEndResult: !!gameEndResult,
-      isWin,
-      tokensChange,
-      reason,
-      balance,
-      timestamp: new Date().toISOString(),
-    });
-    
-    return (
-      <>
-        <GameResultModal
-          isWin={isWin}
-          coinsChange={tokensChange}
-          newBalance={balance}
-          reason={reason}
-          onPlayAgain={handlePlayAgain}
-          onGoHome={handleGoHome}
-        />
-        <NetworkDebugPanel
-          status={status}
-          logs={logs}
-          reconnectAttempts={reconnectAttempts}
-          onConnect={connect}
-          onDisconnect={disconnect}
-          onSendRaw={sendRaw}
-          onClearLogs={clearLogs}
-        />
-      </>
-    );
+    if (!shouldShowModal) {
+      console.log("[LiveGame] NOT showing GameResultModal - gameId mismatch or no gameState", {
+        currentGameId: gameId,
+        gameStateGameId: gameState?.gameId,
+        phase,
+        hasGameEndResult: !!gameEndResult,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      // Guard: Ensure all required fields exist with defaults
+      const tokensChange = gameEndResult.creditsChange ?? 0;
+      const isWin = gameEndResult.isWin ?? false;
+      const reason = gameEndResult.message || gameEndResult.reason || "Game ended";
+      
+      console.log("[LiveGame] Showing GameResultModal", {
+        phase,
+        hasGameEndResult: !!gameEndResult,
+        isWin,
+        tokensChange,
+        reason,
+        balance,
+        gameId,
+        gameStateGameId: gameState.gameId,
+        timestamp: new Date().toISOString(),
+      });
+      
+      return (
+        <>
+          <GameResultModal
+            isWin={isWin}
+            coinsChange={tokensChange}
+            newBalance={balance}
+            reason={reason}
+            onPlayAgain={handlePlayAgain}
+            onGoHome={handleGoHome}
+          />
+          <NetworkDebugPanel
+            status={status}
+            logs={logs}
+            reconnectAttempts={reconnectAttempts}
+            onConnect={connect}
+            onDisconnect={disconnect}
+            onSendRaw={sendRaw}
+            onClearLogs={clearLogs}
+          />
+        </>
+      );
+    }
   }
 
   // No game state - check phase to determine what to show
