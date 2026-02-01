@@ -139,7 +139,7 @@ function initializeGlobalMessageHandler(): void {
           null;
         
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:123',message:'After opponentUserId normalization',data:{opponentUserId,hasOpponent:!!payload?.opponent,opponentKeys:payload?.opponent?Object.keys(payload.opponent):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:131',message:'opponentUserId extracted',data:{opponentUserId,payloadOpponent:payload?.opponent,opponentKeys:payload?.opponent?Object.keys(payload.opponent):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         
         const wager = typeof payload?.wager === 'number' ? payload.wager : 0;
@@ -209,6 +209,9 @@ function initializeGlobalMessageHandler(): void {
         }
         
         // STEP D: Update normalized matchmaking state
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:212',message:'Storing opponentUserId in matchmaking',data:{opponentUserId,willStore:!!opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         store.setMatchmakingMatch({
           matchId,
           dbMatchId: dbMatchId || undefined,

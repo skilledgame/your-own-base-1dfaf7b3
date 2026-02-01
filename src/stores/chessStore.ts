@@ -139,7 +139,14 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   
   setGameState: (gameState) => {
     console.log("[ChessStore] setGameState:", gameState);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:140',message:'setGameState called',data:{hasGameState:!!gameState,opponentName:gameState?.opponentName,gameId:gameState?.gameId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     set({ gameState });
+    // #region agent log
+    const newState = get();
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:145',message:'gameState updated',data:{opponentName:newState.gameState?.opponentName,gameId:newState.gameState?.gameId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
   },
   
   setGameEndResult: (gameEndResult) => {
@@ -206,18 +213,27 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   },
   
   setMatchmakingMatch: (data) => {
-    set((state) => ({
-      matchmaking: {
-        ...state.matchmaking,
-        status: "matched",
-        matchId: data.matchId || null,
-        dbMatchId: data.dbMatchId || null,
-        opponentUserId: data.opponentUserId || null,
-        color: data.color || null,
-        wager: data.wager ?? state.matchmaking.wager,
-        error: undefined, // Clear error on successful match
-      },
-    }));
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:208',message:'setMatchmakingMatch called',data:{opponentUserId:data.opponentUserId,hasOpponentUserId:!!data.opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    set((state) => {
+      const newState = {
+        matchmaking: {
+          ...state.matchmaking,
+          status: "matched",
+          matchId: data.matchId || null,
+          dbMatchId: data.dbMatchId || null,
+          opponentUserId: data.opponentUserId || null,
+          color: data.color || null,
+          wager: data.wager ?? state.matchmaking.wager,
+          error: undefined, // Clear error on successful match
+        },
+      };
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:220',message:'matchmaking state updated',data:{opponentUserId:newState.matchmaking.opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      return newState;
+    });
   },
   
   setMatchmakingError: (error) => {
