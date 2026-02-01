@@ -18,9 +18,9 @@ const faqItems = [
       "Skilled is fundamentally different from gambling sites because all outcomes are determined solely by player skill, strategy, and decision-making—not luck or chance. Unlike gambling, where random chance and betting against the house or other players are central, Skilled offers games where success depends entirely on your abilities and performance. There is no house edge or games of chance involved. Skilled focuses on competitive, fair play—much like esports or traditional skill-based games such as chess—ensuring that the best player wins based on merit alone.",
   },
   {
-    question: "How are winners decided?",
+    question: "How do you prevent cheating or abuse?",
     answer:
-      "Winners are determined by the rules of each game. In Chess, checkmate or resignation decides the winner. In arcade games, the higher score wins. There are no random elements or house edges.",
+      "At Skilled, maintaining a fair and competitive environment is our top priority. We use a combination of automated anti-cheat systems, real-time monitoring, and player reporting to detect and prevent cheating or abusive behavior. Our platform continuously analyzes gameplay patterns to identify suspicious activity, and any confirmed violations result in penalties, including warnings, temporary suspensions, or permanent bans. We also regularly update our security measures to stay ahead of new threats, ensuring all players can compete on a level playing field based solely on skill.",
   },
   {
     question: "What games are skill-based?",
