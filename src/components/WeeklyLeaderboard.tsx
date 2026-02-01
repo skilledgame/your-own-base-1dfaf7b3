@@ -1,30 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, ChevronRight } from 'lucide-react';
+import { Trophy, Medal, Crown, ChevronRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LeaderboardEntry {
   rank: number;
   playerName: string;
-  coinsWon: number;
-  gamesWon: number;
-  avatar?: string;
+  totalWagered: number;
+  gamesPlayed: number;
 }
-
-// Mock data for initial display with realistic names
-const generateMockLeaderboard = (): LeaderboardEntry[] => {
-  const names = ['Marcus_Chen', 'Elena_Rodriguez', 'James_Wilson', 'Sophia_Kim', 'David_Okonkwo', 'Emma_Johansson', 'Lucas_Santos', 'Aisha_Patel', 'Ryan_Murphy', 'Yuki_Tanaka'];
-  
-  return names.map((name, index) => ({
-    rank: index + 1,
-    playerName: name,
-    coinsWon: Math.floor(12000 - (index * 800) + Math.random() * 300),
-    gamesWon: Math.floor(60 - (index * 4) + Math.random() * 5),
-  })).sort((a, b) => b.coinsWon - a.coinsWon).map((entry, index) => ({
-    ...entry,
-    rank: index + 1,
-  }));
-};
 
 const getRankIcon = (rank: number) => {
   switch (rank) {
@@ -57,18 +41,52 @@ interface WeeklyLeaderboardProps {
 }
 
 export const WeeklyLeaderboard = ({ compact = false }: WeeklyLeaderboardProps) => {
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(generateMockLeaderboard());
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [daysUntilReset, setDaysUntilReset] = useState(0);
 
   useEffect(() => {
     // Calculate days until next Monday (weekly reset)
     const now = new Date();
-    const dayOfWeek = now.getDay();
-    const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+    const dayOfWeek = now.getUTCDay();
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek) % 7 || 7;
     setDaysUntilReset(daysUntilMonday);
+  }, []);
 
-    // TODO: Fetch real leaderboard data from Supabase
-    // For now using mock data
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('get_weekly_leaderboard');
+        
+        if (error) {
+          console.error('Error fetching leaderboard:', error);
+          setLeaderboard([]);
+          return;
+        }
+
+        const entries: LeaderboardEntry[] = (data || []).map((row: {
+          rank: number;
+          player_name: string;
+          total_wagered: number;
+          games_played: number;
+        }) => ({
+          rank: Number(row.rank),
+          playerName: row.player_name || 'Anonymous',
+          totalWagered: Number(row.total_wagered),
+          gamesPlayed: Number(row.games_played),
+        }));
+
+        setLeaderboard(entries);
+      } catch (err) {
+        console.error('Failed to fetch leaderboard:', err);
+        setLeaderboard([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
   }, []);
 
   const displayedEntries = compact ? leaderboard.slice(0, 5) : leaderboard;
@@ -91,35 +109,53 @@ export const WeeklyLeaderboard = ({ compact = false }: WeeklyLeaderboardProps) =
           <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-secondary/50 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             <div className="col-span-1">Rank</div>
             <div className="col-span-5">Player</div>
-            <div className="col-span-3 text-right">Earnings</div>
-            <div className="col-span-3 text-right">Games Won</div>
+            <div className="col-span-3 text-right">SC Wagered</div>
+            <div className="col-span-3 text-right">Games</div>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && leaderboard.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Trophy className="w-10 h-10 mb-3 opacity-50" />
+              <p className="text-sm font-medium">No games played this week yet</p>
+              <p className="text-xs">Be the first to compete!</p>
+            </div>
+          )}
+
           {/* Entries */}
-          <div className="divide-y divide-border">
-            {displayedEntries.map((entry) => (
-              <div
-                key={entry.rank}
-                className={`grid grid-cols-12 gap-4 px-4 py-3 items-center transition-colors hover:bg-secondary/30 ${getRankStyle(entry.rank)} border-l-2`}
-              >
-                <div className="col-span-1 flex items-center justify-center">
-                  {getRankIcon(entry.rank)}
-                </div>
-                <div className="col-span-5 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                    {entry.playerName[0]}
+          {!loading && displayedEntries.length > 0 && (
+            <div className="divide-y divide-border">
+              {displayedEntries.map((entry) => (
+                <div
+                  key={entry.rank}
+                  className={`grid grid-cols-12 gap-4 px-4 py-3 items-center transition-colors hover:bg-secondary/30 ${getRankStyle(entry.rank)} border-l-2`}
+                >
+                  <div className="col-span-1 flex items-center justify-center">
+                    {getRankIcon(entry.rank)}
                   </div>
-                  <span className="font-medium text-foreground truncate">{entry.playerName.replace('_', ' ')}</span>
+                  <div className="col-span-5 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                      {entry.playerName[0]?.toUpperCase() || '?'}
+                    </div>
+                    <span className="font-medium text-foreground truncate">{entry.playerName}</span>
+                  </div>
+                  <div className="col-span-3 text-right font-bold text-accent">
+                    {entry.totalWagered.toLocaleString()} SC
+                  </div>
+                  <div className="col-span-3 text-right text-muted-foreground">
+                    {entry.gamesPlayed}
+                  </div>
                 </div>
-                <div className="col-span-3 text-right font-bold text-accent">
-                  ${(entry.coinsWon / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <div className="col-span-3 text-right text-muted-foreground">
-                  {entry.gamesWon}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* View Full Leaderboard Link */}
           {compact && (
