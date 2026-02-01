@@ -5,32 +5,32 @@ const faqItems = [
   {
     question: "Is Skilled gambling?",
     answer:
-      "No. Skilled is a skill-based gaming platform, not gambling. All games on Skilled are decided by player skill, strategy, and decision-making — not luck, randomness, or chance. Players participate in structured matches with predefined rules, and outcomes depend entirely on in-game performance, similar to competitive games like chess or esports.",
+      "No. Skilled is a skill-based gaming platform. Unlike gambling, outcomes are determined entirely by player skill and strategy, not luck or chance. Every game relies on your abilities, practice, and decision-making.",
   },
   {
     question: "How do Skilled Coins work?",
     answer:
-      "Skilled Coins are our in-game currency. You can purchase them with cryptocurrency, use them to enter competitions, and withdraw your winnings. The exchange rate is transparent and fixed.",
+      "Skilled Coins are in-platform tokens used to participate in games, matches, and tournaments on Skilled. Players can acquire Skilled Coins by purchasing them on the platform or through other available methods, and may also sell or withdraw them where supported. Coins are used to access skill-based competitions and features, but they do not influence game outcomes, which are determined entirely by player skill and performance. Skilled Coins are used within the Skilled ecosystem and are designed to support competitive play, progression, and rewards.",
   },
   {
-    question: "Can I play for free?",
+    question: "How is Skilled different from gambling sites?",
     answer:
-      "Yes! Every new player gets 3 free plays for each game. After that, you can continue practicing in free mode or compete for Skilled Coins against other players.",
+      "Skilled is fundamentally different from gambling sites because all outcomes are determined solely by player skill, strategy, and decision-making—not luck or chance. Unlike gambling, where random chance and betting against the house or other players are central, Skilled offers games where success depends entirely on your abilities and performance. There is no house edge or games of chance involved. Skilled focuses on competitive, fair play—much like esports or traditional skill-based games such as chess—ensuring that the best player wins based on merit alone.",
   },
   {
-    question: "How are winners decided?",
+    question: "How do you prevent cheating or abuse?",
     answer:
-      "Winners are determined by the rules of each game. In Chess, checkmate or resignation decides the winner. In arcade games, the higher score wins. There are no random elements or house edges.",
+      "At Skilled, maintaining a fair and competitive environment is our top priority. We use a combination of automated anti-cheat systems, real-time monitoring, and player reporting to detect and prevent cheating or abusive behavior. Our platform continuously analyzes gameplay patterns to identify suspicious activity, and any confirmed violations result in penalties, including warnings, temporary suspensions, or permanent bans. We also regularly update our security measures to stay ahead of new threats, ensuring all players can compete on a level playing field based solely on skill.",
   },
   {
-    question: "What games are skill-based?",
+    question: "What happens if a player disconnects?",
     answer:
-      "All games on Skilled are skill-based. This includes classic strategy games like Chess, Checkers, and Go, as well as arcade games like Snake and Tetris where reflexes and decision-making determine success.",
+      "If a player disconnects during a game, Skilled’s system will try to reconnect them automatically within a short time. If the player cannot rejoin, the match may be paused briefly or ended according to the specific game’s rules. In many cases, the disconnected player may forfeit the match, and the opponent will be declared the winner based on skill and progress at the time of disconnection. This approach helps keep gameplay fair and ensures a good experience for all players.",
   },
   {
-    question: "Is crypto required to play?",
+    question: "Can I play against friends?",
     answer:
-      "No, crypto is not required to play. You can enjoy free plays without depositing. However, to compete for prizes and earn Skilled Coins, you'll need to deposit using one of our supported cryptocurrencies.",
+      "Yes! Skilled lets you challenge your friends to one-on-one matches and compete in tournaments together. You can invite friends directly through the platform and set up games with custom rules. Playing against people you know is a great way to practice, improve your skills, and enjoy competitive fun in a trusted environment.",
   },
 ];
 
