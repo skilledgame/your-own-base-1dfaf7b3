@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { LogoLink } from '@/components/LogoLink';
-import { ArrowLeft, Loader2, Mail, Lock, User } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -20,7 +20,6 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -86,9 +85,6 @@ export default function Auth() {
           password,
           options: {
             emailRedirectTo: redirectUrl,
-            data: {
-              display_name: displayName || email.split('@')[0],
-            },
           },
         });
         if (error) throw error;
@@ -211,23 +207,6 @@ export default function Auth() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="displayName"
-                      type="text"
-                      placeholder="Your gaming name"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-              )}
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
