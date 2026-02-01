@@ -507,8 +507,8 @@ serve(async (req) => {
           status: "active",
           fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
           current_turn: "w",
-          white_time: 600,
-          black_time: 600,
+          white_time: 60,
+          black_time: 60,
         };
 
         const insertWithAuthCols: Record<string, unknown> = {

@@ -85,7 +85,8 @@ export const WSMultiplayerGameView = ({
   const lastMoveByRef = useRef<'w' | 'b' | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastTickRef = useRef<number>(Date.now());
-  const tabHiddenTimeRef = useRef<number | null>(null);
+  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const gameChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
   // Sound effects
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
@@ -152,84 +153,103 @@ export const WSMultiplayerGameView = ({
     }
   }, [currentFen, chess, localFen, myColor, isPrivateGame]);
 
-  // Sync timer when tab visibility changes (only for WebSocket games)
+  // Initialize timer from database and subscribe to realtime updates (only for WebSocket games)
   useEffect(() => {
-    if (isPrivateGame) {
+    if (isPrivateGame || !dbGameId) {
       // Private games handle timers in usePrivateGame hook
       return;
     }
 
-    const handleVisibilityChange = () => {
-      if (isGameOver) return;
+    // Initial load from database
+    const loadInitialTimer = async () => {
+      try {
+        const { data: game, error } = await supabase
+          .from('games')
+          .select('white_time, black_time')
+          .eq('id', dbGameId)
+          .maybeSingle();
 
-      if (document.visibilityState === 'hidden') {
-        // Tab became hidden - record the time
-        tabHiddenTimeRef.current = Date.now();
-        console.log('[Game] Tab hidden, recording time');
-      } else if (document.visibilityState === 'visible') {
-        // Tab became visible - calculate elapsed time and update timer
-        if (tabHiddenTimeRef.current !== null) {
-          const timeHidden = Date.now() - tabHiddenTimeRef.current;
-          const secondsHidden = Math.floor(timeHidden / 1000);
-          
-          if (secondsHidden > 0) {
-            console.log(`[Game] Tab was hidden for ${secondsHidden} seconds, updating timer`);
-            const currentTurn = chess.turn();
-            
-            if (currentTurn === 'w') {
-              setWhiteTimeLocal(prev => Math.max(0, prev - secondsHidden));
-            } else {
-              setBlackTimeLocal(prev => Math.max(0, prev - secondsHidden));
-            }
+        if (!error && game) {
+          if (game.white_time !== null && game.white_time !== undefined) {
+            setWhiteTimeLocal(game.white_time);
           }
-          
-          // Reset tracking
-          tabHiddenTimeRef.current = null;
+          if (game.black_time !== null && game.black_time !== undefined) {
+            setBlackTimeLocal(game.black_time);
+          }
           lastTickRef.current = Date.now();
+          console.log('[Game] Timer initialized from database:', { white: game.white_time, black: game.black_time });
         }
-
-        // For games with dbGameId, also try to sync from server as backup
-        if (dbGameId) {
-          const syncTimerFromServer = async () => {
-            try {
-              const { data: game, error } = await supabase
-                .from('games')
-                .select('white_time, black_time')
-                .eq('id', dbGameId)
-                .maybeSingle();
-
-              if (!error && game) {
-                // Only use server values if they're more recent/accurate
-                // For WebSocket games, server might not update, so use as fallback only
-                if (game.white_time !== null && game.white_time !== undefined) {
-                  setWhiteTimeLocal(prev => {
-                    // Use server value if it's significantly different (more than 2 seconds)
-                    const diff = Math.abs(prev - game.white_time);
-                    return diff > 2 ? game.white_time : prev;
-                  });
-                }
-                if (game.black_time !== null && game.black_time !== undefined) {
-                  setBlackTimeLocal(prev => {
-                    const diff = Math.abs(prev - game.black_time);
-                    return diff > 2 ? game.black_time : prev;
-                  });
-                }
-                console.log('[Game] Timer synced from server as backup');
-              }
-            } catch (error) {
-              console.error('[Game] Error syncing timer from server:', error);
-            }
-          };
-          syncTimerFromServer();
-        }
+      } catch (error) {
+        console.error('[Game] Error loading initial timer:', error);
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    loadInitialTimer();
+
+    // Subscribe to realtime updates for timer sync
+    gameChannelRef.current = supabase
+      .channel(`game-timer-${dbGameId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'games',
+        filter: `id=eq.${dbGameId}`,
+      }, (payload) => {
+        const updated = payload.new as any;
+        if (updated.white_time !== null && updated.white_time !== undefined) {
+          setWhiteTimeLocal(updated.white_time);
+        }
+        if (updated.black_time !== null && updated.black_time !== undefined) {
+          setBlackTimeLocal(updated.black_time);
+        }
+        lastTickRef.current = Date.now();
+        console.log('[Game] Timer synced from realtime:', { white: updated.white_time, black: updated.black_time });
+      })
+      .subscribe();
+
+    // Sync timer to server every 3 seconds (less frequent to reduce load)
+    syncTimerRef.current = setInterval(async () => {
+      if (isGameOver || !dbGameId) {
+        if (syncTimerRef.current) {
+          clearInterval(syncTimerRef.current);
+          syncTimerRef.current = null;
+        }
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('games')
+          .update({
+            white_time: whiteTimeLocal,
+            black_time: blackTimeLocal,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', dbGameId)
+          .eq('status', 'active'); // Only update if game is still active
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows updated (game might be over)
+          console.error('[Game] Error syncing timer to server:', error);
+        }
+      } catch (error) {
+        // Silently fail - don't spam console if game is already over
+        if (!isGameOver) {
+          console.error('[Game] Error syncing timer to server:', error);
+        }
+      }
+    }, 3000);
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (gameChannelRef.current) {
+        supabase.removeChannel(gameChannelRef.current);
+        gameChannelRef.current = null;
+      }
+      if (syncTimerRef.current) {
+        clearInterval(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
     };
-  }, [dbGameId, isPrivateGame, isGameOver, chess]);
+  }, [dbGameId, isPrivateGame]);
 
   // Timer countdown with time loss handling (only for WebSocket games)
   // Uses elapsed time calculation to work correctly even when tab is hidden
@@ -244,6 +264,14 @@ export const WSMultiplayerGameView = ({
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
+      }
+      if (syncTimerRef.current) {
+        clearInterval(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+      if (gameChannelRef.current) {
+        supabase.removeChannel(gameChannelRef.current);
+        gameChannelRef.current = null;
       }
       return;
     }
@@ -283,11 +311,12 @@ export const WSMultiplayerGameView = ({
           return newTime;
         });
       }
-    }, 200); // Check more frequently for smoother updates
+    }, 1000); // Update every second
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
   }, [chess, isGameOver, onTimeLoss, playGameEnd, isPrivateGame]);
@@ -349,6 +378,7 @@ export const WSMultiplayerGameView = ({
         } else {
           setBlackTimeLocal(prev => prev + CHESS_TIME_CONTROL.INCREMENT);
         }
+        // The periodic sync will handle updating the server
       }
       lastMoveByRef.current = myColor;
 
