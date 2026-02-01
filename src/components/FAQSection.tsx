@@ -13,9 +13,9 @@ const faqItems = [
       "Skilled Coins are in-platform tokens used to participate in games, matches, and tournaments on Skilled. Players can acquire Skilled Coins by purchasing them on the platform or through other available methods, and may also sell or withdraw them where supported. Coins are used to access skill-based competitions and features, but they do not influence game outcomes, which are determined entirely by player skill and performance. Skilled Coins are used within the Skilled ecosystem and are designed to support competitive play, progression, and rewards.",
   },
   {
-    question: "Can I play for free?",
+    question: "How is Skilled different from gambling sites?",
     answer:
-      "Yes! Every new player gets 3 free plays for each game. After that, you can continue practicing in free mode or compete for Skilled Coins against other players.",
+      "Skilled is fundamentally different from gambling sites because all outcomes are determined solely by player skill, strategy, and decision-making—not luck or chance. Unlike gambling, where random chance and betting against the house or other players are central, Skilled offers games where success depends entirely on your abilities and performance. There is no house edge or games of chance involved. Skilled focuses on competitive, fair play—much like esports or traditional skill-based games such as chess—ensuring that the best player wins based on merit alone.",
   },
   {
     question: "How are winners decided?",
