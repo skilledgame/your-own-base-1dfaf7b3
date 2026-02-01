@@ -55,9 +55,15 @@ export default function LiveGame() {
     reconnectAttempts,
   } = useChessWebSocket();
 
-  // Private game hook (only used for private games)
+  // Determine if this is a WebSocket game (gameId starts with 'g_') or a private game (UUID)
+  // WebSocket games have local IDs like 'g_m7s1pgtn', private games have UUIDs
+  const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
+  
+  // Private game hook (only used for private games, NOT WebSocket games)
+  // Pass empty gameId for WebSocket games to prevent database queries
+  // React hooks must be called unconditionally, so we always call it but with empty gameId for WS games
   const privateGame = usePrivateGame({
-    gameId: gameId || '',
+    gameId: (isPrivateGame && !isWebSocketGameId && gameId) ? gameId : '',
     playerColor: gameState?.color === 'w' ? 'white' : 'black',
     playerId: privateGamePlayerId || '',
     onGameEnd: async (winnerId, reason, winnerColor, creditsChange) => {
@@ -113,7 +119,9 @@ export default function LiveGame() {
   };
 
   const handleSendMove = async (from: string, to: string, promotion?: string) => {
-    if (isPrivateGame && privateGame.sendMove) {
+    // Only use privateGame for actual private games (not WebSocket games)
+    const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
+    if (isPrivateGame && !isWebSocketGameId && privateGame.sendMove) {
       // Use Realtime for private games
       await privateGame.sendMove(from, to, promotion);
     } else {
@@ -125,7 +133,9 @@ export default function LiveGame() {
   const handleTimeLoss = async (loserColor: 'w' | 'b') => {
     // When time runs out, resign the game
     console.log(`[LiveGame] Time loss for ${loserColor === 'w' ? 'white' : 'black'}`);
-    if (isPrivateGame && privateGame.resign) {
+    // Only use privateGame for actual private games (not WebSocket games)
+    const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
+    if (isPrivateGame && !isWebSocketGameId && privateGame.resign) {
       await privateGame.resign();
     } else {
       resignGame();
@@ -151,6 +161,26 @@ export default function LiveGame() {
     toast.dismiss();
     
     if (!gameId || loadingGame) return;
+    
+    // Check if this is a WebSocket game (starts with 'g_')
+    // WebSocket games are handled by the WebSocket hook, not by loading from database
+    const isWebSocketGameId = gameId.startsWith('g_');
+    
+    if (isWebSocketGameId) {
+      // This is a WebSocket game - don't try to load from database
+      console.log('[LiveGame] WebSocket game detected (gameId starts with g_), skipping database load');
+      setIsPrivateGame(false);
+      setPrivateGamePlayerId(null);
+      
+      // If we already have the correct gameState from WebSocket, we're good
+      if (gameState && gameState.gameId === gameId) {
+        return;
+      }
+      
+      // If we don't have gameState yet, wait for WebSocket to provide it
+      // The WebSocket hook will set gameState when match_found is received
+      return;
+    }
     
     // If URL gameId doesn't match store gameId, clear store and load new game
     if (gameState && gameState.gameId !== gameId) {
@@ -244,7 +274,8 @@ export default function LiveGame() {
 
   // Loading state (connecting or loading game)
   // For private games, check privateGame.loading instead of WebSocket status
-  const isLoading = isPrivateGame 
+  // Only check privateGame.loading if it's actually a private game (not WebSocket)
+  const isLoading = (isPrivateGame && !isWebSocketGameId)
     ? (loadingGame || privateGame.loading)
     : (loadingGame || status === "connecting" || status === "reconnecting");
   
@@ -460,7 +491,9 @@ export default function LiveGame() {
 
   // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
   useEffect(() => {
-    if (isPrivateGame || !gameState || phase !== 'in_game') return;
+    // Only sync for WebSocket games, not private games
+    const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
+    if (isPrivateGame || !isWebSocketGameId || !gameState || phase !== 'in_game') return;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -502,16 +535,20 @@ export default function LiveGame() {
   const playerColor = gameState.color === "w" ? "white" : "black";
 
   // For private games, use Realtime state; for WebSocket games, use store state
-  const currentFen = isPrivateGame && privateGame.gameState 
+  // Only use privateGame state if it's actually a private game (not WebSocket)
+  const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
+  const usePrivateGameState = isPrivateGame && !isWebSocketGameId && privateGame.gameState;
+  
+  const currentFen = usePrivateGameState
     ? privateGame.gameState.fen 
     : gameState.fen;
-  const isMyTurn = isPrivateGame && privateGame.gameState
+  const isMyTurn = usePrivateGameState
     ? privateGame.gameState.isMyTurn
     : gameState.isMyTurn;
-  const whiteTime = isPrivateGame && privateGame.gameState
+  const whiteTime = usePrivateGameState
     ? privateGame.gameState.whiteTime
     : 60; // Default fallback
-  const blackTime = isPrivateGame && privateGame.gameState
+  const blackTime = usePrivateGameState
     ? privateGame.gameState.blackTime
     : 60; // Default fallback
 
@@ -538,7 +575,7 @@ export default function LiveGame() {
         onBack={handleBack}
         onTimeLoss={handleTimeLoss}
       />
-      {!isPrivateGame && (
+      {(!isPrivateGame || isWebSocketGameId) && (
         <NetworkDebugPanel
           status={status}
           logs={logs}

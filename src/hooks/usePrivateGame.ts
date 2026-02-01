@@ -63,6 +63,12 @@ export function usePrivateGame({
 
   // Load initial game state
   useEffect(() => {
+    // Skip loading if gameId is empty or is a WebSocket game ID (starts with 'g_')
+    if (!gameId || gameId.startsWith('g_')) {
+      setLoading(false);
+      return;
+    }
+    
     const loadGame = async () => {
       try {
         const { data: game, error } = await supabase
