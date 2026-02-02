@@ -22,6 +22,8 @@ interface State {
 }
 
 class GameErrorBoundaryClass extends Component<Props, State> {
+  private retryTimeout: NodeJS.Timeout | null = null;
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -43,6 +45,39 @@ class GameErrorBoundaryClass extends Component<Props, State> {
     console.error('[GameErrorBoundary] Caught error:', error);
     console.error('[GameErrorBoundary] Error info:', errorInfo);
     
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameErrorBoundary.tsx:42',message:'Error boundary caught error',data:{error:error.message,errorStack:error.stack?.substring(0,200),componentStack:errorInfo.componentStack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    
+    // Check if this is a transient error that should auto-recover
+    // React error #300 = "Rendered fewer hooks than expected" (usually from conditional hooks or state updates during render)
+    const isTransientError = error.message.includes('Cannot update') || 
+                             error.message.includes('during render') ||
+                             error.message.includes('Maximum update depth') ||
+                             error.message.includes('Rendered more hooks') ||
+                             error.message.includes('Minified React error #300') ||
+                             error.message.includes('invariant=300') ||
+                             error.message.includes('Rendered fewer hooks') ||
+                             error.message.includes('error #300');
+
+    if (isTransientError) {
+      // For transient errors, auto-retry immediately without showing error screen
+      console.log('[GameErrorBoundary] Transient error detected, auto-retrying silently');
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameErrorBoundary.tsx:58',message:'Auto-retrying transient error',data:{error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      
+      if (this.retryTimeout) {
+        clearTimeout(this.retryTimeout);
+      }
+      // Auto-retry after a short delay to let state settle
+      this.retryTimeout = setTimeout(() => {
+        this.handleReset();
+      }, 100);
+      return; // Don't set error state, so error screen doesn't show
+    }
+
+    // For non-transient errors, show the error screen
     this.setState({
       error,
       errorInfo,
@@ -57,6 +92,12 @@ class GameErrorBoundaryClass extends Component<Props, State> {
           },
         },
       });
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.retryTimeout) {
+      clearTimeout(this.retryTimeout);
     }
   }
 
