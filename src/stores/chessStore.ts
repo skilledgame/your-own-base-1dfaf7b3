@@ -292,7 +292,14 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   },
   
   handleGameEnd: ({ reason, winnerColor, isOpponentLeft, creditsChange }) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:294',message:'handleGameEnd called',data:{reason,winnerColor,isOpponentLeft,creditsChange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     const { gameState, phase: currentPhase, gameEndResult } = get();
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:297',message:'handleGameEnd state check',data:{currentPhase,hasGameState:!!gameState,hasGameEndResult:!!gameEndResult},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     
     // GUARD: If we're already in game_over phase, ignore duplicate game_ended messages
     if (currentPhase === "game_over") {
@@ -348,21 +355,36 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       timestamp: new Date().toISOString() 
     });
     
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:339',message:'About to set game_over state',data:{reason,winnerColor,isWin,isDraw,message,creditsChange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     // Batch all state updates in a single set() call for performance
     // Clear timer snapshot immediately to prevent any further timer calculations
-    set({
-      phase: "game_over",
-      gameEndResult: {
-        reason: reason || "game_over",  // Ensure reason is never undefined
-        winnerColor: winnerColor ?? null,  // Ensure null if undefined
-        isWin,
-        isDraw,
-        isOpponentLeft: isOpponentLeft ?? false,  // Ensure boolean
-        message,
-        creditsChange: creditsChange ?? 0,  // Ensure number
-      },
-      timerSnapshot: null, // Clear timer snapshot on game end
-      // Keep gameState so we can still render the final board position
-    });
+    try {
+      set({
+        phase: "game_over",
+        gameEndResult: {
+          reason: reason || "game_over",  // Ensure reason is never undefined
+          winnerColor: winnerColor ?? null,  // Ensure null if undefined
+          isWin,
+          isDraw,
+          isOpponentLeft: isOpponentLeft ?? false,  // Ensure boolean
+          message,
+          creditsChange: creditsChange ?? 0,  // Ensure number
+        },
+        timerSnapshot: null, // Clear timer snapshot on game end
+        // Keep gameState so we can still render the final board position
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:365',message:'Successfully set game_over state',data:{newPhase:get().phase,hasGameEndResult:!!get().gameEndResult},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chessStore.ts:368',message:'Error setting game_over state',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      console.error("[ChessStore] Error in handleGameEnd set():", err);
+      throw err;
+    }
   },
 }));

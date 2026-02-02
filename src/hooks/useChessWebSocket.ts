@@ -412,6 +412,9 @@ function initializeGlobalMessageHandler(): void {
               gameId,
               phase: currentState.phase,
             });
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:410',message:'GAME_ENDED - No gameState',data:{gameId,phase:currentState.phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             return; // Don't crash, just log and return
           }
           
@@ -421,8 +424,15 @@ function initializeGlobalMessageHandler(): void {
               payloadGameId: gameId,
               storeGameId: currentState.gameState.gameId,
             });
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:419',message:'GAME_ENDED - gameId mismatch',data:{payloadGameId:gameId,storeGameId:currentState.gameState.gameId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             return; // Stale message, ignore
           }
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:427',message:'Calling store.handleGameEnd',data:{reason:payload.reason,winnerColor:payload.winnerColor,isOpponentLeft,creditsChange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           
           store.handleGameEnd({
             reason: payload.reason || "game_over",  // Ensure reason is never undefined
@@ -436,6 +446,9 @@ function initializeGlobalMessageHandler(): void {
             newPhase: useChessStore.getState().phase,
             timestamp: new Date().toISOString(),
           });
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:434',message:'handleGameEnd completed successfully',data:{gameId,newPhase:useChessStore.getState().phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
         } catch (error) {
           console.error("[Client] GAME_ENDED - Error in handleGameEnd:", error, {
             gameId,
@@ -445,12 +458,18 @@ function initializeGlobalMessageHandler(): void {
               hasGameState: !!currentState.gameState,
             },
           });
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:440',message:'Error in handleGameEnd catch block',data:{error:error instanceof Error?error.message:String(error),gameId,phase:currentState.phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           toast.error("Error processing game end. Please refresh.");
           // Still try to transition to game_over even if handleGameEnd failed
           try {
             store.setPhase("game_over");
           } catch (e) {
             console.error("[Client] Failed to set phase to game_over:", e);
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useChessWebSocket.ts:453',message:'Failed to set phase to game_over',data:{error:e instanceof Error?e.message:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
           }
         }
         
