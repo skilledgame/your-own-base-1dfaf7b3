@@ -281,6 +281,36 @@ export default function LiveGame() {
     loadPrivateGame();
   }, [gameId, gameState, loadingGame, navigate, setPhase, setGameState, setPlayerName, connect]);
 
+  // Update player name and rank immediately when they become available (for WebSocket games)
+  useEffect(() => {
+    if (!gameState || isPrivateGame) return;
+    
+    // Update player name if displayName is available
+    if (playerDisplayName) {
+      const storeState = useChessStore.getState();
+      const currentGameState = storeState.gameState;
+      
+      if (currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:285',message:'Immediate player name update from useEffect',data:{oldName:currentGameState.playerName,newName:playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+        // #endregion
+        setGameState({
+          ...currentGameState,
+          playerName: playerDisplayName,
+        });
+      }
+    }
+    
+    // Update player rank if totalWageredSc is available
+    if (totalWageredSc !== undefined && totalWageredSc !== null) {
+      const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:305',message:'Immediate player rank update from useEffect',data:{totalWageredSc,hasPlayerRankInfo:!!playerRankInfo,displayName:playerRankInfo?.displayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+      // #endregion
+      setPlayerRank(playerRankInfo);
+    }
+  }, [playerDisplayName, totalWageredSc, gameState, isPrivateGame, setGameState, setPlayerRank]);
+
   // Fetch player and opponent ranks
   useEffect(() => {
     if (!gameState) return;
@@ -493,7 +523,7 @@ export default function LiveGame() {
     };
 
     fetchRanks();
-  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId, playerDisplayName, setGameState]);
+  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId, playerDisplayName, setGameState, setPlayerRank]);
 
   // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
   useEffect(() => {
