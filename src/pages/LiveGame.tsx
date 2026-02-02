@@ -8,7 +8,7 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalance } from '@/hooks/useBalance';
@@ -765,10 +765,19 @@ export default function LiveGame() {
     ? privateGame.gameState.blackTime
     : 60; // Default fallback
 
+  // Ensure playerRank is always calculated if totalWageredSc is available
+  const effectivePlayerRank = useMemo(() => {
+    if (playerRank) return playerRank;
+    if (totalWageredSc !== undefined && totalWageredSc !== null) {
+      return getRankFromTotalWagered(totalWageredSc);
+    }
+    return undefined;
+  }, [playerRank, totalWageredSc]);
+
   // #region agent log
   // Log player name and rank at render time
   if (gameState) {
-    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:722',message:'Rendering with player info',data:{playerName:gameState.playerName,hasPlayerRank:!!playerRank,playerRankType:typeof playerRank,playerRankDisplayName:playerRank?.displayName,playerRankFull:playerRank,opponentName:gameState.opponentName,hasOpponentRank:!!opponentRank,opponentRankDisplayName:opponentRank?.displayName,playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:722',message:'Rendering with player info',data:{playerName:gameState.playerName,hasPlayerRank:!!playerRank,hasEffectivePlayerRank:!!effectivePlayerRank,playerRankDisplayName:playerRank?.displayName,effectivePlayerRankDisplayName:effectivePlayerRank?.displayName,opponentName:gameState.opponentName,hasOpponentRank:!!opponentRank,opponentRankDisplayName:opponentRank?.displayName,playerDisplayName,totalWageredSc},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
   }
   // #endregion
 
@@ -788,7 +797,7 @@ export default function LiveGame() {
         whiteTime={whiteTime}
         blackTime={blackTime}
         isPrivateGame={isPrivateGame}
-        playerRank={playerRank || (totalWageredSc !== undefined && totalWageredSc !== null ? getRankFromTotalWagered(totalWageredSc) : undefined)}
+        playerRank={effectivePlayerRank}
         opponentRank={opponentRank}
         onSendMove={handleSendMove}
         onExit={handleExit}
