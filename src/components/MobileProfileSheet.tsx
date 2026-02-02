@@ -119,7 +119,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
           md:hidden fixed inset-x-0 bottom-16 z-[70]
           bg-card rounded-t-3xl
           transition-transform duration-300 ease-out
-          ${isOpen ? 'translate-y-0' : 'translate-y-full'}
+          ${isOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'}
         `}
         style={{ maxHeight: 'calc(85vh - 64px)' }}
       >
