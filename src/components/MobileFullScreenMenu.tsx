@@ -91,22 +91,26 @@ export const MobileFullScreenMenu = ({ isOpen, onClose }: MobileFullScreenMenuPr
     onClose();
   };
 
-  // Don't render anything when closed
-  if (!isOpen) {
-    return null;
-  }
-
   return (
     <>
-      {/* Backdrop - leave space for bottom nav (h-16 = 64px) */}
+      {/* Backdrop */}
       <div 
-        className="md:hidden fixed inset-0 bottom-16 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-300"
+        className={`
+          md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]
+          transition-opacity duration-300
+          ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+        `}
         onClick={onClose}
       />
       
-      {/* Full screen menu sliding up from bottom - leave space for bottom nav */}
+      {/* Full screen menu sliding up from bottom */}
       <div
-        className="md:hidden fixed inset-x-0 bottom-16 top-0 z-[70] bg-card animate-in slide-in-from-bottom duration-300"
+        className={`
+          md:hidden fixed inset-x-0 bottom-0 top-0 z-[70]
+          bg-card
+          transition-transform duration-300 ease-out
+          ${isOpen ? 'translate-y-0' : 'translate-y-full'}
+        `}
       >
         {/* Header with close button */}
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -116,8 +120,8 @@ export const MobileFullScreenMenu = ({ isOpen, onClose }: MobileFullScreenMenuPr
           </Button>
         </div>
 
-        {/* Scrollable content - adjusted for new layout */}
-        <div className="flex-1 overflow-y-auto pb-24" style={{ height: 'calc(100vh - 64px - 60px - 60px)' }}>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto pb-20" style={{ height: 'calc(100vh - 140px)' }}>
           {/* Main Navigation */}
           <div className="px-4 py-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
@@ -205,7 +209,7 @@ export const MobileFullScreenMenu = ({ isOpen, onClose }: MobileFullScreenMenuPr
           </div>
         </div>
 
-        {/* Footer with auth action - positioned above bottom nav */}
+        {/* Footer with auth action */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
           {isAuthenticated ? (
             <Button 

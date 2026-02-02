@@ -101,23 +101,27 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
     { icon: Users, label: 'Refer & Earn', path: '/affiliate', color: 'text-red-400' },
   ];
 
-  // Don't render anything when closed
-  if (!isOpen) {
-    return null;
-  }
-
   return (
     <>
-      {/* Backdrop - leave space for bottom nav (h-16 = 64px) */}
+      {/* Backdrop */}
       <div 
-        className="md:hidden fixed inset-0 bottom-16 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-300"
+        className={`
+          md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]
+          transition-opacity duration-300
+          ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+        `}
         onClick={onClose}
       />
       
-      {/* Sheet sliding up from bottom - positioned above bottom nav */}
+      {/* Sheet sliding up from bottom */}
       <div
-        className="md:hidden fixed inset-x-0 bottom-16 z-[70] bg-card rounded-t-3xl animate-in slide-in-from-bottom duration-300"
-        style={{ maxHeight: 'calc(85vh - 64px)' }}
+        className={`
+          md:hidden fixed inset-x-0 bottom-0 z-[70]
+          bg-card rounded-t-3xl
+          transition-transform duration-300 ease-out
+          ${isOpen ? 'translate-y-0' : 'translate-y-full'}
+        `}
+        style={{ maxHeight: '85vh' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -143,7 +147,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
         </div>
 
         {/* Menu items */}
-        <div className="p-4 space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 64px - 200px)' }}>
+        <div className="p-4 space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 200px)' }}>
           {menuItems.map((item) => (
             <button
               key={item.label}
