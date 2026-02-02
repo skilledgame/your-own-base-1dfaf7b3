@@ -109,7 +109,7 @@ export const MobileFullScreenMenu = ({ isOpen, onClose }: MobileFullScreenMenuPr
           md:hidden fixed inset-x-0 bottom-16 top-0 z-[70]
           bg-card
           transition-transform duration-300 ease-out
-          ${isOpen ? 'translate-y-0' : 'translate-y-full'}
+          ${isOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'}
         `}
       >
         {/* Header with close button */}
