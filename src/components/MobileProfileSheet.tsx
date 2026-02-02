@@ -9,7 +9,7 @@ import { useWalletModal } from '@/contexts/WalletModalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   User, Wallet, Settings, 
-  Trophy, History, Users, HelpCircle, LogOut, BarChart3, X
+  Trophy, History, Users, LogOut, BarChart3, X
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -94,13 +94,11 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
   }
 
   const menuItems = [
-    { icon: Wallet, label: 'Cashier', onClick: handleOpenCashier, color: 'text-emerald-400' },
+    { icon: Wallet, label: 'Wallet', onClick: handleOpenCashier, color: 'text-emerald-400' },
     { icon: Trophy, label: 'VIP Rewards', path: '/vip', color: 'text-yellow-400' },
-    { icon: Settings, label: 'Account Settings', path: '/settings', color: 'text-slate-400' },
     { icon: BarChart3, label: 'Stats', path: '/stats', color: 'text-blue-400' },
-    { icon: History, label: 'Game History', path: '/leaderboard', color: 'text-slate-400' },
-    { icon: Users, label: 'Refer & Earn', path: '/affiliate', color: 'text-cyan-400' },
-    { icon: HelpCircle, label: 'Help Center', path: '/how-it-works', color: 'text-slate-400' },
+    { icon: History, label: 'Game History', path: '/game-history', color: 'text-orange-400' },
+    { icon: Users, label: 'Refer & Earn', path: '/affiliate', color: 'text-red-400' },
   ];
 
   return (
@@ -149,7 +147,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
         </div>
 
         {/* Menu items */}
-        <div className="p-4 space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 140px)' }}>
+        <div className="p-4 space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 200px)' }}>
           {menuItems.map((item) => (
             <button
               key={item.label}
@@ -162,8 +160,19 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
           ))}
         </div>
 
+        {/* Account Settings - separated */}
+        <div className="px-4 py-2 border-t border-border">
+          <button
+            onClick={() => handleNavigate('/settings')}
+            className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors duration-200 text-left hover:bg-muted"
+          >
+            <Settings className="w-5 h-5 text-slate-400" />
+            <span className="text-foreground font-medium">Account Settings</span>
+          </button>
+        </div>
+
         {/* Logout */}
-        <div className="p-4 border-t border-border">
+        <div className="px-4 pb-4 pt-2 border-t border-border">
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors duration-200 text-left hover:bg-destructive/10"

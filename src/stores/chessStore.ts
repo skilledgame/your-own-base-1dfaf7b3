@@ -220,7 +220,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       const newState = {
         matchmaking: {
           ...state.matchmaking,
-          status: "matched",
+          status: "matched" as const,
           matchId: data.matchId || null,
           dbMatchId: data.dbMatchId || null,
           opponentUserId: data.opponentUserId || null,
