@@ -301,13 +301,17 @@ export default function LiveGame() {
       }
     }
     
-    // Update player rank if totalWageredSc is available
+    // Update player rank if totalWageredSc is available (0 is valid, only skip if undefined/null)
     if (totalWageredSc !== undefined && totalWageredSc !== null) {
       const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:305',message:'Immediate player rank update from useEffect',data:{totalWageredSc,hasPlayerRankInfo:!!playerRankInfo,displayName:playerRankInfo?.displayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-      // #endregion
-      setPlayerRank(playerRankInfo);
+      // Only update if we don't already have a rank, or if the rank would be different
+      // This prevents unnecessary updates but ensures it's set initially
+      if (!playerRank || playerRank.displayName !== playerRankInfo.displayName) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:305',message:'Immediate player rank update from useEffect',data:{totalWageredSc,hasPlayerRankInfo:!!playerRankInfo,displayName:playerRankInfo?.displayName,currentPlayerRank:playerRank?.displayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+        // #endregion
+        setPlayerRank(playerRankInfo);
+      }
     }
   }, [playerDisplayName, totalWageredSc, gameState, isPrivateGame, setGameState, setPlayerRank]);
 
@@ -775,7 +779,7 @@ export default function LiveGame() {
         whiteTime={whiteTime}
         blackTime={blackTime}
         isPrivateGame={isPrivateGame}
-        playerRank={playerRank}
+        playerRank={playerRank || (totalWageredSc !== undefined && totalWageredSc !== null ? getRankFromTotalWagered(totalWageredSc) : undefined)}
         opponentRank={opponentRank}
         onSendMove={handleSendMove}
         onExit={handleExit}
