@@ -461,22 +461,43 @@ export default function LiveGame() {
           fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:367',message:'Fetching opponent profile',data:{opponentUserId,currentOpponentName:gameState?.opponentName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
           // #endregion
           // Fetch opponent's profile using RPC function (bypasses RLS)
-          // Fallback to direct query if RPC fails
           let opponentProfile: { display_name: string | null; total_wagered_sc: number | null } | null = null;
           
           try {
-            // Directly query profiles table (RLS allows reading)
-            const { data: profileData, error: queryError } = await supabase
-              .from('profiles')
-              .select('total_wagered_sc, display_name')
-              .eq('user_id', opponentUserId)
-              .maybeSingle();
+            // Try RPC function first (bypasses RLS)
+            const { data: rpcData, error: rpcError } = await supabase
+              .rpc('get_opponent_profile', { p_user_id: opponentUserId });
             
-            if (!queryError && profileData) {
-              opponentProfile = profileData;
+            if (!rpcError && rpcData && rpcData.length > 0) {
+              opponentProfile = rpcData[0];
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:472',message:'Opponent profile from RPC',data:{hasProfile:true,displayName:opponentProfile?.display_name,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+              // #endregion
+            } else {
+              // Fallback to direct query if RPC fails
+              const { data: profileData, error: queryError } = await supabase
+                .from('profiles')
+                .select('total_wagered_sc, display_name')
+                .eq('user_id', opponentUserId)
+                .maybeSingle();
+              
+              if (!queryError && profileData) {
+                opponentProfile = profileData;
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:485',message:'Opponent profile from direct query',data:{hasProfile:true,displayName:opponentProfile?.display_name,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+                // #endregion
+              } else {
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:490',message:'Opponent profile query failed',data:{rpcError:rpcError?.message,queryError:queryError?.message,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+                // #endregion
+                console.error('[LiveGame] Error fetching opponent profile:', rpcError || queryError);
+              }
             }
           } catch (err) {
-            console.error('[LiveGame] Error fetching opponent profile:', err);
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:497',message:'Opponent profile fetch exception',data:{error:err instanceof Error?err.message:String(err),opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+            // #endregion
+            console.error('[LiveGame] Exception fetching opponent profile:', err);
           }
 
           // #region agent log
