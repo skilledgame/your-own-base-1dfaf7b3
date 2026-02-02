@@ -50,10 +50,15 @@ class GameErrorBoundaryClass extends Component<Props, State> {
     // #endregion
     
     // Check if this is a transient error that should auto-recover
+    // React error #300 = "Rendered fewer hooks than expected" (usually from conditional hooks or state updates during render)
     const isTransientError = error.message.includes('Cannot update') || 
                              error.message.includes('during render') ||
                              error.message.includes('Maximum update depth') ||
-                             error.message.includes('Rendered more hooks');
+                             error.message.includes('Rendered more hooks') ||
+                             error.message.includes('Minified React error #300') ||
+                             error.message.includes('invariant=300') ||
+                             error.message.includes('Rendered fewer hooks') ||
+                             error.message.includes('error #300');
 
     if (isTransientError) {
       // For transient errors, auto-retry immediately without showing error screen

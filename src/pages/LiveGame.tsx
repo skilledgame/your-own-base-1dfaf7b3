@@ -426,8 +426,18 @@ export default function LiveGame() {
         }
 
         if (opponentUserId) {
+          // CRITICAL: Don't fetch opponent profile if game has already ended
+          // This prevents errors during modal render
+          const currentPhase = useChessStore.getState().phase;
+          if (currentPhase === "game_over") {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:428',message:'Skipping opponent profile fetch - game already ended',data:{phase:currentPhase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            return; // Exit early, don't fetch profile
+          }
+          
           // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:412',message:'About to fetch opponent profile',data:{opponentUserId,phase:useChessStore.getState().phase,hasGameState:!!gameState},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:436',message:'About to fetch opponent profile',data:{opponentUserId,phase:currentPhase,hasGameState:!!gameState},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
           // #endregion
           // Fetch opponent's profile using RPC function (bypasses RLS)
           let opponentProfile: { display_name: string | null; total_wagered_sc: number | null } | null = null;
