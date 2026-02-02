@@ -37,7 +37,16 @@ export default function LiveGame() {
   const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd, matchmaking } = useChessStore();
   const { balance } = useBalance();
   const { user } = useAuth();
-  const { totalWageredSc, displayName: playerDisplayName } = useProfile();
+  const { totalWageredSc, displayName: playerDisplayName, profile } = useProfile();
+  
+  // #region agent log
+  // Log profile data when it changes
+  useEffect(() => {
+    if (profile) {
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:42',message:'Profile data available',data:{user_id:profile.user_id,display_name:profile.display_name,displayName:playerDisplayName,total_wagered_sc:profile.total_wagered_sc,skilled_coins:profile.skilled_coins},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+    }
+  }, [profile, playerDisplayName]);
+  // #endregion
   
   // WebSocket connection and actions (only for matchmade games)
   const {

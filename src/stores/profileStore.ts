@@ -106,11 +106,16 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           ? parseInt(data.total_wagered_sc, 10) || 0
           : 0;
         
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:101',message:'Profile fetched from database',data:{user_id:data.user_id,display_name:data.display_name,skilled_coins:data.skilled_coins,total_wagered_sc:totalWagered,hasDisplayName:!!data.display_name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+        // #endregion
+        
         console.log('[ProfileStore] Fetched profile:', {
           skilled_coins: data.skilled_coins,
           total_wagered_sc: totalWagered,
           total_wagered_sc_raw: data.total_wagered_sc,
           user_id: data.user_id,
+          display_name: data.display_name,
           full_data: data, // Log full response for debugging
         });
         
