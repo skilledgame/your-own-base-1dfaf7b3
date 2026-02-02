@@ -322,7 +322,15 @@ export default function LiveGame() {
       return;
     }
 
+    // Abort controller to cancel in-flight requests when phase changes
+    const abortController = new AbortController();
+
     const fetchRanks = async () => {
+      // Check phase again inside async function to cancel if game ended
+      const currentPhase = useChessStore.getState().phase;
+      if (currentPhase === "game_over" || abortController.signal.aborted) {
+        return;
+      }
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:316',message:'fetchRanks started',data:{hasGameState:!!gameState,phase:useChessStore.getState().phase,isPrivateGame,gameId:gameState?.gameId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
@@ -386,12 +394,22 @@ export default function LiveGame() {
           // If opponentUserId is not in matchmaking state, try to get it from gameState.dbGameId
           // by querying the game to find the opponent
           if (!opponentUserId && gameState?.dbGameId) {
+            // Check before async operations
+            if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+              return;
+            }
+            
             try {
               const { data: game } = await supabase
                 .from('games')
                 .select('white_player_id, black_player_id')
                 .eq('id', gameState.dbGameId)
                 .maybeSingle();
+              
+              // Check again after async operation
+              if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+                return;
+              }
               
               if (game && user?.id) {
                 // Find opponent user_id by checking which player we are
@@ -401,6 +419,11 @@ export default function LiveGame() {
                   .or(`user_id.eq.${user.id},id.eq.${gameState.color === 'w' ? game.white_player_id : game.black_player_id}`)
                   .maybeSingle();
                 
+                // Check again after async operation
+                if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+                  return;
+                }
+                
                 if (gameState.color === 'w') {
                   // We're white, opponent is black
                   const { data: blackPlayer } = await supabase
@@ -408,6 +431,12 @@ export default function LiveGame() {
                     .select('user_id')
                     .eq('id', game.black_player_id)
                     .maybeSingle();
+                  
+                  // Check again after async operation
+                  if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+                    return;
+                  }
+                  
                   opponentUserId = blackPlayer?.user_id || null;
                 } else {
                   // We're black, opponent is white
@@ -416,22 +445,32 @@ export default function LiveGame() {
                     .select('user_id')
                     .eq('id', game.white_player_id)
                     .maybeSingle();
+                  
+                  // Check again after async operation
+                  if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+                    return;
+                  }
+                  
                   opponentUserId = whitePlayer?.user_id || null;
                 }
               }
             } catch (err) {
+              // Don't process errors if game ended
+              if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+                return;
+              }
               console.error('[LiveGame] Error fetching opponent from game:', err);
             }
           }
         }
 
         if (opponentUserId) {
-          // CRITICAL: Don't fetch opponent profile if game has already ended
-          // This prevents errors during modal render
+          // CRITICAL: Don't fetch opponent profile if game has already ended or request was aborted
+          // This prevents errors during modal render and unnecessary re-renders
           const currentPhase = useChessStore.getState().phase;
-          if (currentPhase === "game_over") {
+          if (currentPhase === "game_over" || abortController.signal.aborted) {
             // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:428',message:'Skipping opponent profile fetch - game already ended',data:{phase:currentPhase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:437',message:'Skipping opponent profile fetch - game already ended or aborted',data:{phase:currentPhase,aborted:abortController.signal.aborted},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
             // #endregion
             return; // Exit early, don't fetch profile
           }
@@ -450,8 +489,13 @@ export default function LiveGame() {
             const { data: rpcData, error: rpcError } = await supabase
               .rpc('get_opponent_profile', { p_user_id: opponentUserId });
             
+            // Check again after async operation - don't process if game ended
+            if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+              return;
+            }
+            
             // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:421',message:'get_opponent_profile RPC result',data:{hasRpcError:!!rpcError,rpcError:rpcError?.message,hasRpcData:!!rpcData,rpcDataLength:rpcData?.length,phase:useChessStore.getState().phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:463',message:'get_opponent_profile RPC result',data:{hasRpcError:!!rpcError,rpcError:rpcError?.message,hasRpcData:!!rpcData,rpcDataLength:rpcData?.length,phase:useChessStore.getState().phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
             // #endregion
             
             if (!rpcError && rpcData && rpcData.length > 0) {
@@ -464,20 +508,39 @@ export default function LiveGame() {
                 .eq('user_id', opponentUserId)
                 .maybeSingle();
               
+              // Check again after async operation
+              if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+                return;
+              }
+              
               if (!queryError && profileData) {
                 opponentProfile = profileData;
               } else {
                 console.error('[LiveGame] Error fetching opponent profile:', rpcError || queryError);
                 // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:434',message:'Error fetching opponent profile',data:{rpcError:rpcError?.message,queryError:queryError?.message,phase:useChessStore.getState().phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:480',message:'Error fetching opponent profile',data:{rpcError:rpcError?.message,queryError:queryError?.message,phase:useChessStore.getState().phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                 // #endregion
               }
             }
           } catch (err) {
+            // Don't process errors if game ended
+            if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+              return;
+            }
             console.error('[LiveGame] Exception fetching opponent profile:', err);
             // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:438',message:'Exception in fetchRanks get_opponent_profile',data:{error:err instanceof Error?err.message:String(err),phase:useChessStore.getState().phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:492',message:'Exception in fetchRanks get_opponent_profile',data:{error:err instanceof Error?err.message:String(err),phase:useChessStore.getState().phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
             // #endregion
+          }
+
+          // Check again before processing profile data
+          if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+            return; // Don't process if game ended
+          }
+
+          // Check again before processing profile data
+          if (abortController.signal.aborted || useChessStore.getState().phase === "game_over") {
+            return; // Don't process if game ended
           }
 
           if (opponentProfile) {
@@ -492,9 +555,9 @@ export default function LiveGame() {
             const currentGameState = storeState.gameState;
             const currentPhase = storeState.phase;
             
-            // CRITICAL: Don't update gameState if game has already ended
+            // CRITICAL: Don't update gameState if game has already ended or request was aborted
             // This prevents state conflicts that interfere with the GameResultModal display
-            if (currentGameState && currentPhase !== "game_over") {
+            if (currentGameState && currentPhase !== "game_over" && !abortController.signal.aborted) {
               // #region agent log
               fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:473',message:'About to update gameState with opponent name',data:{phase:currentPhase,hasGameState:!!currentGameState,opponentDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
               // #endregion
@@ -551,6 +614,11 @@ export default function LiveGame() {
     };
 
     fetchRanks();
+    
+    // Cleanup: abort any in-flight requests when phase changes to game_over or component unmounts
+    return () => {
+      abortController.abort();
+    };
   }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId, playerDisplayName, setGameState, setPlayerRank, phase]);
 
   // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
