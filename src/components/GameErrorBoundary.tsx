@@ -60,11 +60,20 @@ class GameErrorBoundaryClass extends Component<Props, State> {
       // For transient errors, auto-retry immediately without showing error screen
       console.log('[GameErrorBoundary] Transient error detected, auto-retrying silently');
       
+      // Clear the error state immediately to prevent error screen from showing
+      // getDerivedStateFromError already set hasError: true, so we need to reset it
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null,
+      });
+      
       if (this.retryTimeout) {
         clearTimeout(this.retryTimeout);
       }
       // Auto-retry after a short delay to let state settle
       this.retryTimeout = setTimeout(() => {
+        // Force a re-render by resetting state again (in case component didn't re-render)
         this.handleReset();
       }, 100);
       return; // Don't set error state, so error screen doesn't show
