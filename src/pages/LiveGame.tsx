@@ -315,10 +315,9 @@ export default function LiveGame() {
     
     // CRITICAL: Don't fetch ranks if game has already ended
     // This prevents infinite loops and state conflicts that interfere with the GameResultModal display
-    const currentPhase = useChessStore.getState().phase;
-    if (currentPhase === "game_over") {
+    if (phase === "game_over") {
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:315',message:'Skipping fetchRanks - game already ended',data:{phase:currentPhase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:318',message:'Skipping fetchRanks - game already ended',data:{phase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
       return;
     }
@@ -542,7 +541,7 @@ export default function LiveGame() {
     };
 
     fetchRanks();
-  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId, playerDisplayName, setGameState, setPlayerRank]);
+  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId, playerDisplayName, setGameState, setPlayerRank, phase]);
 
   // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
   useEffect(() => {
