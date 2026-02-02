@@ -301,14 +301,19 @@ export default function LiveGame() {
         setPlayerRank(playerRankInfo);
         
         // Update player's own name from profile if available (for WebSocket games)
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:303',message:'Checking player name update conditions',data:{hasPlayerDisplayName:!!playerDisplayName,playerDisplayName,hasGameState:!!gameState,isPrivateGame,gameStatePlayerName:gameState?.playerName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+        // #endregion
         if (playerDisplayName && gameState && !isPrivateGame) {
           // Get latest gameState from store to avoid stale closure
           const storeState = useChessStore.getState();
           const currentGameState = storeState.gameState;
-          
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:308',message:'Inside player name update block',data:{hasCurrentGameState:!!currentGameState,currentPlayerName:currentGameState?.playerName,shouldUpdate:currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+          // #endregion
           if (currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)) {
             // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:304',message:'Updating player name from profile',data:{oldName:currentGameState.playerName,newName:playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:311',message:'Updating player name from profile',data:{oldName:currentGameState.playerName,newName:playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
             // #endregion
             setGameState({
               ...currentGameState,
@@ -318,7 +323,15 @@ export default function LiveGame() {
               oldName: currentGameState.playerName,
               newName: playerDisplayName,
             });
+          } else {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:323',message:'Skipping player name update',data:{reason:'condition not met',currentPlayerName:currentGameState?.playerName,playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+            // #endregion
           }
+        } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:327',message:'Skipping player name update - outer condition',data:{hasPlayerDisplayName:!!playerDisplayName,hasGameState:!!gameState,isPrivateGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+          // #endregion
         }
 
         // Get opponent rank
@@ -705,6 +718,13 @@ export default function LiveGame() {
   const blackTime = usePrivateGameState
     ? privateGame.gameState.blackTime
     : 60; // Default fallback
+
+  // #region agent log
+  // Log player name and rank at render time
+  if (gameState) {
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:722',message:'Rendering with player info',data:{playerName:gameState.playerName,playerRank:playerRank?.displayName,opponentName:gameState.opponentName,opponentRank:opponentRank?.displayName,playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+  }
+  // #endregion
 
   return (
     <>
