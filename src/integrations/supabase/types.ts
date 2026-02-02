@@ -471,6 +471,13 @@ export type Database = {
         Returns: undefined
       }
       get_opponent_name: { Args: { p_player_id: string }; Returns: string }
+      get_opponent_profile: {
+        Args: { p_user_id: string }
+        Returns: {
+          display_name: string
+          total_wagered_sc: number
+        }[]
+      }
       get_or_create_free_plays: {
         Args: { p_game_slug: string; p_user_id: string }
         Returns: number
