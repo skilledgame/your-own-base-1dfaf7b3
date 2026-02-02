@@ -101,26 +101,22 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
     { icon: Users, label: 'Refer & Earn', path: '/affiliate', color: 'text-red-400' },
   ];
 
+  // Don't render anything when closed
+  if (!isOpen) {
+    return null;
+  }
+
   return (
     <>
       {/* Backdrop - leave space for bottom nav (h-16 = 64px) */}
       <div 
-        className={`
-          md:hidden fixed inset-0 bottom-16 bg-black/60 backdrop-blur-sm z-[60]
-          transition-opacity duration-300
-          ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-        `}
+        className="md:hidden fixed inset-0 bottom-16 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-300"
         onClick={onClose}
       />
       
       {/* Sheet sliding up from bottom - positioned above bottom nav */}
       <div
-        className={`
-          md:hidden fixed inset-x-0 bottom-16 z-[70]
-          bg-card rounded-t-3xl
-          transition-transform duration-300 ease-out
-          ${isOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'}
-        `}
+        className="md:hidden fixed inset-x-0 bottom-16 z-[70] bg-card rounded-t-3xl animate-in slide-in-from-bottom duration-300"
         style={{ maxHeight: 'calc(85vh - 64px)' }}
       >
         {/* Header */}
