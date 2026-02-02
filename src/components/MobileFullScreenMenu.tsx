@@ -91,26 +91,22 @@ export const MobileFullScreenMenu = ({ isOpen, onClose }: MobileFullScreenMenuPr
     onClose();
   };
 
+  // Don't render anything when closed
+  if (!isOpen) {
+    return null;
+  }
+
   return (
     <>
       {/* Backdrop - leave space for bottom nav (h-16 = 64px) */}
       <div 
-        className={`
-          md:hidden fixed inset-0 bottom-16 bg-black/60 backdrop-blur-sm z-[60]
-          transition-opacity duration-300
-          ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-        `}
+        className="md:hidden fixed inset-0 bottom-16 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-300"
         onClick={onClose}
       />
       
       {/* Full screen menu sliding up from bottom - leave space for bottom nav */}
       <div
-        className={`
-          md:hidden fixed inset-x-0 bottom-16 top-0 z-[70]
-          bg-card
-          transition-transform duration-300 ease-out
-          ${isOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'}
-        `}
+        className="md:hidden fixed inset-x-0 bottom-16 top-0 z-[70] bg-card animate-in slide-in-from-bottom duration-300"
       >
         {/* Header with close button */}
         <div className="flex items-center justify-between p-4 border-b border-border">
