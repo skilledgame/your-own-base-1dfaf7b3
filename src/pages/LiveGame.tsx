@@ -37,16 +37,7 @@ export default function LiveGame() {
   const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd, matchmaking } = useChessStore();
   const { balance } = useBalance();
   const { user } = useAuth();
-  const { totalWageredSc, displayName: playerDisplayName, profile } = useProfile();
-  
-  // #region agent log
-  // Log profile data when it changes
-  useEffect(() => {
-    if (profile) {
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:42',message:'Profile data available',data:{user_id:profile.user_id,display_name:profile.display_name,displayName:playerDisplayName,total_wagered_sc:profile.total_wagered_sc,skilled_coins:profile.skilled_coins},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-    }
-  }, [profile, playerDisplayName]);
-  // #endregion
+  const { totalWageredSc, displayName: playerDisplayName } = useProfile();
   
   // WebSocket connection and actions (only for matchmade games)
   const {
@@ -300,9 +291,6 @@ export default function LiveGame() {
       const currentGameState = storeState.gameState;
       
       if (currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:285',message:'Immediate player name update from useEffect',data:{oldName:currentGameState.playerName,newName:playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-        // #endregion
         setGameState({
           ...currentGameState,
           playerName: playerDisplayName,
@@ -316,9 +304,6 @@ export default function LiveGame() {
       // Only update if we don't already have a rank, or if the rank would be different
       // This prevents unnecessary updates but ensures it's set initially
       if (!playerRank || playerRank.displayName !== playerRankInfo.displayName) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:305',message:'Immediate player rank update from useEffect',data:{totalWageredSc,hasPlayerRankInfo:!!playerRankInfo,displayName:playerRankInfo?.displayName,currentPlayerRank:playerRank?.displayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-        // #endregion
         setPlayerRank(playerRankInfo);
       }
     }
@@ -329,38 +314,17 @@ export default function LiveGame() {
     if (!gameState) return;
 
     const fetchRanks = async () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:288',message:'fetchRanks started',data:{isPrivateGame,hasGameState:!!gameState,hasMatchmaking:!!matchmaking,opponentUserIdFromMatchmaking:matchmaking?.opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:293',message:'Calculating player rank and name',data:{totalWageredSc,playerName:gameState?.playerName,playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-        // #endregion
         // Get player rank from profile hook
         const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:295',message:'Player rank calculated',data:{hasPlayerRankInfo:!!playerRankInfo,playerRankInfoType:typeof playerRankInfo,displayName:playerRankInfo?.displayName,tierName:playerRankInfo?.tierName,playerRankInfoKeys:playerRankInfo?Object.keys(playerRankInfo):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-        // #endregion
         setPlayerRank(playerRankInfo);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:301',message:'setPlayerRank called',data:{hasPlayerRankInfo:!!playerRankInfo,displayName:playerRankInfo?.displayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-        // #endregion
         
         // Update player's own name from profile if available (for WebSocket games)
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:303',message:'Checking player name update conditions',data:{hasPlayerDisplayName:!!playerDisplayName,playerDisplayName,hasGameState:!!gameState,isPrivateGame,gameStatePlayerName:gameState?.playerName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-        // #endregion
         if (playerDisplayName && gameState && !isPrivateGame) {
           // Get latest gameState from store to avoid stale closure
           const storeState = useChessStore.getState();
           const currentGameState = storeState.gameState;
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:308',message:'Inside player name update block',data:{hasCurrentGameState:!!currentGameState,currentPlayerName:currentGameState?.playerName,shouldUpdate:currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-          // #endregion
           if (currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)) {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:311',message:'Updating player name from profile',data:{oldName:currentGameState.playerName,newName:playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-            // #endregion
             setGameState({
               ...currentGameState,
               playerName: playerDisplayName,
@@ -369,15 +333,7 @@ export default function LiveGame() {
               oldName: currentGameState.playerName,
               newName: playerDisplayName,
             });
-          } else {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:323',message:'Skipping player name update',data:{reason:'condition not met',currentPlayerName:currentGameState?.playerName,playerDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-            // #endregion
           }
-        } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:327',message:'Skipping player name update - outer condition',data:{hasPlayerDisplayName:!!playerDisplayName,hasGameState:!!gameState,isPrivateGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-          // #endregion
         }
 
         // Get opponent rank
@@ -410,9 +366,6 @@ export default function LiveGame() {
         } else if (!isPrivateGame) {
           // For WebSocket games, get from matchmaking state
           opponentUserId = matchmaking.opponentUserId || null;
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:323',message:'opponentUserId from matchmaking',data:{opponentUserId,fromMatchmaking:matchmaking.opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           
           // If opponentUserId is not in matchmaking state, try to get it from gameState.dbGameId
           // by querying the game to find the opponent
@@ -457,9 +410,6 @@ export default function LiveGame() {
         }
 
         if (opponentUserId) {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:367',message:'Fetching opponent profile',data:{opponentUserId,currentOpponentName:gameState?.opponentName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           // Fetch opponent's profile using RPC function (bypasses RLS)
           let opponentProfile: { display_name: string | null; total_wagered_sc: number | null } | null = null;
           
@@ -470,9 +420,6 @@ export default function LiveGame() {
             
             if (!rpcError && rpcData && rpcData.length > 0) {
               opponentProfile = rpcData[0];
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:472',message:'Opponent profile from RPC',data:{hasProfile:true,displayName:opponentProfile?.display_name,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-              // #endregion
             } else {
               // Fallback to direct query if RPC fails
               const { data: profileData, error: queryError } = await supabase
@@ -483,26 +430,13 @@ export default function LiveGame() {
               
               if (!queryError && profileData) {
                 opponentProfile = profileData;
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:485',message:'Opponent profile from direct query',data:{hasProfile:true,displayName:opponentProfile?.display_name,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-                // #endregion
               } else {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:490',message:'Opponent profile query failed',data:{rpcError:rpcError?.message,queryError:queryError?.message,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-                // #endregion
                 console.error('[LiveGame] Error fetching opponent profile:', rpcError || queryError);
               }
             }
           } catch (err) {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:497',message:'Opponent profile fetch exception',data:{error:err instanceof Error?err.message:String(err),opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-            // #endregion
             console.error('[LiveGame] Exception fetching opponent profile:', err);
           }
-
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:395',message:'Profile query result',data:{hasProfile:!!opponentProfile,displayName:opponentProfile?.display_name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
 
           if (opponentProfile) {
             const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
@@ -510,9 +444,6 @@ export default function LiveGame() {
             
             // Always update opponent name from profile (more reliable than server payload)
             const opponentDisplayName = opponentProfile.display_name || "Opponent";
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:385',message:'About to update opponent name',data:{opponentDisplayName,currentOpponentName:gameState?.opponentName,willUpdate:opponentDisplayName !== gameState?.opponentName || gameState?.opponentName === "Opponent"},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
             // Get latest gameState from store to avoid stale closure
             // Access store directly to get the latest state (avoids stale closure)
             const storeState = useChessStore.getState();
@@ -525,9 +456,6 @@ export default function LiveGame() {
                   ...currentGameState,
                   opponentName: opponentDisplayName,
                 });
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:393',message:'setGameState called',data:{oldName:currentGameState.opponentName,newName:opponentDisplayName,opponentUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                // #endregion
                 console.log('[LiveGame] Updated opponent name from profile:', {
                   oldName: currentGameState.opponentName,
                   newName: opponentDisplayName,
@@ -795,12 +723,6 @@ export default function LiveGame() {
     return undefined;
   }, [playerRank, totalWageredSc]);
 
-  // #region agent log
-  // Log player name and rank at render time
-  if (gameState) {
-    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveGame.tsx:722',message:'Rendering with player info',data:{playerName:gameState.playerName,hasPlayerRank:!!playerRank,hasEffectivePlayerRank:!!effectivePlayerRank,playerRankDisplayName:playerRank?.displayName,effectivePlayerRankDisplayName:effectivePlayerRank?.displayName,opponentName:gameState.opponentName,hasOpponentRank:!!opponentRank,opponentRankDisplayName:opponentRank?.displayName,playerDisplayName,totalWageredSc},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-  }
-  // #endregion
 
   return (
     <>

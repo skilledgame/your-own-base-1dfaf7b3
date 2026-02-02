@@ -318,11 +318,6 @@ export const WSMultiplayerGameView = ({
   const playerRankDisplay = playerRank?.displayName || 'Unranked';
   const opponentRankDisplay = opponentRank?.displayName || 'Unranked';
   
-  // #region agent log
-  // Log what the component receives
-  fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WSMultiplayerGameView.tsx:320',message:'Component received props',data:{playerName,hasPlayerRank:!!playerRank,playerRankType:typeof playerRank,playerRankDisplayName:playerRank?.displayName,playerRankDisplay,opponentName,hasOpponentRank:!!opponentRank,opponentRankDisplayName:opponentRank?.displayName,opponentRankDisplay},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
-  // #endregion
-  
   // Get rank colors for styling
   const getRankColor = (rank: RankInfo | undefined) => {
     if (!rank) return 'text-muted-foreground';
