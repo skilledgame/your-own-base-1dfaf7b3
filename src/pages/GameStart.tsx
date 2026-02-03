@@ -415,16 +415,10 @@ export default function GameStart() {
   };
 
   const handleGameEnd = async (winnerId: string, reason: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameStart.tsx:429',message:'handleGameEnd entry',data:{hasPlayer:!!player,hasCurrentGame:!!currentGame,playerIdType:typeof player?.id,playerKeys:player?Object.keys(player):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     if (!player || !currentGame || !player.id) return;
     
     await endGame(winnerId, reason);
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/4bb50774-947e-4a00-9e1c-9d646c9a4411',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameStart.tsx:434',message:'Before player.id access in isWin',data:{hasPlayer:!!player,playerId:player?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     const isWin = winnerId === player.id;
     const isDraw = !winnerId;
     const coinsChange = isDraw ? 0 : (isWin ? currentGame.wager : -currentGame.wager);
