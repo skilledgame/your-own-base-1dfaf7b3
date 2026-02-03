@@ -21,19 +21,21 @@ export const LiveWins = () => {
   // Fetch recent finished games
   const fetchRecentWins = async () => {
     try {
-      // Get the 15 most recent finished games with winner info
+      // Get the most recent finished games with winner info
       const { data: games, error } = await supabase
         .from('games')
         .select(`
           id,
           wager,
           settled_at,
+          updated_at,
+          created_at,
           winner_id
         `)
         .eq('status', 'finished')
         .not('winner_id', 'is', null)
-        .order('settled_at', { ascending: false })
-        .limit(15);
+        .order('updated_at', { ascending: false })
+        .limit(20);
 
       if (error) {
         console.error('Error fetching recent wins:', error);
@@ -50,7 +52,7 @@ export const LiveWins = () => {
       const winnerIds = games.map(g => g.winner_id).filter(Boolean);
       const { data: players, error: playersError } = await supabase
         .from('players')
-        .select('id, name')
+        .select('id, name, user_id')
         .in('id', winnerIds);
 
       if (playersError) {
@@ -58,19 +60,52 @@ export const LiveWins = () => {
       }
 
       const playerMap = new Map(players?.map(p => [p.id, p.name]) || []);
+      const userIdMap = new Map(players?.map(p => [p.id, p.user_id]) || []);
 
-      const recentWins: Win[] = games.map((game) => ({
-        id: game.id,
-        playerName: playerMap.get(game.winner_id!) || 'Anonymous',
-        amount: game.wager,
-        game: 'Chess',
-        gameIcon: '♟️',
-        timestamp: new Date(game.settled_at || Date.now()),
-        gradientFrom: '#5B3E99',
-        gradientTo: '#3d2766',
-      }));
+      const missingNameUserIds = (players || [])
+        .filter(p => !p.name && p.user_id)
+        .map(p => p.user_id);
 
-      setWins(recentWins);
+      const profileMap = new Map<string, string>();
+      if (missingNameUserIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, display_name')
+          .in('user_id', missingNameUserIds);
+
+        if (profilesError) {
+          console.error('Error fetching profile names:', profilesError);
+        } else {
+          profiles?.forEach(profile => {
+            if (profile.display_name) {
+              profileMap.set(profile.user_id, profile.display_name);
+            }
+          });
+        }
+      }
+
+      const recentWins: Win[] = games.map((game) => {
+        const winnerId = game.winner_id!;
+        const playerName = playerMap.get(winnerId);
+        const userId = userIdMap.get(winnerId);
+        const profileName = userId ? profileMap.get(userId) : undefined;
+        const displayName = playerName || profileName || 'Skilled Player';
+        const timestampSource = game.settled_at || game.updated_at || game.created_at || Date.now();
+
+        return {
+          id: game.id,
+          playerName: displayName,
+          amount: game.wager,
+          game: 'Chess',
+          gameIcon: '♟️',
+          timestamp: new Date(timestampSource),
+          gradientFrom: '#5B3E99',
+          gradientTo: '#3d2766',
+        };
+      });
+
+      const sortedWins = recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      setWins(sortedWins);
     } catch (err) {
       console.error('Failed to fetch recent wins:', err);
     } finally {
@@ -127,12 +162,12 @@ export const LiveWins = () => {
 
     const animate = () => {
       scrollPosition += scrollSpeed;
-      const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-      
-      if (scrollPosition >= maxScroll) {
-        scrollPosition = 0;
+      const loopWidth = scrollContainer.scrollWidth / 2;
+
+      if (scrollPosition >= loopWidth) {
+        scrollPosition -= loopWidth;
       }
-      
+
       scrollContainer.scrollLeft = scrollPosition;
       animationId = requestAnimationFrame(animate);
     };
