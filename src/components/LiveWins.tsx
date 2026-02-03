@@ -62,29 +62,29 @@ export const LiveWins = () => {
         return;
       }
 
-      // Get unique winner IDs and fetch their names using security definer function
+      // Get unique winner IDs (player_ids) and fetch their display_names from profiles
       const uniqueWinnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))];
       
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:52',message:'Before fetching player names',data:{gameCount:games.length,uniqueWinnerIds,uniqueWinnerCount:uniqueWinnerIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:52',message:'Before fetching display names from profiles',data:{gameCount:games.length,uniqueWinnerIds,uniqueWinnerCount:uniqueWinnerIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
 
-      // Fetch player names using security definer function (bypasses RLS)
-      const playerNamePromises = uniqueWinnerIds.map(async (winnerId) => {
-        const { data, error } = await supabase.rpc('get_opponent_name', {
-          p_player_id: winnerId
+      // Fetch display_name from profiles using security definer function (bypasses RLS)
+      const displayNamePromises = uniqueWinnerIds.map(async (playerId) => {
+        const { data, error } = await supabase.rpc('get_display_name_from_player_id', {
+          p_player_id: playerId
         });
-        return { winnerId, name: error ? null : data };
+        return { playerId, displayName: error ? null : data, error: error?.message };
       });
 
-      const playerNameResults = await Promise.all(playerNamePromises);
+      const displayNameResults = await Promise.all(displayNamePromises);
       const playerNameMap = new Map<string, string | null>();
-      playerNameResults.forEach(({ winnerId, name }) => {
-        playerNameMap.set(winnerId, name);
+      displayNameResults.forEach(({ playerId, displayName }) => {
+        playerNameMap.set(playerId, displayName);
       });
 
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:68',message:'Player names fetched',data:{playerNameMapSize:playerNameMap.size,playerNames:Array.from(playerNameMap.entries()).map(([id,name])=>({id,name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:68',message:'Display names fetched from profiles',data:{playerNameMapSize:playerNameMap.size,playerNames:Array.from(playerNameMap.entries()).map(([id,name])=>({playerId:id,displayName:name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
 
       const recentWins: Win[] = games.map((game) => {
