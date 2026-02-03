@@ -30,7 +30,8 @@ export const LiveWins = () => {
           settled_at,
           updated_at,
           created_at,
-          winner_id
+          winner_id,
+          winner:players!games_winner_id_fkey(name)
         `)
         .eq('status', 'finished')
         .not('winner_id', 'is', null)
@@ -48,48 +49,8 @@ export const LiveWins = () => {
         return;
       }
 
-      // Get winner player names
-      const winnerIds = games.map(g => g.winner_id).filter(Boolean);
-      const { data: players, error: playersError } = await supabase
-        .from('players')
-        .select('id, name, user_id')
-        .in('id', winnerIds);
-
-      if (playersError) {
-        console.error('Error fetching player names:', playersError);
-      }
-
-      const playerMap = new Map(players?.map(p => [p.id, p.name]) || []);
-      const userIdMap = new Map(players?.map(p => [p.id, p.user_id]) || []);
-
-      const missingNameUserIds = (players || [])
-        .filter(p => !p.name && p.user_id)
-        .map(p => p.user_id);
-
-      const profileMap = new Map<string, string>();
-      if (missingNameUserIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('user_id, display_name')
-          .in('user_id', missingNameUserIds);
-
-        if (profilesError) {
-          console.error('Error fetching profile names:', profilesError);
-        } else {
-          profiles?.forEach(profile => {
-            if (profile.display_name) {
-              profileMap.set(profile.user_id, profile.display_name);
-            }
-          });
-        }
-      }
-
       const recentWins: Win[] = games.map((game) => {
-        const winnerId = game.winner_id!;
-        const playerName = playerMap.get(winnerId);
-        const userId = userIdMap.get(winnerId);
-        const profileName = userId ? profileMap.get(userId) : undefined;
-        const displayName = playerName || profileName || 'Skilled Player';
+        const displayName = game.winner?.name || 'Skilled Player';
         const timestampSource = game.settled_at || game.updated_at || game.created_at || Date.now();
 
         return {
@@ -162,10 +123,10 @@ export const LiveWins = () => {
 
     const animate = () => {
       scrollPosition += scrollSpeed;
-      const loopWidth = scrollContainer.scrollWidth / 2;
+      const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
 
-      if (scrollPosition >= loopWidth) {
-        scrollPosition -= loopWidth;
+      if (scrollPosition >= maxScroll) {
+        scrollPosition = 0;
       }
 
       scrollContainer.scrollLeft = scrollPosition;
@@ -217,10 +178,9 @@ export const LiveWins = () => {
             className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
             style={{ scrollBehavior: 'auto' }}
           >
-            {/* Duplicate wins for seamless loop */}
-            {[...wins, ...wins].map((win, index) => (
+            {wins.map((win) => (
               <div
-                key={`${win.id}-${index}`}
+                key={win.id}
                 className="flex-shrink-0 w-[140px] group cursor-pointer"
               >
                 {/* Game Card */}
