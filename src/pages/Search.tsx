@@ -36,7 +36,7 @@ export default function Search() {
 
   const handleRandomGame = () => {
     const randomGame = games[Math.floor(Math.random() * games.length)];
-    window.location.href = `/games/${randomGame.id}`;
+    window.location.href = randomGame.id === 'chess' ? '/chess' : `/games/${randomGame.id}`;
   };
 
   return (
@@ -129,7 +129,7 @@ export default function Search() {
             {filteredGames.map((game) => (
               <Link
                 key={game.id}
-                to={game.comingSoon ? '#' : `/games/${game.id}`}
+                to={game.comingSoon ? '#' : (game.id === 'chess' ? '/chess' : `/games/${game.id}`)}
                 onClick={(e) => game.comingSoon && e.preventDefault()}
                 className={`group relative aspect-[3/4] rounded-xl overflow-hidden bg-card border border-border transition-all ${
                   game.comingSoon ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary/50 hover:scale-[1.02]'

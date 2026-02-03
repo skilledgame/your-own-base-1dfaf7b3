@@ -322,7 +322,7 @@ export default function ChessLobby() {
         {/* Header */}
         <header className="border-b border-blue-500/20 p-4 backdrop-blur-sm bg-[#0a0f1a]/80">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <Link to="/games/chess" className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors">
+            <Link to="/chess" className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               Back to Chess
             </Link>

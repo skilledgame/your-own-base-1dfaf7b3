@@ -50,7 +50,7 @@ export const VIPProgressSection = () => {
 
           {/* Right: Chess Game Card with tilt effect (smaller) */}
           <div className="hidden lg:flex justify-center">
-            <Link to="/games/chess" className="relative group" style={{ transform: 'perspective(1000px) rotateY(-8deg) rotateX(4deg)' }}>
+            <Link to="/chess" className="relative group" style={{ transform: 'perspective(1000px) rotateY(-8deg) rotateX(4deg)' }}>
               {/* Card glow */}
               <div className="absolute -inset-3 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-2xl blur-xl opacity-60 group-hover:opacity-100 transition-opacity" />
               

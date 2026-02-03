@@ -331,7 +331,7 @@ export const LandingPage = ({
                 {/* Right - Chess Game Card with tilt effect */}
                 <div className="flex-shrink-0 relative">
                   <div 
-                    onClick={() => navigate('/games/chess')} 
+                    onClick={() => navigate('/chess')} 
                     className="relative cursor-pointer group"
                     style={{ transform: 'perspective(1000px) rotateY(-8deg) rotateX(4deg)' }}
                   >

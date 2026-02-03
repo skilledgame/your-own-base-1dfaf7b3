@@ -116,7 +116,7 @@ export default function Compete() {
   };
 
   const handlePlayAgain = () => {
-    navigate('/games/chess');
+    navigate('/chess');
   };
 
   const getMatchResult = (match: Match) => {
@@ -196,7 +196,7 @@ export default function Compete() {
           ) : (
             <div className="space-y-3">
               {activeMatches.map((match) => (
-                <Card key={match.id} className="bg-card border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate(`/games/chess`)}>
+                <Card key={match.id} className="bg-card border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate(`/chess`)}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
