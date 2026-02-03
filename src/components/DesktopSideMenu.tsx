@@ -21,7 +21,7 @@ interface DesktopSideMenuProps {
 const menuItems = [
   { icon: Home, label: 'Home', path: '/' },
   { icon: Gamepad2, label: 'Games', path: '/#games' },
-  { icon: Crown, label: 'Play Chess', path: '/games/chess' },
+  { icon: Crown, label: 'Play Chess', path: '/chess' },
   { icon: Trophy, label: 'How It Works', path: '/how-it-works' },
   { icon: Coins, label: 'Deposit', path: '/deposit' },
 ];
