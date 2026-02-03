@@ -21,10 +21,6 @@ export const LiveWins = () => {
   // Fetch recent finished games
   const fetchRecentWins = async () => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:22',message:'fetchRecentWins entry',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A,B,C'})}).catch(()=>{});
-      // #endregion
-      
       // Get the most recent finished games (without join to avoid RLS blocking)
       const { data: games, error } = await supabase
         .from('games')
@@ -41,22 +37,12 @@ export const LiveWins = () => {
         .order('settled_at', { ascending: false })
         .limit(20);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:40',message:'Query result',data:{error:error?.message||null,gameCount:games?.length||0,hasGames:!!games,firstGameId:games?.[0]?.id||null,firstGameWinnerId:games?.[0]?.winner_id||null,firstGameSettledAt:games?.[0]?.settled_at||null},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A,B,C'})}).catch(()=>{});
-      // #endregion
-
       if (error) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:42',message:'Query error',data:{error:error.message,code:error.code,details:error.details},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         console.error('Error fetching recent wins:', error);
         return;
       }
 
       if (!games || games.length === 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:46',message:'No games returned',data:{gamesIsNull:!games,length:games?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         setWins([]);
         setLoading(false);
         return;
@@ -64,10 +50,6 @@ export const LiveWins = () => {
 
       // Get unique winner IDs (player_ids) and fetch their display_names from profiles
       const uniqueWinnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))];
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:52',message:'Before fetching display names from profiles',data:{gameCount:games.length,uniqueWinnerIds,uniqueWinnerCount:uniqueWinnerIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
 
       // Fetch display_name from profiles using security definer function (bypasses RLS)
       const displayNamePromises = uniqueWinnerIds.map(async (playerId) => {
@@ -83,18 +65,10 @@ export const LiveWins = () => {
         playerNameMap.set(playerId, displayName);
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:68',message:'Display names fetched from profiles',data:{playerNameMapSize:playerNameMap.size,playerNames:Array.from(playerNameMap.entries()).map(([id,name])=>({playerId:id,displayName:name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
       const recentWins: Win[] = games.map((game) => {
         const playerName = playerNameMap.get(game.winner_id);
         const displayName = playerName || 'Skilled Player';
         const timestampSource = game.settled_at || game.updated_at || game.created_at || Date.now();
-
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:73',message:'Mapping game',data:{gameId:game.id,winnerId:game.winner_id,playerName,displayName,settledAt:game.settled_at,updatedAt:game.updated_at,createdAt:game.created_at,timestampSource},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A,C'})}).catch(()=>{});
-        // #endregion
 
         return {
           id: game.id,
@@ -111,15 +85,8 @@ export const LiveWins = () => {
       // Games are already sorted by settled_at from the query, but ensure proper sorting
       const sortedWins = recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:90',message:'After sorting wins',data:{winCount:sortedWins.length,playerNames:sortedWins.map(w=>w.playerName),timestamps:sortedWins.map(w=>w.timestamp.toISOString())},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      
       setWins(sortedWins);
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:94',message:'Exception in fetchRecentWins',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A,B,C'})}).catch(()=>{});
-      // #endregion
       console.error('Failed to fetch recent wins:', err);
     } finally {
       setLoading(false);
@@ -142,10 +109,6 @@ export const LiveWins = () => {
 
   // Subscribe to real-time updates for new finished games
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:92',message:'Setting up real-time subscription',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-    
     const channel = supabase
       .channel('live-wins')
       .on(
@@ -157,18 +120,11 @@ export const LiveWins = () => {
           filter: 'status=eq.finished',
         },
         (payload) => {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:103',message:'Real-time update received',data:{eventType:payload.eventType,table:payload.table,new:payload.new,old:payload.old,gameId:payload.new?.id||payload.old?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           // Refetch when a game finishes
           fetchRecentWins();
         }
       )
-      .subscribe((status) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:108',message:'Subscription status',data:{status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
