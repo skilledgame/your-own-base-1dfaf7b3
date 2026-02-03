@@ -21,6 +21,10 @@ export const LiveWins = () => {
   // Fetch recent finished games
   const fetchRecentWins = async () => {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:22',message:'fetchRecentWins entry',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+      // #endregion
+      
       // Get the most recent finished games with winner info
       const { data: games, error } = await supabase
         .from('games')
@@ -38,20 +42,38 @@ export const LiveWins = () => {
         .order('updated_at', { ascending: false })
         .limit(20);
 
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:40',message:'Query result',data:{error:error?.message||null,gameCount:games?.length||0,hasGames:!!games,firstGameId:games?.[0]?.id||null,firstGameWinnerId:games?.[0]?.winner_id||null,firstGameWinnerName:games?.[0]?.winner?.name||null,firstGameSettledAt:games?.[0]?.settled_at||null,firstGameUpdatedAt:games?.[0]?.updated_at||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+      // #endregion
+
       if (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:42',message:'Query error',data:{error:error.message,code:error.code,details:error.details},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         console.error('Error fetching recent wins:', error);
         return;
       }
 
       if (!games || games.length === 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:46',message:'No games returned',data:{gamesIsNull:!games,length:games?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         setWins([]);
         setLoading(false);
         return;
       }
 
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:52',message:'Before mapping games',data:{gameCount:games.length,winnerNullCount:games.filter(g=>!g.winner).length,winnerNameNullCount:games.filter(g=>!g.winner?.name).length,allWinnerIds:games.map(g=>g.winner_id),allWinnerNames:games.map(g=>g.winner?.name||'null')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
       const recentWins: Win[] = games.map((game) => {
         const displayName = game.winner?.name || 'Skilled Player';
         const timestampSource = game.settled_at || game.updated_at || game.created_at || Date.now();
+
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:53',message:'Mapping game',data:{gameId:game.id,winnerId:game.winner_id,winnerName:game.winner?.name||null,displayName,settledAt:game.settled_at,updatedAt:game.updated_at,createdAt:game.created_at,timestampSource},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C'})}).catch(()=>{});
+        // #endregion
 
         return {
           id: game.id,
@@ -66,8 +88,16 @@ export const LiveWins = () => {
       });
 
       const sortedWins = recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:68',message:'After sorting wins',data:{winCount:sortedWins.length,playerNames:sortedWins.map(w=>w.playerName),timestamps:sortedWins.map(w=>w.timestamp.toISOString())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      
       setWins(sortedWins);
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:70',message:'Exception in fetchRecentWins',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+      // #endregion
       console.error('Failed to fetch recent wins:', err);
     } finally {
       setLoading(false);
@@ -90,6 +120,10 @@ export const LiveWins = () => {
 
   // Subscribe to real-time updates for new finished games
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:92',message:'Setting up real-time subscription',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
     const channel = supabase
       .channel('live-wins')
       .on(
@@ -100,12 +134,19 @@ export const LiveWins = () => {
           table: 'games',
           filter: 'status=eq.finished',
         },
-        () => {
+        (payload) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:103',message:'Real-time update received',data:{eventType:payload.eventType,table:payload.table,new:payload.new,old:payload.old,gameId:payload.new?.id||payload.old?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           // Refetch when a game finishes
           fetchRecentWins();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/887c5b56-2eca-4a7d-b630-4dd3ddfd58ba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveWins.tsx:108',message:'Subscription status',data:{status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+      });
 
     return () => {
       supabase.removeChannel(channel);
