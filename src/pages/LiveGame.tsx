@@ -145,7 +145,7 @@ export default function LiveGame() {
   const handlePlayAgain = () => {
     clearGameEnd();
     refreshBalance();  // Refresh balance when going to play again
-    navigate('/quick-play');
+    navigate('/chess');
   };
 
   const handleGoHome = () => {
