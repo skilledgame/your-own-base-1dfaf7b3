@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Chess } from 'chess.js';
 import { toast } from 'sonner';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface PrivateGameState {
   fen: string;
@@ -41,6 +42,7 @@ export function usePrivateGame({
   playerId,
   onGameEnd,
 }: UsePrivateGameOptions): UsePrivateGameReturn {
+  const { isAdmin } = useUserRole();
   const [gameState, setGameState] = useState<PrivateGameState | null>(null);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -407,7 +409,10 @@ export function usePrivateGame({
         const networkErrorMessage = networkError instanceof Error 
           ? networkError.message 
           : 'Network error - please check your connection';
-        toast.error(`Failed to connect to game server: ${networkErrorMessage}`);
+        // Only show connection alerts for admin users
+        if (isAdmin) {
+          toast.error(`Failed to connect to game server: ${networkErrorMessage}`);
+        }
         return false;
       }
 
@@ -416,7 +421,10 @@ export function usePrivateGame({
         console.error('[usePrivateGame] Edge Function error:', error);
         // Check if it's a network/connection error
         if (error.message?.includes('Failed to send') || error.message?.includes('fetch')) {
-          toast.error('Failed to connect to game server. Please check your internet connection.');
+          // Only show connection alerts for admin users
+          if (isAdmin) {
+            toast.error('Failed to connect to game server. Please check your internet connection.');
+          }
         } else {
           const errorMessage = error.message || 'Failed to make move';
           toast.error(errorMessage);

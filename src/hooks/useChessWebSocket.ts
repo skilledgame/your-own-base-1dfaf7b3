@@ -18,6 +18,7 @@ import { wsClient } from '@/lib/wsClient';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalanceStore } from '@/stores/balanceStore';
 import { supabase } from '@/integrations/supabase/client';
+import { useUserRole } from '@/hooks/useUserRole';
 import type { 
   WSConnectionStatus, 
   MatchFoundMessage,
@@ -64,6 +65,7 @@ interface UseChessWebSocketReturn {
 let messageHandlerRegistered = false;
 let navigationCallback: ((path: string) => void) | null = null;
 let balanceRefreshCallback: (() => void) | null = null;
+let isAdminCallback: (() => boolean) | null = null;
 
 /**
  * Initialize the global message handler ONCE
@@ -93,7 +95,10 @@ function initializeGlobalMessageHandler(): void {
       case "welcome": {
         const payload = msg as unknown as WelcomeMessage;
         console.log("[Chess WS]", clientId, "Welcome from server:", payload);
-        toast.success("Connected to game server");
+        // Only show connection alert for admin users
+        if (isAdminCallback && isAdminCallback()) {
+          toast.success("Connected to game server");
+        }
         break;
       }
       
@@ -496,7 +501,10 @@ function initializeGlobalMessageHandler(): void {
           if (currentPhase !== "in_game") {
             // Desync detected! Reset and reconnect
             console.log("[Chess WS] Desync detected - resetting");
-            toast.error("Desynced with server. Reconnecting...");
+            // Only show connection alerts for admin users
+            if (isAdminCallback && isAdminCallback()) {
+              toast.error("Desynced with server. Reconnecting...");
+            }
             
             wsClient.disconnect();
             useChessStore.getState().resetAll();
@@ -504,7 +512,10 @@ function initializeGlobalMessageHandler(): void {
             // Reconnect after short delay
             setTimeout(() => {
               wsClient.connect();
-              toast.info("Reconnected. Please find match again.");
+              // Only show connection alerts for admin users
+              if (isAdminCallback && isAdminCallback()) {
+                toast.info("Reconnected. Please find match again.");
+              }
             }, 500);
             return;
           }
@@ -540,6 +551,7 @@ function initializeGlobalMessageHandler(): void {
 
 export function useChessWebSocket(): UseChessWebSocketReturn {
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
   
   // Local state only for connection-related things
   const [status, setStatus] = useState<WSConnectionStatus>(wsClient.getStatus());
@@ -602,10 +614,11 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     }
   }, [fetchBalance]);
   
-  // Set up navigation and balance refresh callbacks for the global message handler
+  // Set up navigation, balance refresh, and admin check callbacks for the global message handler
   useEffect(() => {
     navigationCallback = navigate;
     balanceRefreshCallback = refreshBalance;
+    isAdminCallback = () => isAdmin;
     return () => {
       // Only clear if this is the one that set it
       if (navigationCallback === navigate) {
@@ -614,8 +627,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       if (balanceRefreshCallback === refreshBalance) {
         balanceRefreshCallback = null;
       }
+      // Clear admin callback on unmount (it will be set by the next instance if needed)
+      isAdminCallback = null;
     };
-  }, [navigate, refreshBalance]);
+  }, [navigate, refreshBalance, isAdmin]);
 
   // Refresh auth token and set on wsClient
   const refreshAuth = useCallback(async (): Promise<boolean> => {
