@@ -537,17 +537,15 @@ export default function LiveGame() {
           {status === "connecting" ? "Connecting to game server..." : "Reconnecting..."}
         </p>
         {showNetworkDebug && (
-          {showNetworkDebug && (
-            <NetworkDebugPanel
-              status={status}
-              logs={logs}
-              reconnectAttempts={reconnectAttempts}
-              onConnect={connect}
-              onDisconnect={disconnect}
-              onSendRaw={sendRaw}
-              onClearLogs={clearLogs}
-            />
-          )}
+          <NetworkDebugPanel
+            status={status}
+            logs={logs}
+            reconnectAttempts={reconnectAttempts}
+            onConnect={connect}
+            onDisconnect={disconnect}
+            onSendRaw={sendRaw}
+            onClearLogs={clearLogs}
+          />
         )}
       </div>
     );
@@ -568,17 +566,15 @@ export default function LiveGame() {
           </Button>
         </div>
         {showNetworkDebug && (
-          {showNetworkDebug && (
-            <NetworkDebugPanel
-              status={status}
-              logs={logs}
-              reconnectAttempts={reconnectAttempts}
-              onConnect={connect}
-              onDisconnect={disconnect}
-              onSendRaw={sendRaw}
-              onClearLogs={clearLogs}
-            />
-          )}
+          <NetworkDebugPanel
+            status={status}
+            logs={logs}
+            reconnectAttempts={reconnectAttempts}
+            onConnect={connect}
+            onDisconnect={disconnect}
+            onSendRaw={sendRaw}
+            onClearLogs={clearLogs}
+          />
         )}
       </div>
     );
