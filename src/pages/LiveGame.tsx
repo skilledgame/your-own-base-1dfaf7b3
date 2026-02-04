@@ -23,6 +23,7 @@ import { usePrivateGame } from '@/hooks/usePrivateGame';
 import { useProfile } from '@/hooks/useProfile';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export default function LiveGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -37,7 +38,9 @@ export default function LiveGame() {
   const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd, matchmaking } = useChessStore();
   const { balance } = useBalance();
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const { totalWageredSc, displayName: playerDisplayName } = useProfile();
+  const showNetworkDebug = isAdmin;
   
   // WebSocket connection and actions (only for matchmade games)
   const {
@@ -533,15 +536,19 @@ export default function LiveGame() {
         <p className="text-muted-foreground">
           {status === "connecting" ? "Connecting to game server..." : "Reconnecting..."}
         </p>
-        <NetworkDebugPanel
-          status={status}
-          logs={logs}
-          reconnectAttempts={reconnectAttempts}
-          onConnect={connect}
-          onDisconnect={disconnect}
-          onSendRaw={sendRaw}
-          onClearLogs={clearLogs}
-        />
+        {showNetworkDebug && (
+          {showNetworkDebug && (
+            <NetworkDebugPanel
+              status={status}
+              logs={logs}
+              reconnectAttempts={reconnectAttempts}
+              onConnect={connect}
+              onDisconnect={disconnect}
+              onSendRaw={sendRaw}
+              onClearLogs={clearLogs}
+            />
+          )}
+        )}
       </div>
     );
   }
@@ -560,15 +567,19 @@ export default function LiveGame() {
             Back to Home
           </Button>
         </div>
-        <NetworkDebugPanel
-          status={status}
-          logs={logs}
-          reconnectAttempts={reconnectAttempts}
-          onConnect={connect}
-          onDisconnect={disconnect}
-          onSendRaw={sendRaw}
-          onClearLogs={clearLogs}
-        />
+        {showNetworkDebug && (
+          {showNetworkDebug && (
+            <NetworkDebugPanel
+              status={status}
+              logs={logs}
+              reconnectAttempts={reconnectAttempts}
+              onConnect={connect}
+              onDisconnect={disconnect}
+              onSendRaw={sendRaw}
+              onClearLogs={clearLogs}
+            />
+          )}
+        )}
       </div>
     );
   }
@@ -664,15 +675,17 @@ export default function LiveGame() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </Button>
-        <NetworkDebugPanel
-          status={status}
-          logs={logs}
-          reconnectAttempts={reconnectAttempts}
-          onConnect={connect}
-          onDisconnect={disconnect}
-          onSendRaw={sendRaw}
-          onClearLogs={clearLogs}
-        />
+        {showNetworkDebug && (
+          <NetworkDebugPanel
+            status={status}
+            logs={logs}
+            reconnectAttempts={reconnectAttempts}
+            onConnect={connect}
+            onDisconnect={disconnect}
+            onSendRaw={sendRaw}
+            onClearLogs={clearLogs}
+          />
+        )}
       </div>
     );
   }
@@ -747,7 +760,7 @@ export default function LiveGame() {
         onBack={handleBack}
         onTimeLoss={handleTimeLoss}
       />
-      {(!isPrivateGame || isWebSocketGameId) && (
+      {showNetworkDebug && (!isPrivateGame || isWebSocketGameId) && (
         <NetworkDebugPanel
           status={status}
           logs={logs}

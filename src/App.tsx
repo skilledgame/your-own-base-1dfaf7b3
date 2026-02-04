@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GameErrorBoundary } from "@/components/GameErrorBoundary";
 import { WalletModal } from "@/components/WalletModal";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import Auth from "./pages/Auth";
@@ -58,6 +59,16 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
   
   // Run ensure-user after auth is ready
   useEnsureUser();
+
+  // Ensure theme is initialized globally (default to dark)
+  useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    const shouldBeDark = stored ? stored === 'dark' : true;
+    document.documentElement.classList.toggle('dark', shouldBeDark);
+    if (!stored) {
+      localStorage.setItem('theme', 'dark');
+    }
+  }, []);
   
   // Set up balance and profile subscriptions when authenticated
   useEffect(() => {
@@ -89,46 +100,48 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
-              <ScrollToTop />
-              <AppWithAuth>
-                <ErrorBoundary>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/how-it-works" element={<HowItWorks />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/deposit" element={<Deposit />} />
-                    <Route path="/withdraw" element={<Withdraw />} />
-                    <Route path="/games/:gameSlug" element={<GameStart />} />
-                    <Route path="/chess-lobby" element={<ChessLobby />} />
-                    <Route path="/chess" element={<ChessHome />} />
-                    <Route path="/terms" element={<TermsAndConditions />} />
-                    <Route path="/privacy" element={<PrivacyPolicy />} />
-                    <Route path="/stats" element={<Stats />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/compete" element={<Compete />} />
-                    <Route path="/search" element={<Search />} />
-                    <Route path="/leaderboard" element={<Leaderboard />} />
-                    <Route path="/game-history" element={<GameHistory />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/quick-play" element={<QuickPlay />} />
-                    <Route path="/game/live/:gameId" element={
-                      <GameErrorBoundary>
-                        <LiveGame />
-                      </GameErrorBoundary>
-                    } />
-                    <Route path="/affiliate" element={<Affiliate />} />
-                    <Route path="/vip" element={<VIP />} />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </ErrorBoundary>
-                {/* Wallet Modal - renders at root level */}
-                <WalletModal />
-                {/* Debug panel - only visible with ?debug=1 or in dev */}
-                <AuthDebugPanel />
-              </AppWithAuth>
-            </BrowserRouter>
+            <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+              <BrowserRouter>
+                <ScrollToTop />
+                <AppWithAuth>
+                  <ErrorBoundary>
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/how-it-works" element={<HowItWorks />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/deposit" element={<Deposit />} />
+                      <Route path="/withdraw" element={<Withdraw />} />
+                      <Route path="/games/:gameSlug" element={<GameStart />} />
+                      <Route path="/chess-lobby" element={<ChessLobby />} />
+                      <Route path="/chess" element={<ChessHome />} />
+                      <Route path="/terms" element={<TermsAndConditions />} />
+                      <Route path="/privacy" element={<PrivacyPolicy />} />
+                      <Route path="/stats" element={<Stats />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/compete" element={<Compete />} />
+                      <Route path="/search" element={<Search />} />
+                      <Route path="/leaderboard" element={<Leaderboard />} />
+                      <Route path="/game-history" element={<GameHistory />} />
+                      <Route path="/admin" element={<Admin />} />
+                      <Route path="/quick-play" element={<QuickPlay />} />
+                      <Route path="/game/live/:gameId" element={
+                        <GameErrorBoundary>
+                          <LiveGame />
+                        </GameErrorBoundary>
+                      } />
+                      <Route path="/affiliate" element={<Affiliate />} />
+                      <Route path="/vip" element={<VIP />} />
+                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </ErrorBoundary>
+                  {/* Wallet Modal - renders at root level */}
+                  <WalletModal />
+                  {/* Debug panel - only visible with ?debug=1 or in dev */}
+                  <AuthDebugPanel />
+                </AppWithAuth>
+              </BrowserRouter>
+            </ThemeProvider>
           </TooltipProvider>
         </WalletModalProvider>
       </AuthProvider>

@@ -66,6 +66,19 @@ let messageHandlerRegistered = false;
 let navigationCallback: ((path: string) => void) | null = null;
 let balanceRefreshCallback: (() => void) | null = null;
 let isAdminCallback: (() => boolean) | null = null;
+let lastTimerSnapshotUpdateMs = 0;
+const TIMER_SNAPSHOT_MIN_INTERVAL_MS = 250;
+
+const shouldUpdateTimerSnapshot = (nextTurn: 'w' | 'b'): boolean => {
+  const now = Date.now();
+  const current = useChessStore.getState().timerSnapshot;
+
+  if (!current) return true;
+  if (current.currentTurn !== nextTurn) return true;
+  if (now - lastTimerSnapshotUpdateMs >= TIMER_SNAPSHOT_MIN_INTERVAL_MS) return true;
+
+  return false;
+};
 
 /**
  * Initialize the global message handler ONCE
@@ -182,6 +195,7 @@ function initializeGlobalMessageHandler(): void {
             serverTimeMs: payload.serverTimeMs,
             currentTurn: 'w', // White moves first
           });
+          lastTimerSnapshotUpdateMs = Date.now();
           console.log("[Chess WS] Timer snapshot updated (match_found)", {
             gameId: payload.gameId,
             whiteTime: payload.whiteTime,
@@ -203,6 +217,7 @@ function initializeGlobalMessageHandler(): void {
             serverTimeMs: Date.now(),
             currentTurn: 'w',
           });
+          lastTimerSnapshotUpdateMs = Date.now();
         }
         
         // STEP D: Update normalized matchmaking state
@@ -261,21 +276,24 @@ function initializeGlobalMessageHandler(): void {
             payload.whiteTime >= 0 &&
             payload.blackTime >= 0 &&
             payload.serverTimeMs > 0) {
-          // Store timer snapshot for server-authoritative calculation
-          store.updateTimerSnapshot({
-            whiteTimeSeconds: payload.whiteTime,
-            blackTimeSeconds: payload.blackTime,
-            serverTimeMs: payload.serverTimeMs,
-            currentTurn: payload.turn,
-          });
-          console.log("[Chess WS] Timer snapshot updated (move_applied)", {
-            gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
-            whiteTime: payload.whiteTime,
-            blackTime: payload.blackTime,
-            serverTimeMs: payload.serverTimeMs,
-            currentTurn: payload.turn,
-            timestamp: new Date().toISOString(),
-          });
+          if (shouldUpdateTimerSnapshot(payload.turn)) {
+            // Store timer snapshot for server-authoritative calculation
+            store.updateTimerSnapshot({
+              whiteTimeSeconds: payload.whiteTime,
+              blackTimeSeconds: payload.blackTime,
+              serverTimeMs: payload.serverTimeMs,
+              currentTurn: payload.turn,
+            });
+            lastTimerSnapshotUpdateMs = Date.now();
+            console.log("[Chess WS] Timer snapshot updated (move_applied)", {
+              gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+              whiteTime: payload.whiteTime,
+              blackTime: payload.blackTime,
+              serverTimeMs: payload.serverTimeMs,
+              currentTurn: payload.turn,
+              timestamp: new Date().toISOString(),
+            });
+          }
         } else if (payload.whiteTime !== undefined || payload.blackTime !== undefined || payload.serverTimeMs) {
           // Partial or invalid timer data - log warning but don't update
           console.warn("[Chess WS] Invalid timer data in move_applied, ignoring:", {
@@ -303,12 +321,15 @@ function initializeGlobalMessageHandler(): void {
               payload.whiteTime >= 0 &&
               payload.blackTime >= 0 &&
               payload.serverTimeMs > 0) {
-            store.updateTimerSnapshot({
-              whiteTimeSeconds: payload.whiteTime,
-              blackTimeSeconds: payload.blackTime,
-              serverTimeMs: payload.serverTimeMs,
-              currentTurn: payload.turn,
-            });
+            if (shouldUpdateTimerSnapshot(payload.turn)) {
+              store.updateTimerSnapshot({
+                whiteTimeSeconds: payload.whiteTime,
+                blackTimeSeconds: payload.blackTime,
+                serverTimeMs: payload.serverTimeMs,
+                currentTurn: payload.turn,
+              });
+              lastTimerSnapshotUpdateMs = Date.now();
+            }
           } else {
             console.warn("[Chess WS] Invalid timer data in game_sync, ignoring:", {
               whiteTime: payload.whiteTime,

@@ -83,7 +83,8 @@ export const WSMultiplayerGameView = ({
   
   // Track whose turn it was when they moved (for increment)
   const lastMoveByRef = useRef<'w' | 'b' | null>(null);
-  const renderFrameRef = useRef<number | null>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [timerTick, setTimerTick] = useState(0);
   
   // Calculate effective time from server snapshot (only for WebSocket games)
   const { whiteTime, blackTime } = useMemo(() => {
@@ -117,7 +118,7 @@ export const WSMultiplayerGameView = ({
     }
     
     return { whiteTime, blackTime };
-  }, [isPrivateGame, propWhiteTime, propBlackTime, timerSnapshot, isGameOver]);
+  }, [isPrivateGame, propWhiteTime, propBlackTime, timerSnapshot, isGameOver, timerTick]);
   
   // Sound effects
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
@@ -192,18 +193,19 @@ export const WSMultiplayerGameView = ({
     }
   }, [currentFen, chess, localFen, myColor, isPrivateGame]);
 
-  // Render loop for timer display (server-authoritative calculation)
+  // Timer tick + time loss check (server-authoritative calculation, 4x/sec)
   useEffect(() => {
     if (isPrivateGame || isGameOver) {
-      if (renderFrameRef.current) {
-        cancelAnimationFrame(renderFrameRef.current);
-        renderFrameRef.current = null;
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
       return;
     }
 
-    // Use requestAnimationFrame for smooth updates without mutating time
-    const render = () => {
+    timerIntervalRef.current = setInterval(() => {
+      setTimerTick((tick) => tick + 1);
+
       // Check for time loss (calculated from snapshot)
       // Only check if we have a valid snapshot
       if (timerSnapshot && timerSnapshot.serverTimeMs > 0) {
@@ -229,17 +231,12 @@ export const WSMultiplayerGameView = ({
           }
         }
       }
-
-      // Schedule next render (throttle to ~60fps)
-      renderFrameRef.current = requestAnimationFrame(render);
-    };
-
-    renderFrameRef.current = requestAnimationFrame(render);
+    }, 250);
 
     return () => {
-      if (renderFrameRef.current) {
-        cancelAnimationFrame(renderFrameRef.current);
-        renderFrameRef.current = null;
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
     };
   }, [timerSnapshot, isGameOver, isPrivateGame, onTimeLoss, playGameEnd]);
@@ -313,6 +310,9 @@ export const WSMultiplayerGameView = ({
   const opponentTime = isWhite ? blackTime : whiteTime;
   const myColorLabel = isWhite ? "White" : "Black";
   const opponentColorLabel = isWhite ? "Black" : "White";
+  const isMyTurnForTimer = !isPrivateGame && timerSnapshot
+    ? timerSnapshot.currentTurn === myColor
+    : isMyTurn;
 
   // Get rank display names
   const playerRankDisplay = playerRank?.displayName || 'Unranked';
@@ -401,7 +401,7 @@ export const WSMultiplayerGameView = ({
                 />
               </div>
             </div>
-            <GameTimer timeLeft={opponentTime} isActive={!isMyTurn && !isGameOver} />
+            <GameTimer timeLeft={opponentTime} isActive={!isMyTurnForTimer && !isGameOver} />
           </div>
 
           {/* Chess Board with sound callbacks - only show opponent's last move */}
@@ -441,7 +441,7 @@ export const WSMultiplayerGameView = ({
                 />
               </div>
             </div>
-            <GameTimer timeLeft={myTime} isActive={isMyTurn && !isGameOver} />
+            <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} />
           </div>
 
           {/* Wager Stakes Display */}
