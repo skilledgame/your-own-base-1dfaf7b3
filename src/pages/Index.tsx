@@ -41,11 +41,10 @@ const Index = () => {
           .eq('user_id', user.id)
           .maybeSingle();
         
-        // Check if display_name is null, empty, or looks like an email prefix
+        // Only check if display_name exists and is not empty
+        // If user already has a username, don't prompt them
         const displayName = data?.display_name;
-        const needsUsername = !displayName || 
-          displayName.trim() === '' || 
-          displayName === user.email?.split('@')[0];
+        const needsUsername = !displayName || displayName.trim() === '';
         
         if (needsUsername) {
           setShowUsernameModal(true);
