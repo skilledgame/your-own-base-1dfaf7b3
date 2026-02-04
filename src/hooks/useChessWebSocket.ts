@@ -69,9 +69,6 @@ let isAdminCallback: (() => boolean) | null = null;
 let lastTimerSnapshotUpdatePerfMs = 0;
 const TIMER_SNAPSHOT_MIN_INTERVAL_MS = 250;
 
-const normalizeServerTimeMs = (serverTime: number): number =>
-  serverTime < 1_000_000_000_000 ? serverTime * 1000 : serverTime;
-
 const shouldUpdateTimerSnapshot = (nextTurn: 'w' | 'b'): boolean => {
   const now = performance.now();
   const current = useChessStore.getState().timerSnapshot;
@@ -195,7 +192,7 @@ function initializeGlobalMessageHandler(): void {
           store.updateTimerSnapshot({
             whiteTimeSeconds: payload.whiteTime,
             blackTimeSeconds: payload.blackTime,
-            serverTimeMs: normalizeServerTimeMs(payload.serverTimeMs),
+            serverTimeMs: payload.serverTimeMs,
             currentTurn: 'w', // White moves first
             clientPerfNowMs: performance.now(),
           });
@@ -286,7 +283,7 @@ function initializeGlobalMessageHandler(): void {
             store.updateTimerSnapshot({
               whiteTimeSeconds: payload.whiteTime,
               blackTimeSeconds: payload.blackTime,
-              serverTimeMs: normalizeServerTimeMs(payload.serverTimeMs),
+              serverTimeMs: payload.serverTimeMs,
               currentTurn: payload.turn,
               clientPerfNowMs: performance.now(),
             });
@@ -356,7 +353,7 @@ function initializeGlobalMessageHandler(): void {
               store.updateTimerSnapshot({
                 whiteTimeSeconds: payload.whiteTime,
                 blackTimeSeconds: payload.blackTime,
-                serverTimeMs: normalizeServerTimeMs(payload.serverTimeMs),
+                serverTimeMs: payload.serverTimeMs,
                 currentTurn: payload.turn,
                 clientPerfNowMs: performance.now(),
               });
