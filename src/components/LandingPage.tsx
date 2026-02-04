@@ -22,6 +22,7 @@ import { UserDropdown } from './UserDropdown';
 import { SkilledCoinsDisplay } from './SkilledCoinsDisplay';
 import { BalanceDepositPill } from './BalanceDepositPill';
 import { NotificationDropdown } from './NotificationDropdown';
+import { ChatSupportButton } from './ChatSupportButton';
 import { VIPProgressSection } from './VIPProgressSection';
 
 interface LandingPageProps {
@@ -233,6 +234,10 @@ export const LandingPage = ({
                   {/* User dropdown with username and menu */}
                   <div className="hidden sm:flex items-center">
                     <UserDropdown />
+                  </div>
+                  {/* Chat support button */}
+                  <div className="hidden sm:flex">
+                    <ChatSupportButton className="text-muted-foreground hover:text-foreground" />
                   </div>
                   {/* Mobile: Show balance pill */}
                   <MobileBalancePill isPrivileged={isPrivileged} />
