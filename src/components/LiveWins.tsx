@@ -49,21 +49,32 @@ export const LiveWins = () => {
       }
 
       // Get unique winner IDs (player_ids) and fetch their display_names from profiles
-      const uniqueWinnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))];
+      const uniqueWinnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))] as string[];
 
-      // Fetch display_name from profiles using security definer function (bypasses RLS)
-      const displayNamePromises = uniqueWinnerIds.map(async (playerId) => {
-        const { data, error } = await supabase.rpc('get_display_name_from_player_id', {
-          p_player_id: playerId
-        });
-        return { playerId, displayName: error ? null : data, error: error?.message };
-      });
-
-      const displayNameResults = await Promise.all(displayNamePromises);
+      // Fetch display_name by looking up player -> user_id -> profile
       const playerNameMap = new Map<string, string | null>();
-      displayNameResults.forEach(({ playerId, displayName }) => {
-        playerNameMap.set(playerId, displayName);
-      });
+      
+      for (const playerId of uniqueWinnerIds) {
+        // First get the user_id from the players table
+        const { data: playerData } = await supabase
+          .from('players')
+          .select('user_id')
+          .eq('id', playerId)
+          .maybeSingle();
+        
+        if (playerData?.user_id) {
+          // Then get the display_name from profiles
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('user_id', playerData.user_id)
+            .maybeSingle();
+          
+          playerNameMap.set(playerId, profileData?.display_name || null);
+        } else {
+          playerNameMap.set(playerId, null);
+        }
+      }
 
       const recentWins: Win[] = games.map((game) => {
         const playerName = playerNameMap.get(game.winner_id);

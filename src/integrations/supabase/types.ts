@@ -470,6 +470,10 @@ export type Database = {
         Args: { p_game_id: string; p_reason: string; p_winner_id: string }
         Returns: undefined
       }
+      get_display_name_from_player_id: {
+        Args: { p_player_id: string }
+        Returns: string
+      }
       get_opponent_name: { Args: { p_player_id: string }; Returns: string }
       get_opponent_profile: {
         Args: { p_user_id: string }
