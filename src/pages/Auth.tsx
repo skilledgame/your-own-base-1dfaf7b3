@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { LogoLink } from '@/components/LogoLink';
-import { ArrowLeft, Loader2, Mail, Check, ArrowRight, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, Lock, Check, ArrowRight, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -14,18 +14,21 @@ import { cn } from '@/lib/utils';
 
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email address');
+const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 const otpSchema = z.string().length(6, 'Please enter all 6 digits');
 
 type AuthStep = 'email' | 'otp' | 'complete';
 
 export default function Auth() {
+  const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<AuthStep>('email');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [errors, setErrors] = useState<{ email?: string; otp?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; otp?: string }>({});
   
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
@@ -76,27 +79,74 @@ export default function Auth() {
     }
   };
 
-  // Handle email submission - send OTP using signInWithOtp only
+  const validatePassword = () => {
+    try {
+      passwordSchema.parse(password);
+      setErrors(prev => ({ ...prev, password: undefined }));
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setErrors(prev => ({ ...prev, password: error.errors[0].message }));
+      }
+      return false;
+    }
+  };
+
+  // Handle email submission - send OTP
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateEmail()) return;
+    if (!isLogin && !validatePassword()) return;
     
     setLoading(true);
     setErrors({});
 
     try {
-      // Use signInWithOtp for both new and existing users
-      // shouldCreateUser: true allows new user creation via OTP
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true, // Creates user if they don't exist
-        },
-      });
-      
-      if (error) {
-        throw error;
+      if (isLogin) {
+        // For login, use signInWithOtp
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: false, // Don't create new user on login
+          },
+        });
+        
+        if (error) {
+          if (error.message.includes('Signups not allowed for otp')) {
+            throw new Error('No account found with this email. Please sign up first.');
+          }
+          throw error;
+        }
+      } else {
+        // For signup, first create the user with password, then send OTP for verification
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            // Don't auto-confirm, we want OTP verification
+            emailRedirectTo: undefined,
+          },
+        });
+        
+        if (signUpError) {
+          if (signUpError.message.includes('User already registered')) {
+            throw new Error('An account with this email already exists. Please sign in instead.');
+          }
+          throw signUpError;
+        }
+
+        // After signup, send OTP for email verification
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: false,
+          },
+        });
+
+        if (otpError && !otpError.message.includes('rate limit')) {
+          console.warn('OTP send after signup:', otpError.message);
+        }
       }
 
       // Move to OTP step
@@ -108,17 +158,10 @@ export default function Auth() {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An error occurred';
-      
-      // Provide user-friendly error messages
-      let friendlyMessage = message;
-      if (message.includes('rate limit')) {
-        friendlyMessage = 'Too many attempts. Please wait a moment before trying again.';
-      }
-      
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: friendlyMessage,
+        description: message,
       });
     } finally {
       setLoading(false);
@@ -166,7 +209,7 @@ export default function Auth() {
     }
   }, [otp]);
 
-  // Verify OTP using verifyOtp
+  // Verify OTP
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -192,7 +235,7 @@ export default function Auth() {
       });
 
       if (error) {
-        if (error.message.includes('expired') || error.message.includes('invalid') || error.message.includes('Token')) {
+        if (error.message.includes('expired') || error.message.includes('invalid')) {
           throw new Error('Invalid or expired code. Please try again or request a new code.');
         }
         throw error;
@@ -230,7 +273,7 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          shouldCreateUser: true,
+          shouldCreateUser: !isLogin,
         },
       });
 
@@ -356,10 +399,12 @@ export default function Auth() {
               <>
                 <div className="text-center mb-6">
                   <h1 className="text-2xl font-bold text-foreground mb-2">
-                    Welcome
+                    {isLogin ? 'Welcome Back' : 'Create Account'}
                   </h1>
                   <p className="text-muted-foreground text-sm">
-                    Enter your email to receive a verification code
+                    {isLogin 
+                      ? 'Enter your email to receive a verification code' 
+                      : 'Enter your details to get started'}
                   </p>
                 </div>
 
@@ -426,6 +471,28 @@ export default function Auth() {
                     )}
                   </div>
 
+                  {!isLogin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className={cn("pl-10", errors.password && "border-destructive")}
+                          required
+                          autoComplete="new-password"
+                        />
+                      </div>
+                      {errors.password && (
+                        <p className="text-sm text-destructive">{errors.password}</p>
+                      )}
+                    </div>
+                  )}
+
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? (
                       <>
@@ -441,11 +508,19 @@ export default function Auth() {
                   </Button>
                 </form>
 
-                <p className="mt-5 text-xs text-center text-muted-foreground">
-                  We'll send you a 6-digit code to verify your email.
-                  <br />
-                  New users will be automatically registered.
-                </p>
+                <div className="mt-5 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setErrors({});
+                      setPassword('');
+                    }}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                  </button>
+                </div>
               </>
             )}
 
