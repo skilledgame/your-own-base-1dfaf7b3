@@ -13,6 +13,7 @@ import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalance } from '@/hooks/useBalance';
 import { WSMultiplayerGameView } from '@/components/WSMultiplayerGameView';
+import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { GameResultModal } from '@/components/GameResultModal';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, WifiOff } from 'lucide-react';
@@ -532,6 +533,15 @@ export default function LiveGame() {
         <p className="text-muted-foreground">
           {status === "connecting" ? "Connecting to game server..." : "Reconnecting..."}
         </p>
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
       </div>
     );
   }
@@ -550,6 +560,15 @@ export default function LiveGame() {
             Back to Home
           </Button>
         </div>
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
       </div>
     );
   }
@@ -598,6 +617,15 @@ export default function LiveGame() {
             onPlayAgain={handlePlayAgain}
             onGoHome={handleGoHome}
           />
+          <NetworkDebugPanel
+            status={status}
+            logs={logs}
+            reconnectAttempts={reconnectAttempts}
+            onConnect={connect}
+            onDisconnect={disconnect}
+            onSendRaw={sendRaw}
+            onClearLogs={clearLogs}
+          />
         </>
       );
     }
@@ -614,6 +642,15 @@ export default function LiveGame() {
           <Button onClick={() => navigate('/quick-play')}>
             Find a Match
           </Button>
+          <NetworkDebugPanel
+            status={status}
+            logs={logs}
+            reconnectAttempts={reconnectAttempts}
+            onConnect={connect}
+            onDisconnect={disconnect}
+            onSendRaw={sendRaw}
+            onClearLogs={clearLogs}
+          />
         </div>
       );
     }
@@ -627,6 +664,15 @@ export default function LiveGame() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </Button>
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
       </div>
     );
   }
@@ -701,6 +747,17 @@ export default function LiveGame() {
         onBack={handleBack}
         onTimeLoss={handleTimeLoss}
       />
+      {(!isPrivateGame || isWebSocketGameId) && (
+        <NetworkDebugPanel
+          status={status}
+          logs={logs}
+          reconnectAttempts={reconnectAttempts}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onSendRaw={sendRaw}
+          onClearLogs={clearLogs}
+        />
+      )}
     </>
   );
 }
