@@ -105,6 +105,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
     { icon: BarChart3, label: 'Stats', path: '/stats', color: 'text-blue-400' },
     { icon: History, label: 'Game History', path: '/game-history', color: 'text-orange-400' },
     { icon: Users, label: 'Refer & Earn', path: '/affiliate', color: 'text-red-400' },
+    { icon: MessageCircle, label: 'Customer Support', onClick: handleOpenSupport, color: 'text-purple-400' },
   ];
 
   return (
@@ -166,7 +167,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
           ))}
         </div>
 
-        {/* Account Settings */}
+        {/* Account Settings - separated */}
         <div className="px-4 py-2 border-t border-border">
           <button
             onClick={() => handleNavigate('/settings')}
@@ -174,15 +175,6 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
           >
             <Settings className="w-5 h-5 text-slate-400" />
             <span className="text-foreground font-medium">Account Settings</span>
-          </button>
-          
-          {/* Customer Support - right under Account Settings */}
-          <button
-            onClick={handleOpenSupport}
-            className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors duration-200 text-left hover:bg-muted"
-          >
-            <MessageCircle className="w-5 h-5 text-slate-400" />
-            <span className="text-foreground font-medium">Customer Support</span>
           </button>
         </div>
 
