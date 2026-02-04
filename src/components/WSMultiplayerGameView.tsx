@@ -85,39 +85,30 @@ export const WSMultiplayerGameView = ({
   const lastMoveByRef = useRef<'w' | 'b' | null>(null);
   const renderFrameRef = useRef<number | null>(null);
   
-  // Calculate effective time from server snapshot (only for WebSocket games)
-  const { whiteTime, blackTime } = useMemo(() => {
+  // Timer state - updated every frame for accurate display
+  const [whiteTime, setWhiteTime] = useState(() => {
     if (isPrivateGame) {
-      return {
-        whiteTime: propWhiteTime ?? CHESS_TIME_CONTROL.BASE_TIME,
-        blackTime: propBlackTime ?? CHESS_TIME_CONTROL.BASE_TIME,
-      };
+      return propWhiteTime ?? CHESS_TIME_CONTROL.BASE_TIME;
     }
-    
-    // For WebSocket games, calculate from server snapshot
-    if (!timerSnapshot || isGameOver) {
-      return {
-        whiteTime: CHESS_TIME_CONTROL.BASE_TIME,
-        blackTime: CHESS_TIME_CONTROL.BASE_TIME,
-      };
+    return timerSnapshot?.whiteTimeSeconds ?? CHESS_TIME_CONTROL.BASE_TIME;
+  });
+  const [blackTime, setBlackTime] = useState(() => {
+    if (isPrivateGame) {
+      return propBlackTime ?? CHESS_TIME_CONTROL.BASE_TIME;
     }
-    
-    const nowMs = Date.now();
-    const elapsedMs = nowMs - timerSnapshot.serverTimeMs;
-    const elapsedSeconds = Math.floor(elapsedMs / 1000);
-    
-    let whiteTime = timerSnapshot.whiteTimeSeconds;
-    let blackTime = timerSnapshot.blackTimeSeconds;
-    
-    // Only count down for the side whose turn it is
-    if (timerSnapshot.currentTurn === 'w') {
-      whiteTime = Math.max(0, whiteTime - elapsedSeconds);
-    } else {
-      blackTime = Math.max(0, blackTime - elapsedSeconds);
+    return timerSnapshot?.blackTimeSeconds ?? CHESS_TIME_CONTROL.BASE_TIME;
+  });
+  
+  // Update timer state when snapshot changes (for WebSocket games)
+  useEffect(() => {
+    if (isPrivateGame) {
+      if (propWhiteTime !== undefined) setWhiteTime(propWhiteTime);
+      if (propBlackTime !== undefined) setBlackTime(propBlackTime);
+    } else if (timerSnapshot) {
+      setWhiteTime(timerSnapshot.whiteTimeSeconds);
+      setBlackTime(timerSnapshot.blackTimeSeconds);
     }
-    
-    return { whiteTime, blackTime };
-  }, [isPrivateGame, propWhiteTime, propBlackTime, timerSnapshot, isGameOver]);
+  }, [isPrivateGame, propWhiteTime, propBlackTime, timerSnapshot]);
   
   // Sound effects
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
@@ -202,35 +193,48 @@ export const WSMultiplayerGameView = ({
       return;
     }
 
-    // Use requestAnimationFrame for smooth updates without mutating time
+    // Use requestAnimationFrame for smooth updates
     const render = () => {
-      // Check for time loss (calculated from snapshot)
-      // Only check if we have a valid snapshot
+      // Calculate current time from server snapshot
       if (timerSnapshot && timerSnapshot.serverTimeMs > 0) {
         const nowMs = Date.now();
         const elapsedMs = nowMs - timerSnapshot.serverTimeMs;
         const elapsedSeconds = Math.floor(elapsedMs / 1000);
         
+        // Calculate effective time for both players
+        let calculatedWhiteTime = timerSnapshot.whiteTimeSeconds;
+        let calculatedBlackTime = timerSnapshot.blackTimeSeconds;
+        
+        // Only count down for the side whose turn it is
         if (timerSnapshot.currentTurn === 'w') {
-          const remaining = timerSnapshot.whiteTimeSeconds - elapsedSeconds;
-          if (remaining <= 0 && !isGameOver) {
-            setIsGameOver(true);
-            playGameEnd();
-            onTimeLoss?.('w');
-            return;
-          }
+          calculatedWhiteTime = Math.max(0, timerSnapshot.whiteTimeSeconds - elapsedSeconds);
+          // Black's time stays static (not their turn)
+          calculatedBlackTime = timerSnapshot.blackTimeSeconds;
         } else {
-          const remaining = timerSnapshot.blackTimeSeconds - elapsedSeconds;
-          if (remaining <= 0 && !isGameOver) {
-            setIsGameOver(true);
-            playGameEnd();
-            onTimeLoss?.('b');
-            return;
-          }
+          calculatedBlackTime = Math.max(0, timerSnapshot.blackTimeSeconds - elapsedSeconds);
+          // White's time stays static (not their turn)
+          calculatedWhiteTime = timerSnapshot.whiteTimeSeconds;
+        }
+        
+        // Update state to trigger re-render
+        setWhiteTime(calculatedWhiteTime);
+        setBlackTime(calculatedBlackTime);
+        
+        // Check for time loss
+        if (timerSnapshot.currentTurn === 'w' && calculatedWhiteTime <= 0 && !isGameOver) {
+          setIsGameOver(true);
+          playGameEnd();
+          onTimeLoss?.('w');
+          return;
+        } else if (timerSnapshot.currentTurn === 'b' && calculatedBlackTime <= 0 && !isGameOver) {
+          setIsGameOver(true);
+          playGameEnd();
+          onTimeLoss?.('b');
+          return;
         }
       }
 
-      // Schedule next render (throttle to ~60fps)
+      // Schedule next render
       renderFrameRef.current = requestAnimationFrame(render);
     };
 

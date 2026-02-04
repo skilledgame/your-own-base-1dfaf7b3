@@ -17,7 +17,6 @@ import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalanceStore } from '@/stores/balanceStore';
-import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -369,17 +368,6 @@ export default function QuickPlay() {
           </div>
         )}
       </main>
-
-      {/* Debug Panel */}
-      <NetworkDebugPanel
-        status={status}
-        logs={logs}
-        reconnectAttempts={reconnectAttempts}
-        onConnect={connect}
-        onDisconnect={disconnect}
-        onSendRaw={sendRaw}
-        onClearLogs={clearLogs}
-      />
     </div>
   );
 }
