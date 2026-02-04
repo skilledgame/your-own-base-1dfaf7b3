@@ -131,7 +131,7 @@ export const LiveWins = () => {
     };
   }, []);
 
-  // Auto-scroll animation
+  // Auto-scroll animation with continuous loop
   useEffect(() => {
     const scrollContainer = scrollRef.current;
     if (!scrollContainer || wins.length === 0) return;
@@ -139,13 +139,17 @@ export const LiveWins = () => {
     let animationId: number;
     let scrollPosition = 0;
     const scrollSpeed = 0.5;
+    
+    // Calculate the width of one set of wins for seamless looping
+    const singleSetWidth = scrollContainer.scrollWidth / 2;
 
     const animate = () => {
       scrollPosition += scrollSpeed;
-      const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-
-      if (scrollPosition >= maxScroll) {
-        scrollPosition = 0;
+      
+      // When we've scrolled past the first set, reset to start invisibly
+      // This creates a seamless infinite loop
+      if (scrollPosition >= singleSetWidth) {
+        scrollPosition = scrollPosition - singleSetWidth;
       }
 
       scrollContainer.scrollLeft = scrollPosition;
@@ -197,9 +201,10 @@ export const LiveWins = () => {
             className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
             style={{ scrollBehavior: 'auto' }}
           >
-            {wins.map((win) => (
+            {/* Render wins twice for seamless infinite scrolling */}
+            {[...wins, ...wins].map((win, index) => (
               <div
-                key={win.id}
+                key={`${win.id}-${index}`}
                 className="flex-shrink-0 w-[140px] group cursor-pointer"
               >
                 {/* Game Card */}
