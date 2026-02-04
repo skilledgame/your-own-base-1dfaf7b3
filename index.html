@@ -20,15 +20,29 @@
     
     <!-- Hide Voiceflow default launcher - we use custom buttons -->
     <style>
-      #voiceflow-chat [data-testid="launcher"],
+      #voiceflow-chat,
+      .vfrc-widget,
       .vfrc-launcher,
-      [class*="Launcher"],
-      .voiceflow-chat-launcher,
-      #vf-chat-launcher {
+      [id^="voiceflow"],
+      [class*="voiceflow"],
+      [class*="Launcher"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+      /* Show only the chat window when opened */
+      .vfrc-widget--open,
+      [class*="voiceflow"][class*="open"],
+      [class*="Widget"][class*="open"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: auto !important;
+        height: auto !important;
       }
     </style>
   </head>
@@ -50,6 +64,18 @@
                 url: "https://runtime-api.voiceflow.com"
               }
             });
+            
+            // Hide the launcher after it loads
+            var hideInterval = setInterval(function() {
+              var launcher = document.querySelector('.vfrc-launcher, [class*="Launcher"], #voiceflow-chat');
+              if (launcher) {
+                launcher.style.display = 'none';
+                launcher.style.visibility = 'hidden';
+              }
+            }, 100);
+            
+            // Stop checking after 10 seconds
+            setTimeout(function() { clearInterval(hideInterval); }, 10000);
           }
           v.src = "https://cdn.voiceflow.com/widget-next/bundle.mjs"; v.type = "text/javascript"; s.parentNode.insertBefore(v, s);
       })(document, 'script');
