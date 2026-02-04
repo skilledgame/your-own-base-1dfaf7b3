@@ -8,7 +8,7 @@ export const CHESS_TIME_CONTROL = {
   /** Base time in seconds (1 minute) */
   BASE_TIME: 60,
   /** Increment per move in seconds */
-  INCREMENT: 5,
+  INCREMENT: 3,
   /** Low time warning threshold in seconds */
   LOW_TIME_THRESHOLD: 10,
   /** Critical time threshold in seconds */

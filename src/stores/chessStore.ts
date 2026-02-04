@@ -14,12 +14,6 @@ export interface TimerSnapshot {
   blackTimeSeconds: number;
   serverTimeMs: number;
   currentTurn: 'w' | 'b';
-  /**
-   * Monotonic timestamp (performance.now()) captured when this snapshot was
-   * received by the client. This makes clock calculations independent from the
-   * user's system clock.
-   */
-  clientPerfNowMs: number;
 }
 
 export type GamePhase = "idle" | "searching" | "in_game" | "game_over";

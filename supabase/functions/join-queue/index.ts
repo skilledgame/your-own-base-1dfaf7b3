@@ -183,7 +183,7 @@ serve(async (req) => {
         const whitePlayerId = isWhite ? player.id : opponentEntry.player_id;
         const blackPlayerId = isWhite ? opponentEntry.player_id : player.id;
 
-        // Create game with proper time settings (60 seconds base + 5 second increment)
+        // Create game with proper time settings (60 seconds base + 3 second increment)
         // Status is 'created' initially, will be set to 'active' by lock_wager()
         const { data: gameData, error: gameError } = await supabaseAdmin
           .from('games')
