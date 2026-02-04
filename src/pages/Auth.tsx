@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { LogoLink } from '@/components/LogoLink';
-import { ArrowLeft, Loader2, Mail, Check, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, Lock, Check, ArrowRight, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -14,18 +14,21 @@ import { cn } from '@/lib/utils';
 
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email address');
+const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 const otpSchema = z.string().length(6, 'Please enter all 6 digits');
 
 type AuthStep = 'email' | 'otp' | 'complete';
 
 export default function Auth() {
+  const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<AuthStep>('email');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [errors, setErrors] = useState<{ email?: string; otp?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; otp?: string }>({});
   
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
@@ -76,27 +79,74 @@ export default function Auth() {
     }
   };
 
-  // Handle email submission - send OTP via signInWithOtp
+  const validatePassword = () => {
+    try {
+      passwordSchema.parse(password);
+      setErrors(prev => ({ ...prev, password: undefined }));
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setErrors(prev => ({ ...prev, password: error.errors[0].message }));
+      }
+      return false;
+    }
+  };
+
+  // Handle email submission - send OTP
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateEmail()) return;
+    if (!isLogin && !validatePassword()) return;
     
     setLoading(true);
     setErrors({});
 
     try {
-      // Use signInWithOtp - this sends a numeric OTP code, NOT a magic link
-      // shouldCreateUser: true allows new users to sign up
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true,
-        },
-      });
-      
-      if (error) {
-        throw error;
+      if (isLogin) {
+        // For login, use signInWithOtp
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: false, // Don't create new user on login
+          },
+        });
+        
+        if (error) {
+          if (error.message.includes('Signups not allowed for otp')) {
+            throw new Error('No account found with this email. Please sign up first.');
+          }
+          throw error;
+        }
+      } else {
+        // For signup, first create the user with password, then send OTP for verification
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            // Don't auto-confirm, we want OTP verification
+            emailRedirectTo: undefined,
+          },
+        });
+        
+        if (signUpError) {
+          if (signUpError.message.includes('User already registered')) {
+            throw new Error('An account with this email already exists. Please sign in instead.');
+          }
+          throw signUpError;
+        }
+
+        // After signup, send OTP for email verification
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: false,
+          },
+        });
+
+        if (otpError && !otpError.message.includes('rate limit')) {
+          console.warn('OTP send after signup:', otpError.message);
+        }
       }
 
       // Move to OTP step
@@ -159,7 +209,7 @@ export default function Auth() {
     }
   }, [otp]);
 
-  // Verify OTP using verifyOtp
+  // Verify OTP
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -223,7 +273,7 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          shouldCreateUser: true,
+          shouldCreateUser: !isLogin,
         },
       });
 
@@ -349,10 +399,12 @@ export default function Auth() {
               <>
                 <div className="text-center mb-6">
                   <h1 className="text-2xl font-bold text-foreground mb-2">
-                    Welcome
+                    {isLogin ? 'Welcome Back' : 'Create Account'}
                   </h1>
                   <p className="text-muted-foreground text-sm">
-                    Enter your email to receive a verification code
+                    {isLogin 
+                      ? 'Enter your email to receive a verification code' 
+                      : 'Enter your details to get started'}
                   </p>
                 </div>
 
@@ -419,6 +471,28 @@ export default function Auth() {
                     )}
                   </div>
 
+                  {!isLogin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className={cn("pl-10", errors.password && "border-destructive")}
+                          required
+                          autoComplete="new-password"
+                        />
+                      </div>
+                      {errors.password && (
+                        <p className="text-sm text-destructive">{errors.password}</p>
+                      )}
+                    </div>
+                  )}
+
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? (
                       <>
@@ -426,21 +500,27 @@ export default function Auth() {
                         Sending code...
                       </>
                     ) : (
-                      'Send verification code'
+                      <>
+                        Continue
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
                     )}
                   </Button>
                 </form>
 
-                <p className="text-center text-sm text-muted-foreground mt-6">
-                  By continuing, you agree to our{' '}
-                  <Link to="/terms" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link to="/privacy" className="text-primary hover:underline">
-                    Privacy Policy
-                  </Link>
-                </p>
+                <div className="mt-5 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setErrors({});
+                      setPassword('');
+                    }}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                  </button>
+                </div>
               </>
             )}
 
@@ -448,67 +528,85 @@ export default function Auth() {
             {step === 'otp' && (
               <>
                 <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Mail className="w-8 h-8 text-primary" />
+                  </div>
                   <h1 className="text-2xl font-bold text-foreground mb-2">
-                    Enter verification code
+                    Check your email
                   </h1>
                   <p className="text-muted-foreground text-sm">
-                    We sent a 6-digit code to{' '}
-                    <span className="text-foreground font-medium">{email}</span>
+                    We sent a 6-digit code to
                   </p>
+                  <p className="text-foreground font-medium mt-1">{email}</p>
                 </div>
 
                 <form onSubmit={handleOtpSubmit} className="space-y-6">
-                  <div className="flex justify-center gap-2">
-                    {otp.map((digit, index) => (
-                      <input
-                        key={index}
-                        ref={(el) => { otpInputRefs.current[index] = el; }}
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={1}
-                        value={digit}
-                        onChange={(e) => handleOtpChange(index, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                        onPaste={index === 0 ? handleOtpPaste : undefined}
-                        className={cn(
-                          "w-12 h-14 text-center text-xl font-bold rounded-lg border-2 bg-background text-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary",
-                          errors.otp ? "border-destructive" : "border-border",
-                          digit && "border-primary/50"
-                        )}
-                        autoComplete="one-time-code"
-                      />
-                    ))}
+                  <div className="space-y-3">
+                    <Label className="text-center block">Enter verification code</Label>
+                    <div className="flex justify-center gap-2">
+                      {otp.map((digit, index) => (
+                        <Input
+                          key={index}
+                          ref={(el) => { otpInputRefs.current[index] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                          onPaste={index === 0 ? handleOtpPaste : undefined}
+                          className={cn(
+                            "w-12 h-14 text-center text-xl font-bold",
+                            "focus:ring-2 focus:ring-primary focus:border-primary",
+                            errors.otp && "border-destructive"
+                          )}
+                          autoComplete="one-time-code"
+                        />
+                      ))}
+                    </div>
+                    {errors.otp && (
+                      <p className="text-sm text-destructive text-center">{errors.otp}</p>
+                    )}
                   </div>
 
-                  {errors.otp && (
-                    <p className="text-sm text-destructive text-center">{errors.otp}</p>
-                  )}
-
-                  <Button type="submit" className="w-full" disabled={loading || otp.join('').length < 6}>
+                  <Button type="submit" className="w-full" disabled={loading || otp.some(d => !d)}>
                     {loading ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Verifying...
                       </>
                     ) : (
-                      'Verify code'
+                      <>
+                        Verify Code
+                        <Check className="w-4 h-4 ml-2" />
+                      </>
                     )}
                   </Button>
                 </form>
 
-                <div className="mt-6 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Didn't receive a code?
+                <div className="mt-6 text-center space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Didn't receive the code?
                   </p>
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={handleResendOtp}
                     disabled={resendCooldown > 0 || loading}
-                    className="gap-2"
+                    className="text-primary"
                   >
-                    <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                    {resendCooldown > 0 ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Resend in {resendCooldown}s
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Resend code
+                      </>
+                    )}
                   </Button>
                 </div>
               </>
@@ -517,11 +615,11 @@ export default function Auth() {
             {/* Step 3: Complete */}
             {step === 'complete' && (
               <div className="text-center py-8">
-                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-primary" />
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-accent/20 flex items-center justify-center">
+                  <Check className="w-10 h-10 text-accent" />
                 </div>
                 <h1 className="text-2xl font-bold text-foreground mb-2">
-                  You're all set!
+                  Verification Complete!
                 </h1>
                 <p className="text-muted-foreground text-sm mb-6">
                   Redirecting you to the app...

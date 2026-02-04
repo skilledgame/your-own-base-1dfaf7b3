@@ -104,7 +104,7 @@ export const WSMultiplayerGameView = ({
     }
     
     const nowMs = Date.now();
-    const elapsedMs = Math.max(0, nowMs - timerSnapshot.serverTimeMs);
+    const elapsedMs = nowMs - timerSnapshot.serverTimeMs;
     const elapsedSeconds = Math.floor(elapsedMs / 1000);
     
     let whiteTime = timerSnapshot.whiteTimeSeconds;
@@ -210,7 +210,7 @@ export const WSMultiplayerGameView = ({
       // Only check if we have a valid snapshot
       if (timerSnapshot && timerSnapshot.serverTimeMs > 0) {
         const nowMs = Date.now();
-        const elapsedMs = Math.max(0, nowMs - timerSnapshot.serverTimeMs);
+        const elapsedMs = nowMs - timerSnapshot.serverTimeMs;
         const elapsedSeconds = Math.floor(elapsedMs / 1000);
         
         if (timerSnapshot.currentTurn === 'w') {
