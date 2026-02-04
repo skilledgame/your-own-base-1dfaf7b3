@@ -33,7 +33,20 @@ const Index = () => {
   // Check if user needs to create a username after login
   useEffect(() => {
     if (isAuthReady && isAuthenticated && user && !hasCheckedUsername) {
-      // User is logged in, check if they have a username
+      // Only prompt on first sign-in (new user)
+      const createdAt = user.created_at ? new Date(user.created_at).getTime() : null;
+      const lastSignInAt = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : null;
+      const isNewUser =
+        createdAt !== null &&
+        lastSignInAt !== null &&
+        Math.abs(lastSignInAt - createdAt) < 5 * 60 * 1000;
+
+      if (!isNewUser) {
+        setHasCheckedUsername(true);
+        return;
+      }
+
+      // User is logged in and new, check if they have a username
       const checkUsername = async () => {
         const { data } = await supabase
           .from('profiles')
