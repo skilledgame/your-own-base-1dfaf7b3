@@ -547,7 +547,7 @@ export default function GameStart() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-blue-200/60">Game Type</span>
-              <span className="font-medium text-white">{game?.name || 'Chess'} • 1min + 3s</span>
+              <span className="font-medium text-white">{game?.name || 'Chess'} • 1min + 5s</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-blue-200/60">Queue Status</span>
@@ -694,7 +694,7 @@ export default function GameStart() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { icon: Users, title: '1v1 Match', desc: 'Random opponent' },
-                { icon: Timer, title: '1 Min + 3s', desc: 'Per move bonus' },
+                { icon: Timer, title: '1 Min + 5s', desc: 'Per move bonus' },
                 { icon: Coins, title: 'Equal Entry', desc: 'Both stake same' },
                 { icon: Trophy, title: 'Winner Wins', desc: '95% of pot' },
               ].map((item, i) => (
@@ -881,7 +881,7 @@ export default function GameStart() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-blue-200/70 text-sm">Time Control</span>
-                    <span className="text-white font-medium">1 min + 3s</span>
+                    <span className="text-white font-medium">1 min + 5s</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-blue-200/70 text-sm">Platform Fee</span>

@@ -16,8 +16,7 @@ import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
 import { useChessSound } from '@/hooks/useChessSound';
-import { supabase } from '@/integrations/supabase/client';
-import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
+import type { RankInfo } from '@/lib/rankSystem';
 import { useChessStore } from '@/stores/chessStore';
 
 interface WSMultiplayerGameViewProps {
@@ -74,6 +73,7 @@ export const WSMultiplayerGameView = ({
   const [localFen, setLocalFen] = useState(currentFen || initialFen);
   // Track OPPONENT's last move only (not your own)
   const [opponentLastMove, setOpponentLastMove] = useState<{ from: string; to: string } | null>(null);
+  const [premove, setPremove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
   
   // Get timer snapshot from store (server-authoritative for WebSocket games)
   const timerSnapshot = useChessStore((state) => state.timerSnapshot);
@@ -103,8 +103,7 @@ export const WSMultiplayerGameView = ({
       };
     }
     
-    const nowMs = Date.now();
-    const elapsedMs = Math.max(0, nowMs - timerSnapshot.serverTimeMs);
+    const elapsedMs = Math.max(0, performance.now() - timerSnapshot.clientPerfNowMs);
     const elapsedSeconds = Math.floor(elapsedMs / 1000);
     
     let whiteTime = timerSnapshot.whiteTimeSeconds;
@@ -195,7 +194,7 @@ export const WSMultiplayerGameView = ({
 
   // Timer tick + time loss check (server-authoritative calculation, 4x/sec)
   useEffect(() => {
-    if (isPrivateGame || isGameOver) {
+    if (isPrivateGame || isGameOver || !timerSnapshot) {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
@@ -207,28 +206,24 @@ export const WSMultiplayerGameView = ({
       setTimerTick((tick) => tick + 1);
 
       // Check for time loss (calculated from snapshot)
-      // Only check if we have a valid snapshot
-      if (timerSnapshot && timerSnapshot.serverTimeMs > 0) {
-        const nowMs = Date.now();
-        const elapsedMs = Math.max(0, nowMs - timerSnapshot.serverTimeMs);
-        const elapsedSeconds = Math.floor(elapsedMs / 1000);
+      const elapsedMs = Math.max(0, performance.now() - timerSnapshot.clientPerfNowMs);
+      const elapsedSeconds = Math.floor(elapsedMs / 1000);
         
-        if (timerSnapshot.currentTurn === 'w') {
-          const remaining = timerSnapshot.whiteTimeSeconds - elapsedSeconds;
-          if (remaining <= 0 && !isGameOver) {
-            setIsGameOver(true);
-            playGameEnd();
-            onTimeLoss?.('w');
-            return;
-          }
-        } else {
-          const remaining = timerSnapshot.blackTimeSeconds - elapsedSeconds;
-          if (remaining <= 0 && !isGameOver) {
-            setIsGameOver(true);
-            playGameEnd();
-            onTimeLoss?.('b');
-            return;
-          }
+      if (timerSnapshot.currentTurn === 'w') {
+        const remaining = timerSnapshot.whiteTimeSeconds - elapsedSeconds;
+        if (remaining <= 0 && !isGameOver) {
+          setIsGameOver(true);
+          playGameEnd();
+          onTimeLoss?.('w');
+          return;
+        }
+      } else {
+        const remaining = timerSnapshot.blackTimeSeconds - elapsedSeconds;
+        if (remaining <= 0 && !isGameOver) {
+          setIsGameOver(true);
+          playGameEnd();
+          onTimeLoss?.('b');
+          return;
         }
       }
     }, 250);
@@ -244,6 +239,16 @@ export const WSMultiplayerGameView = ({
   // Timer display is now server-authoritative - no local countdown needed
   // The render loop above handles time loss detection based on server snapshot
 
+  // Premove: queue a move during opponent's turn and auto-play it when it's your turn (if still legal)
+  const handlePremove = useCallback((from: string, to: string, promotion?: string) => {
+    setPremove((prev) => {
+      if (prev && prev.from === from && prev.to === to && prev.promotion === promotion) {
+        return null; // Toggle off if selecting the same premove again
+      }
+      return { from, to, promotion };
+    });
+  }, []);
+
   // Handle local move with sound and increment
   const handleMove = useCallback((from: string, to: string, promotion?: string): boolean => {
     // Block moves if game is over
@@ -251,16 +256,10 @@ export const WSMultiplayerGameView = ({
       console.log("[Game] Game is over, move blocked");
       return false;
     }
-    
-    // Block moves if time is 0
-    const myTime = myColor === 'w' ? whiteTime : blackTime;
-    if (myTime <= 0) {
-      console.log("[Game] No time left, move blocked");
-      return false;
-    }
-    
-    if (!isMyTurn) {
-      console.log("[Game] Not your turn");
+
+    // Only allow moves for the side-to-move according to the current board state.
+    if (chess.turn() !== myColor) {
+      console.log("[Game] Not your turn (board turn mismatch)");
       return false;
     }
 
@@ -277,7 +276,7 @@ export const WSMultiplayerGameView = ({
 
     // Validate move locally first
     try {
-      const testChess = new Chess(localFen);
+      const testChess = new Chess(chess.fen());
       const move = testChess.move({ from, to, promotion: promoChar });
       
       if (!move) {
@@ -299,12 +298,15 @@ export const WSMultiplayerGameView = ({
       // Send to server
       onSendMove(from, to, promoChar);
 
+      // Clear any queued premove once we make a real move
+      setPremove(null);
+
       return true;
     } catch (e) {
       console.error("[Game] Move error:", e);
       return false;
     }
-  }, [chess, isMyTurn, localFen, onSendMove, isGameOver, myColor, isPrivateGame]);
+  }, [chess, onSendMove, isGameOver, myColor]);
 
   const myTime = isWhite ? whiteTime : blackTime;
   const opponentTime = isWhite ? blackTime : whiteTime;
@@ -313,6 +315,16 @@ export const WSMultiplayerGameView = ({
   const isMyTurnForTimer = !isPrivateGame && timerSnapshot
     ? timerSnapshot.currentTurn === myColor
     : isMyTurn;
+
+  // Auto-play queued premove when it's our turn
+  useEffect(() => {
+    if (!premove || isGameOver) return;
+    if (!isMyTurnForTimer) return;
+
+    const { from, to, promotion } = premove;
+    setPremove(null);
+    handleMove(from, to, promotion);
+  }, [premove, isMyTurnForTimer, isGameOver, handleMove]);
 
   // Get rank display names
   const playerRankDisplay = playerRank?.displayName || 'Unranked';
@@ -408,7 +420,9 @@ export const WSMultiplayerGameView = ({
           <ChessBoard
             game={chess}
             onMove={handleMove}
-            isPlayerTurn={isMyTurn && !isGameOver}
+            onPremove={handlePremove}
+            premove={premove ? { from: premove.from, to: premove.to } : null}
+            isPlayerTurn={isMyTurnForTimer && !isGameOver}
             lastMove={opponentLastMove}
             isCheck={chess.isCheck()}
             flipped={!isWhite}

@@ -7,6 +7,8 @@ import { X } from 'lucide-react';
 interface ChessBoardProps {
   game: Chess;
   onMove: (from: string, to: string, promotion?: string) => boolean;
+  onPremove?: (from: string, to: string, promotion?: string) => void;
+  premove?: { from: string; to: string } | null;
   isPlayerTurn: boolean;
   lastMove: { from: string; to: string } | null;
   isCheck: boolean;
@@ -20,6 +22,8 @@ interface ChessBoardProps {
 const ChessBoardComponent = ({ 
   game, 
   onMove, 
+  onPremove,
+  premove = null,
   isPlayerTurn, 
   lastMove, 
   isCheck, 
@@ -45,13 +49,13 @@ const ChessBoardComponent = ({
 
   const playerColor = flipped ? 'b' : 'w';
 
-  // Clear selection when game ends or turn changes
+  // Clear selection when game ends or board position changes
   useEffect(() => {
-    if (isGameOver || !isPlayerTurn) {
+    if (isGameOver) {
       setSelectedSquare(null);
       setValidMoves([]);
     }
-  }, [isGameOver, isPlayerTurn]);
+  }, [isGameOver, game.fen()]);
 
   // Get capture moves for highlighting
   const getCaptureMoves = (): string[] => {
@@ -63,11 +67,23 @@ const ChessBoardComponent = ({
   const captureMoves = getCaptureMoves();
 
   const handleSquareClick = useCallback((row: number, col: number) => {
-    // Block moves if game is over or not player's turn
-    if (!isPlayerTurn || isGameOver) return;
+    // Block moves if game is over
+    if (isGameOver) return;
+    // No premoves allowed and it's not your turn - block interaction
+    if (!isPlayerTurn && !onPremove) return;
 
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
+    const isPremoveMode = !isPlayerTurn && !!onPremove;
+    const moveGenGame = (() => {
+      if (!isPremoveMode) return game;
+      // In premove mode it's the opponent's turn in the real game.
+      // Chess.js won't generate moves for our pieces unless it's our turn,
+      // so we temporarily flip the active color in the FEN.
+      const parts = game.fen().split(' ');
+      if (parts.length >= 2) parts[1] = playerColor;
+      return new Chess(parts.join(' '));
+    })();
 
     if (selectedSquare) {
       // Try to make a move
@@ -87,7 +103,9 @@ const ChessBoardComponent = ({
         promotion = 'q';
       }
 
-      const success = onMove(selectedSquare, square, promotion);
+      const success = isPremoveMode
+        ? (validMoves.some((m) => m.to === square) ? (onPremove(selectedSquare, square, promotion), true) : false)
+        : onMove(selectedSquare, square, promotion);
       
       if (success) {
         // Play appropriate sound (prevent double-play)
@@ -122,15 +140,15 @@ const ChessBoardComponent = ({
       
       if (!success && piece && piece.color === playerColor) {
         setSelectedSquare(square);
-        const moves = game.moves({ square, verbose: true });
+        const moves = moveGenGame.moves({ square, verbose: true });
         setValidMoves(moves);
       }
     } else if (piece && piece.color === playerColor) {
       setSelectedSquare(square);
-      const moves = game.moves({ square, verbose: true });
+      const moves = moveGenGame.moves({ square, verbose: true });
       setValidMoves(moves);
     }
-  }, [selectedSquare, game, onMove, isPlayerTurn, playerColor, flipped, isGameOver, onMoveSound, onCaptureSound, onCheckSound]);
+  }, [selectedSquare, game, onMove, onPremove, premove, validMoves, isPlayerTurn, playerColor, flipped, isGameOver, onMoveSound, onCaptureSound, onCheckSound]);
 
   const isLightSquare = (row: number, col: number) => {
     const actualRow = flipped ? 7 - row : row;
@@ -138,14 +156,12 @@ const ChessBoardComponent = ({
     return (actualRow + actualCol) % 2 === 0;
   };
 
-  // Get opponent's king square (when THEY are in check)
-  const getOpponentKingSquare = () => {
-    const opponentColor = playerColor === 'w' ? 'b' : 'w';
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        const square = getSquareNotation(row, col);
+  const getKingSquare = (color: 'w' | 'b') => {
+    for (const file of FILES) {
+      for (const rank of RANKS) {
+        const square = `${file}${rank}` as ChessSquare;
         const piece = game.get(square);
-        if (piece?.type === 'k' && piece.color === opponentColor) {
+        if (piece?.type === 'k' && piece.color === color) {
           return square;
         }
       }
@@ -153,9 +169,9 @@ const ChessBoardComponent = ({
     return null;
   };
 
-  // isCheck means current player to move is in check
-  // We want to highlight opponent's king when WE put them in check (after our move, it's their turn)
-  const opponentKingSquare = isCheck && !isPlayerTurn ? getOpponentKingSquare() : null;
+  // isCheck means the current side to move is in check.
+  // Highlight that king (yours when you're checked; opponent's when you check them).
+  const checkedKingSquare = isCheck ? getKingSquare(game.turn() as 'w' | 'b') : null;
 
   // Show opponent's last move highlight (now always shown since lastMove only contains opponent's move)
   const showLastMove = lastMove !== null;
@@ -173,8 +189,10 @@ const ChessBoardComponent = ({
             const isValidMove = validMoveSquares.includes(square);
             const isCaptureMove = captureMoves.includes(square);
             const isLastMoveSquare = showLastMove && (lastMove.from === square || lastMove.to === square);
-            const isOpponentKingInCheck = opponentKingSquare === square;
+            const isKingInCheck = checkedKingSquare === square;
             const isCapturing = captureAnimation === square;
+            const isPremoveFrom = premove?.from === square;
+            const isPremoveTo = premove?.to === square;
 
             return (
               <div
@@ -186,11 +204,13 @@ const ChessBoardComponent = ({
                   isSelected && "ring-4 ring-primary ring-inset",
                   // Gray highlight for opponent's last move
                   isLastMoveSquare && "bg-muted-foreground/30",
-                  // Red highlight only for opponent's king when in check
-                  isOpponentKingInCheck && "bg-destructive/40",
+                  // Red highlight for the king that is currently in check
+                  isKingInCheck && "bg-destructive/40",
+                  // Premove highlight
+                  isPremoveFrom && "ring-4 ring-emerald-400/70 ring-inset",
+                  isPremoveTo && "ring-4 ring-emerald-200/70 ring-inset",
                   // Capture highlighting - red tint for capturable squares
                   isCaptureMove && "bg-red-500/30",
-                  !isPlayerTurn && "cursor-not-allowed",
                   isGameOver && "cursor-not-allowed opacity-90"
                 )}
               >
@@ -261,6 +281,8 @@ export const ChessBoard = memo(ChessBoardComponent, (prevProps, nextProps) => {
     prevProps.isPlayerTurn === nextProps.isPlayerTurn &&
     prevProps.lastMove?.from === nextProps.lastMove?.from &&
     prevProps.lastMove?.to === nextProps.lastMove?.to &&
+    prevProps.premove?.from === nextProps.premove?.from &&
+    prevProps.premove?.to === nextProps.premove?.to &&
     prevProps.isCheck === nextProps.isCheck &&
     prevProps.flipped === nextProps.flipped &&
     prevProps.isGameOver === nextProps.isGameOver

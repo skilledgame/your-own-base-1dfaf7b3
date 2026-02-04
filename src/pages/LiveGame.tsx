@@ -107,11 +107,21 @@ export default function LiveGame() {
     },
   });
 
-  const handleBack = () => {
-    // If in game, resign first
+  const handleBack = async () => {
+    // If in game, confirm resignation before leaving
     if (phase === "in_game") {
-      resignGame();
+      const confirmed = window.confirm("Resign and go back Home?");
+      if (!confirmed) return;
+
+      // Resign using the correct transport
+      const isWebSocketGameIdLocal = gameId?.startsWith('g_') ?? false;
+      if (isPrivateGame && !isWebSocketGameIdLocal && privateGame.resign) {
+        await privateGame.resign();
+      } else {
+        resignGame();
+      }
     }
+
     navigate('/');
   };
 

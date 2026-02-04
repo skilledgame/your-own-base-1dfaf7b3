@@ -34,7 +34,7 @@ interface UsePrivateGameReturn {
   loading: boolean;
 }
 
-const TIME_INCREMENT = 3; // seconds added per move
+const TIME_INCREMENT = 5; // seconds added per move
 
 export function usePrivateGame({
   gameId,
