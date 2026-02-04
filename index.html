@@ -20,8 +20,15 @@
     
     <!-- Hide Voiceflow default launcher - we use custom buttons -->
     <style>
-      #voiceflow-chat [data-testid="launcher"] {
+      #voiceflow-chat [data-testid="launcher"],
+      .vfrc-launcher,
+      [class*="Launcher"],
+      .voiceflow-chat-launcher,
+      #vf-chat-launcher {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
       }
     </style>
   </head>
