@@ -198,7 +198,7 @@ function initializeGlobalMessageHandler(): void {
             serverTimeMs: payload.serverTimeMs,
             currentTurn: 'w', // White moves first
           });
-          lastTimerSnapshotUpdateMs = Date.now();
+          lastTimerSnapshotUpdatePerfMs = performance.now();
           console.log("[Chess WS] Timer snapshot updated (match_found)", {
             gameId: payload.gameId,
             whiteTime: payload.whiteTime,
@@ -220,7 +220,7 @@ function initializeGlobalMessageHandler(): void {
             serverTimeMs: Date.now(),
             currentTurn: 'w',
           });
-          lastTimerSnapshotUpdateMs = Date.now();
+          lastTimerSnapshotUpdatePerfMs = performance.now();
         }
         
         // STEP D: Update normalized matchmaking state
@@ -287,7 +287,7 @@ function initializeGlobalMessageHandler(): void {
               serverTimeMs: payload.serverTimeMs,
               currentTurn: payload.turn,
             });
-            lastTimerSnapshotUpdateMs = Date.now();
+            lastTimerSnapshotUpdatePerfMs = performance.now();
             console.log("[Chess WS] Timer snapshot updated (move_applied)", {
               gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
               whiteTime: payload.whiteTime,
@@ -331,7 +331,7 @@ function initializeGlobalMessageHandler(): void {
                 serverTimeMs: payload.serverTimeMs,
                 currentTurn: payload.turn,
               });
-              lastTimerSnapshotUpdateMs = Date.now();
+              lastTimerSnapshotUpdatePerfMs = performance.now();
             }
           } else {
             console.warn("[Chess WS] Invalid timer data in game_sync, ignoring:", {
