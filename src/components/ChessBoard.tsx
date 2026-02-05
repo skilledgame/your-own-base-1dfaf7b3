@@ -94,6 +94,16 @@ const ChessBoardComponent = ({
 
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
+    
+    // DEBUG: Log every click
+    console.log("[ChessBoard] Click:", {
+      square,
+      piece: piece ? `${piece.color}${piece.type}` : 'empty',
+      premoveSelectedSquare,
+      isPlayerTurn,
+      enablePremove,
+      playerColor,
+    });
 
     // CASE 1: Handle completing a premove when we had selected a piece earlier
     // This handles the case where you select a piece during opponent's turn,
