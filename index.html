@@ -53,11 +53,29 @@
               versionID: 'production',
               voice: {
                 url: "https://runtime-api.voiceflow.com"
-              },
-              launcher: {
-                type: 'hide'
               }
             });
+            
+            // Hide the launcher button after widget loads
+            function hideLauncher() {
+              var container = document.body.querySelector(':scope > div:not(#root)');
+              if (container) {
+                var btn = container.querySelector('button');
+                if (btn) {
+                  btn.style.display = 'none';
+                  return true;
+                }
+              }
+              return false;
+            }
+            
+            // Try immediately and retry a few times
+            if (!hideLauncher()) {
+              var attempts = 0;
+              var interval = setInterval(function() {
+                if (hideLauncher() || ++attempts > 20) clearInterval(interval);
+              }, 200);
+            }
           }
           v.src = "https://cdn.voiceflow.com/widget-next/bundle.mjs"; v.type = "text/javascript"; s.parentNode.insertBefore(v, s);
       })(document, 'script');
