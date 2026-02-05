@@ -69,14 +69,12 @@ const ChessBoardComponent = ({
     }
   }, [isGameOver, clearPremove]);
 
-  // Clear regular selection when turn changes
+  // Clear regular selection when turn changes to opponent's turn
+  // Note: Do NOT clear premoveSelectedSquare here - let user complete their premove even if turn changes
   useEffect(() => {
     if (!isPlayerTurn) {
       setSelectedSquare(null);
       setValidMoves([]);
-    } else {
-      // When it becomes our turn, clear premove selection (premove itself is cleared by WS handler)
-      setPremoveSelectedSquare(null);
     }
   }, [isPlayerTurn]);
 
@@ -97,47 +95,73 @@ const ChessBoardComponent = ({
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
 
-    // Handle premove selection when it's NOT our turn
-    if (!isPlayerTurn && enablePremove) {
-      // If clicking on one of our own pieces
+    // CASE 1: Handle completing a premove when we had selected a piece earlier
+    // This handles the case where you select a piece during opponent's turn,
+    // then the turn changes before you click the target
+    if (premoveSelectedSquare && enablePremove) {
+      // Clicking on one of our own pieces - switch selection or cancel
       if (piece && piece.color === playerColor) {
-        // If we already have a piece selected for premove
-        if (premoveSelectedSquare) {
-          // Clicking the same piece - cancel selection
-          if (premoveSelectedSquare === square) {
-            setPremoveSelectedSquare(null);
-            clearPremove();
-            return;
-          }
-          // Clicking a different piece of ours - switch selection
-          setPremoveSelectedSquare(square);
+        if (premoveSelectedSquare === square) {
+          // Clicking same piece - cancel selection
+          setPremoveSelectedSquare(null);
           clearPremove();
+          console.log("[ChessBoard] Premove selection cancelled");
           return;
         }
-        // First click - select piece for premove
+        // Clicking different own piece - switch selection
         setPremoveSelectedSquare(square);
         clearPremove();
-        console.log("[ChessBoard] Premove piece selected:", square);
+        console.log("[ChessBoard] Premove piece switched to:", square);
         return;
       }
       
-      // Clicking on empty square or opponent's piece
-      if (premoveSelectedSquare) {
-        // Second click - set the premove target
-        const movingPiece = game.get(premoveSelectedSquare as ChessSquare);
-        
-        // Check for pawn promotion (premove)
-        let promotion: string | undefined;
-        const promotionRank = flipped ? 7 : 0;
-        if (movingPiece?.type === 'p' && row === promotionRank) {
-          promotion = 'q';
-        }
+      // Clicking on empty square or opponent's piece - complete the premove
+      const movingPiece = game.get(premoveSelectedSquare as ChessSquare);
+      
+      // Check for pawn promotion
+      let promotion: string | undefined;
+      const promotionRank = flipped ? 7 : 0;
+      if (movingPiece?.type === 'p' && row === promotionRank) {
+        promotion = 'q';
+      }
 
-        // Set the premove in the store (will be validated and executed when turn switches)
-        const newPremove = { from: premoveSelectedSquare, to: square, promotion };
-        setPremove(newPremove);
+      // If it's already our turn, execute immediately as a regular move
+      if (isPlayerTurn) {
+        console.log("[ChessBoard] Turn already ours, executing as regular move:", premoveSelectedSquare, "->", square);
+        const success = onMove(premoveSelectedSquare, square, promotion);
         setPremoveSelectedSquare(null);
-        console.log("[ChessBoard] Premove set in store:", premoveSelectedSquare, "->", square);
+        clearPremove();
+        if (success) {
+          // Play sound
+          const now = Date.now();
+          if (now - lastSoundRef.current > 50) {
+            lastSoundRef.current = now;
+            const targetPiece = game.get(square);
+            if (targetPiece && targetPiece.color !== playerColor) {
+              onCaptureSound?.();
+            } else {
+              onMoveSound?.();
+            }
+          }
+        }
+        return;
+      }
+      
+      // Not our turn yet - set the premove in the store for later execution
+      const newPremove = { from: premoveSelectedSquare, to: square, promotion };
+      setPremove(newPremove);
+      setPremoveSelectedSquare(null);
+      console.log("[ChessBoard] Premove set in store:", premoveSelectedSquare, "->", square);
+      return;
+    }
+
+    // CASE 2: Handle premove piece selection when it's NOT our turn
+    if (!isPlayerTurn && enablePremove) {
+      // Clicking on one of our own pieces - start premove selection
+      if (piece && piece.color === playerColor) {
+        setPremoveSelectedSquare(square);
+        clearPremove();
+        console.log("[ChessBoard] Premove piece selected:", square);
         return;
       }
       
@@ -148,7 +172,7 @@ const ChessBoardComponent = ({
       return;
     }
 
-    // Normal move handling when it IS our turn
+    // CASE 3: Normal move handling when it IS our turn (no premove selected)
     if (selectedSquare) {
       // Try to make a move
       const targetPiece = game.get(square);
