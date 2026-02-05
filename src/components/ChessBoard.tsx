@@ -120,6 +120,28 @@ const ChessBoardComponent = ({
 
     // Handle premove selection when it's NOT our turn
     if (!isPlayerTurn && enablePremove) {
+      // If clicking on one of our own pieces
+      if (piece && piece.color === playerColor) {
+        // If we already have a piece selected for premove
+        if (premoveSelectedSquare) {
+          // Clicking the same piece - cancel selection
+          if (premoveSelectedSquare === square) {
+            setPremoveSelectedSquare(null);
+            setPremove(null);
+            return;
+          }
+          // Clicking a different piece of ours - switch selection
+          setPremoveSelectedSquare(square);
+          setPremove(null);
+          return;
+        }
+        // First click - select piece for premove
+        setPremoveSelectedSquare(square);
+        setPremove(null);
+        return;
+      }
+      
+      // Clicking on empty square or opponent's piece
       if (premoveSelectedSquare) {
         // Second click - set the premove target
         const movingPiece = game.get(premoveSelectedSquare as ChessSquare);
@@ -131,24 +153,15 @@ const ChessBoardComponent = ({
           promotion = 'q';
         }
 
-        // If clicking on the same square, cancel premove selection
-        if (premoveSelectedSquare === square) {
-          setPremoveSelectedSquare(null);
-          setPremove(null);
-          return;
-        }
-
         // Set the premove (we'll validate it when it's our turn)
         setPremove({ from: premoveSelectedSquare, to: square, promotion });
         setPremoveSelectedSquare(null);
         console.log("[ChessBoard] Premove set:", premoveSelectedSquare, "->", square);
-      } else if (piece && piece.color === playerColor) {
-        // First click - select piece for premove
-        setPremoveSelectedSquare(square);
-        // Clear any existing premove
-        setPremove(null);
-      } else if (premove) {
-        // Clicking elsewhere cancels premove
+        return;
+      }
+      
+      // Clicking elsewhere with no selection - cancel any existing premove
+      if (premove) {
         setPremove(null);
       }
       return;
