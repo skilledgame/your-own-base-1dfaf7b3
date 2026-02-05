@@ -18,29 +18,35 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Hide Voiceflow default launcher - we use custom buttons -->
+    <!-- Hide Voiceflow default launcher completely -->
     <style>
-      /* Hide all possible Voiceflow launcher elements */
+      /* Nuclear option: hide the entire voiceflow widget container initially, 
+         then show only the chat window when opened via our custom buttons */
+      #voiceflow-chat {
+        visibility: hidden !important;
+      }
+      #voiceflow-chat [class*="Widget"],
+      #voiceflow-chat [class*="widget"],
+      #voiceflow-chat iframe[title*="chat"],
+      #voiceflow-chat > div > div:last-child {
+        visibility: visible !important;
+      }
+      /* Hide any launcher/bubble elements */
       #voiceflow-chat [data-testid="launcher"],
+      #voiceflow-chat button[class*="launcher"],
+      #voiceflow-chat button[class*="Launcher"],
+      #voiceflow-chat > div > div:first-child:not([class*="Widget"]):not([class*="widget"]),
       .vfrc-launcher,
       [class*="Launcher"],
       [class*="launcher"],
-      .voiceflow-chat-launcher,
-      #vf-chat-launcher,
-      div[id^="voiceflow"] > div:first-child,
-      /* Target the floating button by common widget patterns */
-      [data-testid="widget-button"],
-      [aria-label*="chat"],
-      [aria-label*="Chat"],
-      /* Aggressive: hide any fixed bottom-right element from voiceflow container */
-      #voiceflow-chat > div:not([class*="Widget"]):not([class*="widget"]) {
+      div[style*="position: fixed"][style*="bottom"][style*="right"]:not([class*="Widget"]):not([class*="widget"]) {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
         width: 0 !important;
         height: 0 !important;
-        overflow: hidden !important;
+        transform: scale(0) !important;
       }
     </style>
   </head>
