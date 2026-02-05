@@ -66,16 +66,19 @@ let messageHandlerRegistered = false;
 let navigationCallback: ((path: string) => void) | null = null;
 let balanceRefreshCallback: (() => void) | null = null;
 let isAdminCallback: (() => boolean) | null = null;
-let lastTimerSnapshotUpdateMs = 0;
+let lastTimerSnapshotUpdatePerfMs = 0;
 const TIMER_SNAPSHOT_MIN_INTERVAL_MS = 250;
 
+const normalizeServerTimeMs = (serverTime: number): number =>
+  serverTime < 1_000_000_000_000 ? serverTime * 1000 : serverTime;
+
 const shouldUpdateTimerSnapshot = (nextTurn: 'w' | 'b'): boolean => {
-  const now = Date.now();
+  const now = performance.now();
   const current = useChessStore.getState().timerSnapshot;
 
   if (!current) return true;
   if (current.currentTurn !== nextTurn) return true;
-  if (now - lastTimerSnapshotUpdateMs >= TIMER_SNAPSHOT_MIN_INTERVAL_MS) return true;
+  if (now - lastTimerSnapshotUpdatePerfMs >= TIMER_SNAPSHOT_MIN_INTERVAL_MS) return true;
 
   return false;
 };
