@@ -15,6 +15,7 @@ interface ChessBoardProps {
   onMoveSound?: () => void;
   onCaptureSound?: () => void;
   onCheckSound?: () => void;
+  enablePremove?: boolean;
 }
 
 const ChessBoardComponent = ({ 
@@ -28,11 +29,17 @@ const ChessBoardComponent = ({
   onMoveSound,
   onCaptureSound,
   onCheckSound,
+  enablePremove = true,
 }: ChessBoardProps) => {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [validMoves, setValidMoves] = useState<Move[]>([]);
   const [captureAnimation, setCaptureAnimation] = useState<string | null>(null);
   const lastSoundRef = useRef<number>(0);
+  
+  // Premove state
+  const [premove, setPremove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
+  const [premoveSelectedSquare, setPremoveSelectedSquare] = useState<string | null>(null);
+  const prevIsPlayerTurnRef = useRef(isPlayerTurn);
 
   const displayFiles = flipped ? [...FILES].reverse() : FILES;
   const displayRanks = flipped ? [...RANKS].reverse() : RANKS;
@@ -45,13 +52,55 @@ const ChessBoardComponent = ({
 
   const playerColor = flipped ? 'b' : 'w';
 
-  // Clear selection when game ends or turn changes
+  // Clear selection when game ends
   useEffect(() => {
-    if (isGameOver || !isPlayerTurn) {
+    if (isGameOver) {
+      setSelectedSquare(null);
+      setValidMoves([]);
+      setPremove(null);
+      setPremoveSelectedSquare(null);
+    }
+  }, [isGameOver]);
+
+  // Clear regular selection when turn changes (but keep premove)
+  useEffect(() => {
+    if (!isPlayerTurn) {
       setSelectedSquare(null);
       setValidMoves([]);
     }
-  }, [isGameOver, isPlayerTurn]);
+  }, [isPlayerTurn]);
+
+  // Execute premove when it becomes player's turn
+  useEffect(() => {
+    if (isPlayerTurn && !prevIsPlayerTurnRef.current && premove && !isGameOver) {
+      // It just became our turn and we have a premove queued
+      const { from, to, promotion } = premove;
+      
+      // Validate the premove is still legal
+      try {
+        const testChess = new Chess(game.fen());
+        const move = testChess.move({ from, to, promotion: promotion || 'q' });
+        
+        if (move) {
+          // Execute the premove
+          const success = onMove(from, to, promotion);
+          if (success) {
+            console.log("[ChessBoard] Premove executed:", from, to);
+          }
+        } else {
+          console.log("[ChessBoard] Premove no longer valid:", from, to);
+        }
+      } catch {
+        console.log("[ChessBoard] Premove validation error:", from, to);
+      }
+      
+      // Clear premove regardless of success
+      setPremove(null);
+      setPremoveSelectedSquare(null);
+    }
+    
+    prevIsPlayerTurnRef.current = isPlayerTurn;
+  }, [isPlayerTurn, premove, game, onMove, isGameOver]);
 
   // Get capture moves for highlighting
   const getCaptureMoves = (): string[] => {
@@ -63,12 +112,49 @@ const ChessBoardComponent = ({
   const captureMoves = getCaptureMoves();
 
   const handleSquareClick = useCallback((row: number, col: number) => {
-    // Block moves if game is over or not player's turn
-    if (!isPlayerTurn || isGameOver) return;
+    // Block all interaction if game is over
+    if (isGameOver) return;
 
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
 
+    // Handle premove selection when it's NOT our turn
+    if (!isPlayerTurn && enablePremove) {
+      if (premoveSelectedSquare) {
+        // Second click - set the premove target
+        const movingPiece = game.get(premoveSelectedSquare as ChessSquare);
+        
+        // Check for pawn promotion (premove)
+        let promotion: string | undefined;
+        const promotionRank = flipped ? 7 : 0;
+        if (movingPiece?.type === 'p' && row === promotionRank) {
+          promotion = 'q';
+        }
+
+        // If clicking on the same square, cancel premove selection
+        if (premoveSelectedSquare === square) {
+          setPremoveSelectedSquare(null);
+          setPremove(null);
+          return;
+        }
+
+        // Set the premove (we'll validate it when it's our turn)
+        setPremove({ from: premoveSelectedSquare, to: square, promotion });
+        setPremoveSelectedSquare(null);
+        console.log("[ChessBoard] Premove set:", premoveSelectedSquare, "->", square);
+      } else if (piece && piece.color === playerColor) {
+        // First click - select piece for premove
+        setPremoveSelectedSquare(square);
+        // Clear any existing premove
+        setPremove(null);
+      } else if (premove) {
+        // Clicking elsewhere cancels premove
+        setPremove(null);
+      }
+      return;
+    }
+
+    // Normal move handling when it IS our turn
     if (selectedSquare) {
       // Try to make a move
       const targetPiece = game.get(square);
@@ -90,6 +176,10 @@ const ChessBoardComponent = ({
       const success = onMove(selectedSquare, square, promotion);
       
       if (success) {
+        // Clear any premove when we make a regular move
+        setPremove(null);
+        setPremoveSelectedSquare(null);
+        
         // Play appropriate sound (prevent double-play)
         const now = Date.now();
         if (now - lastSoundRef.current > 50) {
@@ -130,7 +220,7 @@ const ChessBoardComponent = ({
       const moves = game.moves({ square, verbose: true });
       setValidMoves(moves);
     }
-  }, [selectedSquare, game, onMove, isPlayerTurn, playerColor, flipped, isGameOver, onMoveSound, onCaptureSound, onCheckSound]);
+  }, [selectedSquare, game, onMove, isPlayerTurn, playerColor, flipped, isGameOver, onMoveSound, onCaptureSound, onCheckSound, enablePremove, premoveSelectedSquare, premove]);
 
   const isLightSquare = (row: number, col: number) => {
     const actualRow = flipped ? 7 - row : row;
@@ -162,6 +252,11 @@ const ChessBoardComponent = ({
 
   const validMoveSquares = validMoves.map(m => m.to);
 
+  // Premove visual indicators
+  const isPremoveFrom = premove?.from;
+  const isPremoveTo = premove?.to;
+  const isPremoveSelected = premoveSelectedSquare;
+
   return (
     <div className="relative">
       <div className="grid grid-cols-8 gap-0 rounded-lg overflow-hidden shadow-xl border-2 border-border">
@@ -175,6 +270,10 @@ const ChessBoardComponent = ({
             const isLastMoveSquare = showLastMove && (lastMove.from === square || lastMove.to === square);
             const isOpponentKingInCheck = opponentKingSquare === square;
             const isCapturing = captureAnimation === square;
+            
+            // Premove highlighting
+            const isPremoveSquare = isPremoveFrom === square || isPremoveTo === square;
+            const isPremoveSelecting = isPremoveSelected === square;
 
             return (
               <div
@@ -185,12 +284,16 @@ const ChessBoardComponent = ({
                   isLightSquare(row, col) ? "chess-square-light" : "chess-square-dark",
                   isSelected && "ring-4 ring-primary ring-inset",
                   // Gray highlight for opponent's last move
-                  isLastMoveSquare && "bg-muted-foreground/30",
+                  isLastMoveSquare && !isPremoveSquare && "bg-muted-foreground/30",
                   // Red highlight only for opponent's king when in check
                   isOpponentKingInCheck && "bg-destructive/40",
                   // Capture highlighting - red tint for capturable squares
                   isCaptureMove && "bg-red-500/30",
-                  !isPlayerTurn && "cursor-not-allowed",
+                  // Premove highlighting - cyan/blue color
+                  isPremoveSquare && "bg-cyan-500/40",
+                  isPremoveSelecting && "ring-4 ring-cyan-400 ring-inset",
+                  // Only show not-allowed cursor if premove is disabled
+                  !isPlayerTurn && !enablePremove && "cursor-not-allowed",
                   isGameOver && "cursor-not-allowed opacity-90"
                 )}
               >
@@ -263,6 +366,7 @@ export const ChessBoard = memo(ChessBoardComponent, (prevProps, nextProps) => {
     prevProps.lastMove?.to === nextProps.lastMove?.to &&
     prevProps.isCheck === nextProps.isCheck &&
     prevProps.flipped === nextProps.flipped &&
-    prevProps.isGameOver === nextProps.isGameOver
+    prevProps.isGameOver === nextProps.isGameOver &&
+    prevProps.enablePremove === nextProps.enablePremove
   );
 });

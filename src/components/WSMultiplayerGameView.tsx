@@ -11,6 +11,16 @@ import { ChessBoard } from './ChessBoard';
 import { GameTimer } from './GameTimer';
 import { CapturedPieces } from './CapturedPieces';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ArrowLeft, User, Loader2, LogOut, Crown, Coins, Wallet } from 'lucide-react';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -74,6 +84,8 @@ export const WSMultiplayerGameView = ({
   const [localFen, setLocalFen] = useState(currentFen || initialFen);
   // Track OPPONENT's last move only (not your own)
   const [opponentLastMove, setOpponentLastMove] = useState<{ from: string; to: string } | null>(null);
+  // Resign confirmation dialog
+  const [showResignDialog, setShowResignDialog] = useState(false);
   
   // Get timer snapshot from store (server-authoritative for WebSocket games)
   const timerSnapshot = useChessStore((state) => state.timerSnapshot);
@@ -336,9 +348,19 @@ export const WSMultiplayerGameView = ({
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" onClick={onBack} className="gap-2">
+          <Button 
+            variant="ghost" 
+            onClick={() => {
+              if (isGameOver) {
+                onBack();
+              } else {
+                setShowResignDialog(true);
+              }
+            }} 
+            className="gap-2"
+          >
             <ArrowLeft className="w-4 h-4" />
-            Home
+            {isGameOver ? 'Home' : 'Leave'}
           </Button>
           
           <div className="flex items-center gap-4">
@@ -475,6 +497,31 @@ export const WSMultiplayerGameView = ({
           </div>
         </div>
       </div>
+
+      {/* Resign Confirmation Dialog */}
+      <AlertDialog open={showResignDialog} onOpenChange={setShowResignDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resign Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to resign? This will count as a loss and your opponent will win
+              {wager > 0 && ` the ${wager} SC wager`}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continue Playing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowResignDialog(false);
+                onExit();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, Resign
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
