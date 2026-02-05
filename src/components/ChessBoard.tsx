@@ -36,19 +36,33 @@ const ChessBoardComponent = ({
   const [captureAnimation, setCaptureAnimation] = useState<string | null>(null);
   const lastSoundRef = useRef<number>(0);
   
-  // Premove state
+  // Premove state - use both state (for re-render) and refs (for fresh values in callbacks)
   const [premove, setPremove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
   const [premoveSelectedSquare, setPremoveSelectedSquare] = useState<string | null>(null);
+  const premoveRef = useRef<{ from: string; to: string; promotion?: string } | null>(null);
+  const premoveSelectedRef = useRef<string | null>(null);
   const prevIsPlayerTurnRef = useRef(isPlayerTurn);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    premoveRef.current = premove;
+  }, [premove]);
+  
+  useEffect(() => {
+    premoveSelectedRef.current = premoveSelectedSquare;
+  }, [premoveSelectedSquare]);
 
   const displayFiles = flipped ? [...FILES].reverse() : FILES;
   const displayRanks = flipped ? [...RANKS].reverse() : RANKS;
 
-  const getSquareNotation = (row: number, col: number): ChessSquare => {
-    const file = displayFiles[col];
-    const rank = displayRanks[row];
+  // Use useCallback for getSquareNotation to avoid stale closures
+  const getSquareNotation = useCallback((row: number, col: number): ChessSquare => {
+    const files = flipped ? [...FILES].reverse() : FILES;
+    const ranks = flipped ? [...RANKS].reverse() : RANKS;
+    const file = files[col];
+    const rank = ranks[row];
     return `${file}${rank}` as ChessSquare;
-  };
+  }, [flipped]);
 
   const playerColor = flipped ? 'b' : 'w';
 
@@ -57,6 +71,8 @@ const ChessBoardComponent = ({
     if (isGameOver) {
       setSelectedSquare(null);
       setValidMoves([]);
+      premoveRef.current = null;
+      premoveSelectedRef.current = null;
       setPremove(null);
       setPremoveSelectedSquare(null);
     }
@@ -72,9 +88,11 @@ const ChessBoardComponent = ({
 
   // Execute premove when it becomes player's turn
   useEffect(() => {
-    if (isPlayerTurn && !prevIsPlayerTurnRef.current && premove && !isGameOver) {
+    const currentPremove = premoveRef.current;
+    
+    if (isPlayerTurn && !prevIsPlayerTurnRef.current && currentPremove && !isGameOver) {
       // It just became our turn and we have a premove queued
-      const { from, to, promotion } = premove;
+      const { from, to, promotion } = currentPremove;
       
       // Validate the premove is still legal
       try {
@@ -95,6 +113,8 @@ const ChessBoardComponent = ({
       }
       
       // Clear premove regardless of success
+      premoveRef.current = null;
+      premoveSelectedRef.current = null;
       setPremove(null);
       setPremoveSelectedSquare(null);
     }
@@ -111,40 +131,52 @@ const ChessBoardComponent = ({
 
   const captureMoves = getCaptureMoves();
 
-  const handleSquareClick = useCallback((row: number, col: number) => {
+  // Using a regular function (not useCallback) to avoid stale closure issues with premove state
+  const handleSquareClick = (row: number, col: number) => {
     // Block all interaction if game is over
     if (isGameOver) return;
 
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
+    
+    // Read premove state from refs to get fresh values
+    const currentPremoveSelected = premoveSelectedRef.current;
+    const currentPremove = premoveRef.current;
 
     // Handle premove selection when it's NOT our turn
     if (!isPlayerTurn && enablePremove) {
       // If clicking on one of our own pieces
       if (piece && piece.color === playerColor) {
         // If we already have a piece selected for premove
-        if (premoveSelectedSquare) {
+        if (currentPremoveSelected) {
           // Clicking the same piece - cancel selection
-          if (premoveSelectedSquare === square) {
+          if (currentPremoveSelected === square) {
+            premoveSelectedRef.current = null;
+            premoveRef.current = null;
             setPremoveSelectedSquare(null);
             setPremove(null);
             return;
           }
           // Clicking a different piece of ours - switch selection
+          premoveSelectedRef.current = square;
+          premoveRef.current = null;
           setPremoveSelectedSquare(square);
           setPremove(null);
           return;
         }
         // First click - select piece for premove
+        premoveSelectedRef.current = square;
+        premoveRef.current = null;
         setPremoveSelectedSquare(square);
         setPremove(null);
+        console.log("[ChessBoard] Premove piece selected:", square);
         return;
       }
       
       // Clicking on empty square or opponent's piece
-      if (premoveSelectedSquare) {
+      if (currentPremoveSelected) {
         // Second click - set the premove target
-        const movingPiece = game.get(premoveSelectedSquare as ChessSquare);
+        const movingPiece = game.get(currentPremoveSelected as ChessSquare);
         
         // Check for pawn promotion (premove)
         let promotion: string | undefined;
@@ -154,14 +186,18 @@ const ChessBoardComponent = ({
         }
 
         // Set the premove (we'll validate it when it's our turn)
-        setPremove({ from: premoveSelectedSquare, to: square, promotion });
+        const newPremove = { from: currentPremoveSelected, to: square, promotion };
+        premoveRef.current = newPremove;
+        premoveSelectedRef.current = null;
+        setPremove(newPremove);
         setPremoveSelectedSquare(null);
-        console.log("[ChessBoard] Premove set:", premoveSelectedSquare, "->", square);
+        console.log("[ChessBoard] Premove set:", currentPremoveSelected, "->", square);
         return;
       }
       
       // Clicking elsewhere with no selection - cancel any existing premove
-      if (premove) {
+      if (currentPremove) {
+        premoveRef.current = null;
         setPremove(null);
       }
       return;
@@ -190,6 +226,8 @@ const ChessBoardComponent = ({
       
       if (success) {
         // Clear any premove when we make a regular move
+        premoveRef.current = null;
+        premoveSelectedRef.current = null;
         setPremove(null);
         setPremoveSelectedSquare(null);
         
@@ -233,7 +271,7 @@ const ChessBoardComponent = ({
       const moves = game.moves({ square, verbose: true });
       setValidMoves(moves);
     }
-  }, [selectedSquare, game, onMove, isPlayerTurn, playerColor, flipped, isGameOver, onMoveSound, onCaptureSound, onCheckSound, enablePremove, premoveSelectedSquare, premove]);
+  };
 
   const isLightSquare = (row: number, col: number) => {
     const actualRow = flipped ? 7 - row : row;
