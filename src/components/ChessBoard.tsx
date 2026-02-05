@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, memo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Chess, Square as ChessSquare, Move } from 'chess.js';
 import { cn } from '@/lib/utils';
 import { PIECE_SYMBOLS, FILES, RANKS } from '@/lib/chessConstants';
@@ -36,21 +36,10 @@ const ChessBoardComponent = ({
   const [captureAnimation, setCaptureAnimation] = useState<string | null>(null);
   const lastSoundRef = useRef<number>(0);
   
-  // Premove state - use both state (for re-render) and refs (for fresh values in callbacks)
+  // Premove state - state for re-render, ref for synchronous access
   const [premove, setPremove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
   const [premoveSelectedSquare, setPremoveSelectedSquare] = useState<string | null>(null);
-  const premoveRef = useRef<{ from: string; to: string; promotion?: string } | null>(null);
-  const premoveSelectedRef = useRef<string | null>(null);
   const prevIsPlayerTurnRef = useRef(isPlayerTurn);
-
-  // Keep refs in sync with state
-  useEffect(() => {
-    premoveRef.current = premove;
-  }, [premove]);
-  
-  useEffect(() => {
-    premoveSelectedRef.current = premoveSelectedSquare;
-  }, [premoveSelectedSquare]);
 
   const displayFiles = flipped ? [...FILES].reverse() : FILES;
   const displayRanks = flipped ? [...RANKS].reverse() : RANKS;
@@ -71,8 +60,6 @@ const ChessBoardComponent = ({
     if (isGameOver) {
       setSelectedSquare(null);
       setValidMoves([]);
-      premoveRef.current = null;
-      premoveSelectedRef.current = null;
       setPremove(null);
       setPremoveSelectedSquare(null);
     }
@@ -88,11 +75,9 @@ const ChessBoardComponent = ({
 
   // Execute premove when it becomes player's turn
   useEffect(() => {
-    const currentPremove = premoveRef.current;
-    
-    if (isPlayerTurn && !prevIsPlayerTurnRef.current && currentPremove && !isGameOver) {
+    if (isPlayerTurn && !prevIsPlayerTurnRef.current && premove && !isGameOver) {
       // It just became our turn and we have a premove queued
-      const { from, to, promotion } = currentPremove;
+      const { from, to, promotion } = premove;
       
       // Validate the premove is still legal
       try {
@@ -113,8 +98,6 @@ const ChessBoardComponent = ({
       }
       
       // Clear premove regardless of success
-      premoveRef.current = null;
-      premoveSelectedRef.current = null;
       setPremove(null);
       setPremoveSelectedSquare(null);
     }
@@ -131,42 +114,32 @@ const ChessBoardComponent = ({
 
   const captureMoves = getCaptureMoves();
 
-  // Using a regular function (not useCallback) to avoid stale closure issues with premove state
+  // Handle square click for moves and premoves
   const handleSquareClick = (row: number, col: number) => {
     // Block all interaction if game is over
     if (isGameOver) return;
 
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
-    
-    // Read premove state from refs to get fresh values
-    const currentPremoveSelected = premoveSelectedRef.current;
-    const currentPremove = premoveRef.current;
 
     // Handle premove selection when it's NOT our turn
     if (!isPlayerTurn && enablePremove) {
       // If clicking on one of our own pieces
       if (piece && piece.color === playerColor) {
         // If we already have a piece selected for premove
-        if (currentPremoveSelected) {
+        if (premoveSelectedSquare) {
           // Clicking the same piece - cancel selection
-          if (currentPremoveSelected === square) {
-            premoveSelectedRef.current = null;
-            premoveRef.current = null;
+          if (premoveSelectedSquare === square) {
             setPremoveSelectedSquare(null);
             setPremove(null);
             return;
           }
           // Clicking a different piece of ours - switch selection
-          premoveSelectedRef.current = square;
-          premoveRef.current = null;
           setPremoveSelectedSquare(square);
           setPremove(null);
           return;
         }
         // First click - select piece for premove
-        premoveSelectedRef.current = square;
-        premoveRef.current = null;
         setPremoveSelectedSquare(square);
         setPremove(null);
         console.log("[ChessBoard] Premove piece selected:", square);
@@ -174,9 +147,9 @@ const ChessBoardComponent = ({
       }
       
       // Clicking on empty square or opponent's piece
-      if (currentPremoveSelected) {
+      if (premoveSelectedSquare) {
         // Second click - set the premove target
-        const movingPiece = game.get(currentPremoveSelected as ChessSquare);
+        const movingPiece = game.get(premoveSelectedSquare as ChessSquare);
         
         // Check for pawn promotion (premove)
         let promotion: string | undefined;
@@ -186,18 +159,15 @@ const ChessBoardComponent = ({
         }
 
         // Set the premove (we'll validate it when it's our turn)
-        const newPremove = { from: currentPremoveSelected, to: square, promotion };
-        premoveRef.current = newPremove;
-        premoveSelectedRef.current = null;
+        const newPremove = { from: premoveSelectedSquare, to: square, promotion };
         setPremove(newPremove);
         setPremoveSelectedSquare(null);
-        console.log("[ChessBoard] Premove set:", currentPremoveSelected, "->", square);
+        console.log("[ChessBoard] Premove set:", premoveSelectedSquare, "->", square);
         return;
       }
       
       // Clicking elsewhere with no selection - cancel any existing premove
-      if (currentPremove) {
-        premoveRef.current = null;
+      if (premove) {
         setPremove(null);
       }
       return;
@@ -226,8 +196,6 @@ const ChessBoardComponent = ({
       
       if (success) {
         // Clear any premove when we make a regular move
-        premoveRef.current = null;
-        premoveSelectedRef.current = null;
         setPremove(null);
         setPremoveSelectedSquare(null);
         
@@ -279,14 +247,13 @@ const ChessBoardComponent = ({
     return (actualRow + actualCol) % 2 === 0;
   };
 
-  // Get opponent's king square (when THEY are in check)
-  const getOpponentKingSquare = () => {
-    const opponentColor = playerColor === 'w' ? 'b' : 'w';
+  // Get king square for a specific color
+  const getKingSquare = (color: 'w' | 'b') => {
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
         const square = getSquareNotation(row, col);
         const piece = game.get(square);
-        if (piece?.type === 'k' && piece.color === opponentColor) {
+        if (piece?.type === 'k' && piece.color === color) {
           return square;
         }
       }
@@ -295,8 +262,8 @@ const ChessBoardComponent = ({
   };
 
   // isCheck means current player to move is in check
-  // We want to highlight opponent's king when WE put them in check (after our move, it's their turn)
-  const opponentKingSquare = isCheck && !isPlayerTurn ? getOpponentKingSquare() : null;
+  // Highlight the king that is in check (could be ours or opponent's)
+  const kingInCheckSquare = isCheck ? getKingSquare(game.turn()) : null;
 
   // Show opponent's last move highlight (now always shown since lastMove only contains opponent's move)
   const showLastMove = lastMove !== null;
@@ -319,7 +286,7 @@ const ChessBoardComponent = ({
             const isValidMove = validMoveSquares.includes(square);
             const isCaptureMove = captureMoves.includes(square);
             const isLastMoveSquare = showLastMove && (lastMove.from === square || lastMove.to === square);
-            const isOpponentKingInCheck = opponentKingSquare === square;
+            const isKingInCheck = kingInCheckSquare === square;
             const isCapturing = captureAnimation === square;
             
             // Premove highlighting
@@ -336,8 +303,8 @@ const ChessBoardComponent = ({
                   isSelected && "ring-4 ring-primary ring-inset",
                   // Gray highlight for opponent's last move
                   isLastMoveSquare && !isPremoveSquare && "bg-muted-foreground/30",
-                  // Red highlight only for opponent's king when in check
-                  isOpponentKingInCheck && "bg-destructive/40",
+                  // Red highlight for king in check (either player's)
+                  isKingInCheck && "bg-destructive/40",
                   // Capture highlighting - red tint for capturable squares
                   isCaptureMove && "bg-red-500/30",
                   // Premove highlighting - cyan/blue color
@@ -407,17 +374,5 @@ const ChessBoardComponent = ({
   );
 };
 
-// Memoize to prevent unnecessary re-renders
-export const ChessBoard = memo(ChessBoardComponent, (prevProps, nextProps) => {
-  // Only re-render if these props change
-  return (
-    prevProps.game.fen() === nextProps.game.fen() &&
-    prevProps.isPlayerTurn === nextProps.isPlayerTurn &&
-    prevProps.lastMove?.from === nextProps.lastMove?.from &&
-    prevProps.lastMove?.to === nextProps.lastMove?.to &&
-    prevProps.isCheck === nextProps.isCheck &&
-    prevProps.flipped === nextProps.flipped &&
-    prevProps.isGameOver === nextProps.isGameOver &&
-    prevProps.enablePremove === nextProps.enablePremove
-  );
-});
+// Export component directly (no memo to avoid stale state issues with premove)
+export const ChessBoard = ChessBoardComponent;
