@@ -87,6 +87,10 @@ export const WSMultiplayerGameView = ({
   // Resign confirmation dialog
   const [showResignDialog, setShowResignDialog] = useState(false);
   
+  // Premove state (lifted to parent to persist across ChessBoard re-renders)
+  const [premove, setPremove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
+  const prevIsMyTurnRef = useRef(isMyTurn);
+  
   // Get timer snapshot from store (server-authoritative for WebSocket games)
   const timerSnapshot = useChessStore((state) => state.timerSnapshot);
   
@@ -255,6 +259,41 @@ export const WSMultiplayerGameView = ({
 
   // Timer display is now server-authoritative - no local countdown needed
   // The render loop above handles time loss detection based on server snapshot
+
+  // Execute premove when it becomes player's turn
+  useEffect(() => {
+    if (isMyTurn && !prevIsMyTurnRef.current && premove && !isGameOver) {
+      // It just became our turn and we have a premove queued
+      const { from, to, promotion } = premove;
+      
+      // Validate the premove is still legal
+      try {
+        const testChess = new Chess(localFen);
+        const move = testChess.move({ from, to, promotion: promotion || 'q' });
+        
+        if (move) {
+          // Execute the premove via the move handler
+          console.log("[WSMultiplayerGameView] Executing premove:", from, "->", to);
+          
+          // Optimistic update
+          chess.move({ from, to, promotion: promotion || 'q' });
+          setLocalFen(chess.fen());
+          
+          // Send to server
+          onSendMove(from, to, promotion);
+        } else {
+          console.log("[WSMultiplayerGameView] Premove no longer valid:", from, to);
+        }
+      } catch {
+        console.log("[WSMultiplayerGameView] Premove validation error:", from, to);
+      }
+      
+      // Clear premove regardless of success
+      setPremove(null);
+    }
+    
+    prevIsMyTurnRef.current = isMyTurn;
+  }, [isMyTurn, premove, isGameOver, localFen, chess, onSendMove]);
 
   // Handle local move with sound and increment
   const handleMove = useCallback((from: string, to: string, promotion?: string): boolean => {
@@ -438,6 +477,8 @@ export const WSMultiplayerGameView = ({
             onMoveSound={playMove}
             onCaptureSound={playCapture}
             onCheckSound={playCheck}
+            premove={premove}
+            onPremoveChange={setPremove}
           />
 
           {/* Player Info with Timer and Captured Pieces */}

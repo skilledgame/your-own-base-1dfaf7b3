@@ -16,6 +16,9 @@ interface ChessBoardProps {
   onCaptureSound?: () => void;
   onCheckSound?: () => void;
   enablePremove?: boolean;
+  // Premove state lifted to parent for persistence
+  premove?: { from: string; to: string; promotion?: string } | null;
+  onPremoveChange?: (premove: { from: string; to: string; promotion?: string } | null) => void;
 }
 
 const ChessBoardComponent = ({ 
@@ -30,16 +33,21 @@ const ChessBoardComponent = ({
   onCaptureSound,
   onCheckSound,
   enablePremove = true,
+  premove: externalPremove,
+  onPremoveChange,
 }: ChessBoardProps) => {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [validMoves, setValidMoves] = useState<Move[]>([]);
   const [captureAnimation, setCaptureAnimation] = useState<string | null>(null);
   const lastSoundRef = useRef<number>(0);
   
-  // Premove state - state for re-render, ref for synchronous access
-  const [premove, setPremove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
+  // Premove state - use external state if provided, otherwise local state
+  const [localPremove, setLocalPremove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
   const [premoveSelectedSquare, setPremoveSelectedSquare] = useState<string | null>(null);
-  const prevIsPlayerTurnRef = useRef(isPlayerTurn);
+  
+  // Use external premove if provided, otherwise local
+  const premove = onPremoveChange ? externalPremove : localPremove;
+  const setPremove = onPremoveChange || setLocalPremove;
 
   const displayFiles = flipped ? [...FILES].reverse() : FILES;
   const displayRanks = flipped ? [...RANKS].reverse() : RANKS;
@@ -63,7 +71,7 @@ const ChessBoardComponent = ({
       setPremove(null);
       setPremoveSelectedSquare(null);
     }
-  }, [isGameOver]);
+  }, [isGameOver, setPremove]);
 
   // Clear regular selection when turn changes (but keep premove)
   useEffect(() => {
@@ -72,38 +80,6 @@ const ChessBoardComponent = ({
       setValidMoves([]);
     }
   }, [isPlayerTurn]);
-
-  // Execute premove when it becomes player's turn
-  useEffect(() => {
-    if (isPlayerTurn && !prevIsPlayerTurnRef.current && premove && !isGameOver) {
-      // It just became our turn and we have a premove queued
-      const { from, to, promotion } = premove;
-      
-      // Validate the premove is still legal
-      try {
-        const testChess = new Chess(game.fen());
-        const move = testChess.move({ from, to, promotion: promotion || 'q' });
-        
-        if (move) {
-          // Execute the premove
-          const success = onMove(from, to, promotion);
-          if (success) {
-            console.log("[ChessBoard] Premove executed:", from, to);
-          }
-        } else {
-          console.log("[ChessBoard] Premove no longer valid:", from, to);
-        }
-      } catch {
-        console.log("[ChessBoard] Premove validation error:", from, to);
-      }
-      
-      // Clear premove regardless of success
-      setPremove(null);
-      setPremoveSelectedSquare(null);
-    }
-    
-    prevIsPlayerTurnRef.current = isPlayerTurn;
-  }, [isPlayerTurn, premove, game, onMove, isGameOver]);
 
   // Get capture moves for highlighting
   const getCaptureMoves = (): string[] => {

@@ -240,7 +240,10 @@ export default function LiveGame() {
 
         if (gameError || !game) {
           console.error('[LiveGame] Error loading game:', gameError);
-          toast.error('Game not found');
+          // Only show for admin users
+          if (isAdmin) {
+            toast.error('Game not found');
+          }
           navigate('/');
           return;
         }
@@ -274,7 +277,10 @@ export default function LiveGame() {
         // Don't connect to WebSocket for private games - use Realtime instead
       } catch (error) {
         console.error('[LiveGame] Error loading private game:', error);
-        toast.error('Failed to load game');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error('Failed to load game');
+        }
         navigate('/');
       } finally {
         setLoadingGame(false);

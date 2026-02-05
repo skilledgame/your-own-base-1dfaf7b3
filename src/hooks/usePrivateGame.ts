@@ -81,7 +81,10 @@ export function usePrivateGame({
 
         if (error || !game) {
           console.error('[usePrivateGame] Error loading game:', error);
-          toast.error('Failed to load game');
+          // Only show for admin users
+          if (isAdmin) {
+            toast.error('Failed to load game');
+          }
           setLoading(false);
           return;
         }
@@ -374,7 +377,10 @@ export function usePrivateGame({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         console.error('[usePrivateGame] No auth token available');
-        toast.error('Please sign in again');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error('Please sign in again');
+        }
         return false;
       }
 
@@ -427,21 +433,30 @@ export function usePrivateGame({
           }
         } else {
           const errorMessage = error.message || 'Failed to make move';
-          toast.error(errorMessage);
+          // Only show for admin users
+          if (isAdmin) {
+            toast.error(errorMessage);
+          }
         }
         return false;
       }
 
       if (!data) {
         console.error('[usePrivateGame] No data in response');
-        toast.error('Failed to make move - no response from server');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error('Failed to make move - no response from server');
+        }
         return false;
       }
 
       if (!data.success) {
         const errorMessage = data.error || 'Failed to make move';
         console.error('[usePrivateGame] Move failed:', errorMessage, data);
-        toast.error(errorMessage);
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error(errorMessage);
+        }
         return false;
       }
 
@@ -451,10 +466,13 @@ export function usePrivateGame({
     } catch (error) {
       console.error('[usePrivateGame] Exception sending move:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to make move';
-      toast.error(errorMessage);
+      // Only show for admin users
+      if (isAdmin) {
+        toast.error(errorMessage);
+      }
       return false;
     }
-  }, [gameState, gameId, isWhite]);
+  }, [gameState, gameId, isWhite, isAdmin]);
 
   // Resign game
   const resign = useCallback(async () => {
@@ -473,7 +491,10 @@ export function usePrivateGame({
 
       if (gameError || !game) {
         console.error('[usePrivateGame] Error loading game for resign:', gameError);
-        toast.error('Failed to load game');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error('Failed to load game');
+        }
         return;
       }
 
@@ -484,7 +505,10 @@ export function usePrivateGame({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         console.error('[usePrivateGame] No auth token for resign');
-        toast.error('Please sign in again');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error('Please sign in again');
+        }
         return;
       }
 
@@ -502,13 +526,19 @@ export function usePrivateGame({
 
       if (error) {
         console.error('[usePrivateGame] Error resigning:', error);
-        toast.error(error.message || 'Failed to resign');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error(error.message || 'Failed to resign');
+        }
         return;
       }
 
       if (!data?.success) {
         console.error('[usePrivateGame] Resign failed:', data);
-        toast.error(data?.error || 'Failed to resign');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error(data?.error || 'Failed to resign');
+        }
         return;
       }
 
@@ -520,9 +550,12 @@ export function usePrivateGame({
       onGameEndRef.current?.(opponentPlayerId, 'resignation', winnerColor, creditsChange);
     } catch (error) {
       console.error('[usePrivateGame] Exception resigning:', error);
-      toast.error('Failed to resign');
+      // Only show for admin users
+      if (isAdmin) {
+        toast.error('Failed to resign');
+      }
     }
-  }, [gameId, gameState, isWhite, onGameEnd]);
+  }, [gameId, gameState, isWhite, onGameEnd, isAdmin]);
 
   return {
     gameState,

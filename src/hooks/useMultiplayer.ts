@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface Player {
   id: string;
@@ -28,6 +29,7 @@ export const useMultiplayer = () => {
   const [opponent, setOpponent] = useState<{ id: string; name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAdmin } = useUserRole();
   
   // Refs for cleanup
   const gameChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -72,7 +74,10 @@ export const useMultiplayer = () => {
   const createPlayer = async (name: string): Promise<Player | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      toast.error('Please sign in to play');
+      // Only show for admin users
+      if (isAdmin) {
+        toast.error('Please sign in to play');
+      }
       return null;
     }
 
@@ -94,7 +99,10 @@ export const useMultiplayer = () => {
         // Player already exists, load it
         return await loadPlayer();
       }
-      toast.error('Failed to create player');
+      // Only show for admin users
+      if (isAdmin) {
+        toast.error('Failed to create player');
+      }
       console.error(error);
       return null;
     }
@@ -119,7 +127,10 @@ export const useMultiplayer = () => {
 
       if (response.error) {
         console.error('[useMultiplayer] Create lobby error:', response.error);
-        toast.error('Failed to create lobby');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error('Failed to create lobby');
+        }
         return null;
       }
 
@@ -128,14 +139,20 @@ export const useMultiplayer = () => {
 
       if (data?.game) {
         setCurrentGame(data.game);
-        toast.success('Lobby created! Waiting for opponent...');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.success('Lobby created! Waiting for opponent...');
+        }
         return data.game;
       }
 
       return null;
     } catch (error) {
       console.error('[useMultiplayer] Create lobby error:', error);
-      toast.error('Failed to create lobby');
+      // Only show for admin users
+      if (isAdmin) {
+        toast.error('Failed to create lobby');
+      }
       return null;
     }
   };
@@ -151,7 +168,10 @@ export const useMultiplayer = () => {
 
       if (response.error) {
         console.error('[useMultiplayer] Join lobby error:', response.error);
-        toast.error(response.error.message || 'Failed to join lobby');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error(response.error.message || 'Failed to join lobby');
+        }
         return null;
       }
 
@@ -159,7 +179,10 @@ export const useMultiplayer = () => {
       console.log('[useMultiplayer] Joined lobby:', data);
 
       if (data?.error) {
-        toast.error(data.error);
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error(data.error);
+        }
         return null;
       }
 
@@ -168,14 +191,20 @@ export const useMultiplayer = () => {
         if (data.opponent) {
           setOpponent(data.opponent);
         }
-        toast.success('Joined lobby!');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.success('Joined lobby!');
+        }
         return data.game;
       }
 
       return null;
     } catch (error) {
       console.error('[useMultiplayer] Join lobby error:', error);
-      toast.error('Failed to join lobby');
+      // Only show for admin users
+      if (isAdmin) {
+        toast.error('Failed to join lobby');
+      }
       return null;
     }
   };
@@ -291,14 +320,20 @@ export const useMultiplayer = () => {
 
       if (response.error) {
         console.error('Failed to end game:', response.error);
-        toast.error('Failed to end game');
+        // Only show for admin users
+        if (isAdmin) {
+          toast.error('Failed to end game');
+        }
         return;
       }
 
       // Balance will be updated via realtime subscription to profiles.skilled_coins
     } catch (error) {
       console.error('Error ending game:', error);
-      toast.error('Failed to end game');
+      // Only show for admin users
+      if (isAdmin) {
+        toast.error('Failed to end game');
+      }
     }
   };
 

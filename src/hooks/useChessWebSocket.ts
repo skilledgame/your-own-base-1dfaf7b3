@@ -243,7 +243,10 @@ function initializeGlobalMessageHandler(): void {
           wager,
         });
         
-        toast.success(`Match found! You play as ${color === "w" ? "White" : "Black"}. Wager: ${wager} SC`);
+        // Only show match found toast for admin users
+        if (isAdminCallback && isAdminCallback()) {
+          toast.success(`Match found! You play as ${color === "w" ? "White" : "Black"}. Wager: ${wager} SC`);
+        }
         
         // Navigate using the callback - CRITICAL: WS must stay open during navigation
         if (navigationCallback && matchId) {
@@ -463,7 +466,10 @@ function initializeGlobalMessageHandler(): void {
               hasGameState: !!currentState.gameState,
             },
           });
+          // Only show error for admin users
+        if (isAdminCallback && isAdminCallback()) {
           toast.error("Error processing game end. Please refresh.");
+        }
           // Still try to transition to game_over even if handleGameEnd failed
           try {
             store.setPhase("game_over");
@@ -478,9 +484,15 @@ function initializeGlobalMessageHandler(): void {
         }
         
         if (isOpponentLeft) {
-          toast.info("Opponent left the game");
+          // Only show for admin users
+          if (isAdminCallback && isAdminCallback()) {
+            toast.info("Opponent left the game");
+          }
         } else if (payload.winnerColor === null || payload.winnerColor === undefined) {
-          toast.info(`Game over: ${payload.reason}`);
+          // Only show for admin users
+          if (isAdminCallback && isAdminCallback()) {
+            toast.info(`Game over: ${payload.reason}`);
+          }
         }
         break;
       }
@@ -509,7 +521,10 @@ function initializeGlobalMessageHandler(): void {
           balanceRefreshCallback();
         }
         
-        toast.info("Opponent left the game - you win!");
+        // Only show for admin users
+        if (isAdminCallback && isAdminCallback()) {
+          toast.info("Opponent left the game - you win!");
+        }
         break;
       }
       
@@ -548,7 +563,10 @@ function initializeGlobalMessageHandler(): void {
         // Handle insufficient balance error
         if (payload.code === "INSUFFICIENT_BALANCE" || 
             payload.message?.toLowerCase().includes("insufficient")) {
-          toast.error("Insufficient balance for this wager");
+          // Only show for admin users
+          if (isAdminCallback && isAdminCallback()) {
+            toast.error("Insufficient balance for this wager");
+          }
           useChessStore.getState().setPhase("idle");
           wsClient.setSearching(false);
           return;
@@ -556,14 +574,20 @@ function initializeGlobalMessageHandler(): void {
         
         // Handle wager denied error (server-side validation failed)
         if (payload.code === "WAGER_DENIED") {
-          toast.error("Unable to process wager. Please try again.");
+          // Only show for admin users
+          if (isAdminCallback && isAdminCallback()) {
+            toast.error("Unable to process wager. Please try again.");
+          }
           useChessStore.getState().setPhase("idle");
           wsClient.setSearching(false);
           return;
         }
         
         const errorMessage = payload?.message ?? "Unknown error";
-        toast.error(errorMessage);
+        // Only show generic errors for admin users
+        if (isAdminCallback && isAdminCallback()) {
+          toast.error(errorMessage);
+        }
         break;
       }
       
@@ -767,7 +791,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
   const connect = useCallback(async () => {
     const hasAuth = await refreshAuth();
     if (!hasAuth) {
-      toast.error("Please sign in to play");
+      // Only show for admin users
+      if (isAdminCallback && isAdminCallback()) {
+        toast.error("Please sign in to play");
+      }
       return;
     }
     wsClient.connect();
@@ -786,7 +813,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       
       if (!session || !session.access_token) {
         console.log("[Chess WS] findMatch blocked - no valid session");
-        toast.error("Please sign in again");
+        // Only show for admin users
+        if (isAdminCallback && isAdminCallback()) {
+          toast.error("Please sign in again");
+        }
         wsClient.setAuthToken(null);
         setIsAuthenticated(false);
         setAuthenticated(false);
@@ -796,14 +826,20 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       wsClient.setAuthToken(session.access_token);
       
       if (!isAuthenticated) {
-        toast.error("Please sign in to play");
+        // Only show for admin users
+        if (isAdminCallback && isAdminCallback()) {
+          toast.error("Please sign in to play");
+        }
         return;
       }
 
       const userId = session.user?.id;
 
       if (!userId) {
-        toast.error("Please sign in again");
+        // Only show for admin users
+        if (isAdminCallback && isAdminCallback()) {
+          toast.error("Please sign in again");
+        }
         return;
       }
 
@@ -825,7 +861,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       wsClient.send(payload);
     })().catch((error) => {
       console.error("[Chess WS] findMatch failed:", error);
-      toast.error("Please sign in again");
+      // Only show for admin users
+      if (isAdminCallback && isAdminCallback()) {
+        toast.error("Please sign in again");
+      }
     });
   }, [isAuthenticated, playerName, setPlayerName, setPhase, setAuthenticated]);
 
@@ -880,14 +919,20 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     
     if (!currentGameState) {
       console.warn("[Client] RESIGN - Cannot resign - no game state");
-      toast.error("Cannot resign - no active game");
+      // Only show for admin users
+      if (isAdminCallback && isAdminCallback()) {
+        toast.error("Cannot resign - no active game");
+      }
       return;
     }
     
     // Check if WS is connected
     if (wsStatus !== "connected") {
       console.warn("[Client] RESIGN - WebSocket not connected, status:", wsStatus);
-      toast.error("Not connected to server. Please reconnect.");
+      // Only show for admin users
+      if (isAdminCallback && isAdminCallback()) {
+        toast.error("Not connected to server. Please reconnect.");
+      }
       return;
     }
 
@@ -902,7 +947,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       wsClient.send(payload);
     } catch (error) {
       console.error("[Client] RESIGN - Error sending resign:", error);
-      toast.error("Failed to send resign request");
+      // Only show for admin users
+      if (isAdminCallback && isAdminCallback()) {
+        toast.error("Failed to send resign request");
+      }
     }
   }, []);
 
@@ -937,7 +985,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       wsClient.send(parsed);
     } catch (e) {
       console.error("[Chess WS] Invalid JSON:", e);
-      toast.error("Invalid JSON");
+      // Only show for admin users
+      if (isAdminCallback && isAdminCallback()) {
+        toast.error("Invalid JSON");
+      }
     }
   }, []);
 
