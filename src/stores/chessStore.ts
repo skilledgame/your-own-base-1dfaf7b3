@@ -59,6 +59,13 @@ export interface GameEndResult {
   creditsChange?: number;  // How much credits changed (+ or -)
 }
 
+// Premove state - stored at store level for persistence
+export interface PremoveState {
+  from: string;
+  to: string;
+  promotion?: string;
+}
+
 interface ChessStore {
   // State
   phase: GamePhase;
@@ -70,6 +77,7 @@ interface ChessStore {
   isAuthenticated: boolean;    // Whether user is signed in
   matchmaking: MatchmakingState;  // Normalized matchmaking state
   timerSnapshot: TimerSnapshot | null;  // Server-authoritative timer snapshot
+  premove: PremoveState | null;  // Queued premove (only one at a time)
   
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -116,6 +124,10 @@ interface ChessStore {
   // Timer snapshot (server-authoritative)
   updateTimerSnapshot: (snapshot: TimerSnapshot) => void;
   clearTimerSnapshot: () => void;
+  
+  // Premove management
+  setPremove: (premove: PremoveState | null) => void;
+  clearPremove: () => void;
 }
 
 export const useChessStore = create<ChessStore>((set, get) => ({
@@ -136,6 +148,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     color: null,
   },
   timerSnapshot: null,
+  premove: null,
   
   // Actions
   setPhase: (phase) => {
@@ -193,6 +206,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       gameState: null,
       gameEndResult: null,
       timerSnapshot: null,
+      premove: null,  // Clear premove on reset
       matchmaking: {
         status: "idle",
         wager: null,
@@ -258,6 +272,16 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   
   clearTimerSnapshot: () => {
     set({ timerSnapshot: null });
+  },
+  
+  setPremove: (premove) => {
+    console.log("[ChessStore] setPremove:", premove);
+    set({ premove });
+  },
+  
+  clearPremove: () => {
+    console.log("[ChessStore] clearPremove");
+    set({ premove: null });
   },
   
   clearGameEnd: () => {
@@ -368,6 +392,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
         creditsChange: creditsChange ?? 0,  // Ensure number
       },
       timerSnapshot: null, // Clear timer snapshot on game end
+      premove: null,  // Clear premove on game end
       // Keep gameState so we can still render the final board position
     });
   },

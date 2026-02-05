@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Chess, Square as ChessSquare, Move } from 'chess.js';
 import { cn } from '@/lib/utils';
 import { PIECE_SYMBOLS, FILES, RANKS } from '@/lib/chessConstants';
+import { useChessStore } from '@/stores/chessStore';
 import { X } from 'lucide-react';
 
 interface ChessBoardProps {
@@ -16,9 +17,6 @@ interface ChessBoardProps {
   onCaptureSound?: () => void;
   onCheckSound?: () => void;
   enablePremove?: boolean;
-  // Premove state lifted to parent for persistence
-  premove?: { from: string; to: string; promotion?: string } | null;
-  onPremoveChange?: (premove: { from: string; to: string; promotion?: string } | null) => void;
 }
 
 const ChessBoardComponent = ({ 
@@ -33,21 +31,19 @@ const ChessBoardComponent = ({
   onCaptureSound,
   onCheckSound,
   enablePremove = true,
-  premove: externalPremove,
-  onPremoveChange,
 }: ChessBoardProps) => {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [validMoves, setValidMoves] = useState<Move[]>([]);
   const [captureAnimation, setCaptureAnimation] = useState<string | null>(null);
   const lastSoundRef = useRef<number>(0);
   
-  // Premove state - use external state if provided, otherwise local state
-  const [localPremove, setLocalPremove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
-  const [premoveSelectedSquare, setPremoveSelectedSquare] = useState<string | null>(null);
+  // Premove state - from Zustand store (persists across re-renders and navigation)
+  const premove = useChessStore((state) => state.premove);
+  const setPremove = useChessStore((state) => state.setPremove);
+  const clearPremove = useChessStore((state) => state.clearPremove);
   
-  // Use external premove if provided, otherwise local
-  const premove = onPremoveChange ? externalPremove : localPremove;
-  const setPremove = onPremoveChange || setLocalPremove;
+  // Local state for premove piece selection (which piece is selected for premove)
+  const [premoveSelectedSquare, setPremoveSelectedSquare] = useState<string | null>(null);
 
   const displayFiles = flipped ? [...FILES].reverse() : FILES;
   const displayRanks = flipped ? [...RANKS].reverse() : RANKS;
@@ -68,16 +64,19 @@ const ChessBoardComponent = ({
     if (isGameOver) {
       setSelectedSquare(null);
       setValidMoves([]);
-      setPremove(null);
+      clearPremove();
       setPremoveSelectedSquare(null);
     }
-  }, [isGameOver, setPremove]);
+  }, [isGameOver, clearPremove]);
 
-  // Clear regular selection when turn changes (but keep premove)
+  // Clear regular selection when turn changes
   useEffect(() => {
     if (!isPlayerTurn) {
       setSelectedSquare(null);
       setValidMoves([]);
+    } else {
+      // When it becomes our turn, clear premove selection (premove itself is cleared by WS handler)
+      setPremoveSelectedSquare(null);
     }
   }, [isPlayerTurn]);
 
@@ -107,17 +106,17 @@ const ChessBoardComponent = ({
           // Clicking the same piece - cancel selection
           if (premoveSelectedSquare === square) {
             setPremoveSelectedSquare(null);
-            setPremove(null);
+            clearPremove();
             return;
           }
           // Clicking a different piece of ours - switch selection
           setPremoveSelectedSquare(square);
-          setPremove(null);
+          clearPremove();
           return;
         }
         // First click - select piece for premove
         setPremoveSelectedSquare(square);
-        setPremove(null);
+        clearPremove();
         console.log("[ChessBoard] Premove piece selected:", square);
         return;
       }
@@ -134,17 +133,17 @@ const ChessBoardComponent = ({
           promotion = 'q';
         }
 
-        // Set the premove (we'll validate it when it's our turn)
+        // Set the premove in the store (will be validated and executed when turn switches)
         const newPremove = { from: premoveSelectedSquare, to: square, promotion };
         setPremove(newPremove);
         setPremoveSelectedSquare(null);
-        console.log("[ChessBoard] Premove set:", premoveSelectedSquare, "->", square);
+        console.log("[ChessBoard] Premove set in store:", premoveSelectedSquare, "->", square);
         return;
       }
       
       // Clicking elsewhere with no selection - cancel any existing premove
       if (premove) {
-        setPremove(null);
+        clearPremove();
       }
       return;
     }
@@ -172,7 +171,7 @@ const ChessBoardComponent = ({
       
       if (success) {
         // Clear any premove when we make a regular move
-        setPremove(null);
+        clearPremove();
         setPremoveSelectedSquare(null);
         
         // Play appropriate sound (prevent double-play)

@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Chess } from 'chess.js';
 import { wsClient } from '@/lib/wsClient';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalanceStore } from '@/stores/balanceStore';
@@ -308,6 +309,48 @@ function initializeGlobalMessageHandler(): void {
             blackTime: payload.blackTime,
             serverTimeMs: payload.serverTimeMs,
           });
+        }
+        
+        // PREMOVE EXECUTION: Check if it's now our turn and we have a premove queued
+        const updatedState = useChessStore.getState();
+        const myColor = updatedState.gameState?.color;
+        const isNowMyTurn = myColor === payload.turn;
+        const premove = updatedState.premove;
+        
+        if (isNowMyTurn && premove && updatedState.phase === "in_game") {
+          console.log("[Chess WS] PREMOVE: Turn switched to us, attempting premove execution:", premove);
+          
+          // Validate premove against new position
+          try {
+            const testChess = new Chess(payload.fen);
+            const moveResult = testChess.move({
+              from: premove.from,
+              to: premove.to,
+              promotion: premove.promotion || 'q',
+            });
+            
+            if (moveResult) {
+              // Premove is valid - execute it immediately
+              console.log("[Chess WS] PREMOVE: Valid! Sending to server:", premove);
+              
+              // Build UCI string
+              const uci = `${premove.from.toLowerCase()}${premove.to.toLowerCase()}${premove.promotion ? premove.promotion.toLowerCase() : ""}`;
+              
+              wsClient.send({
+                type: "move",
+                move: uci,
+              });
+            } else {
+              // Premove is illegal - discard silently
+              console.log("[Chess WS] PREMOVE: Invalid in new position, discarding");
+            }
+          } catch (e) {
+            // chess.js threw an error - premove is illegal
+            console.log("[Chess WS] PREMOVE: chess.js error, discarding:", e);
+          }
+          
+          // Always clear premove after attempting execution
+          store.clearPremove();
         }
         break;
       }
@@ -910,6 +953,9 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       hasGameState: !!currentGameState,
       timestamp: new Date().toISOString(),
     });
+    
+    // Clear any queued premove on resign
+    useChessStore.getState().clearPremove();
     
     // Idempotent: if game already ended, do nothing
     if (currentState.phase === "game_over") {
