@@ -94,17 +94,6 @@ const ChessBoardComponent = ({
 
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
-    
-    // DEBUG: Log every click
-    console.log("[ChessBoard] Click:", {
-      square,
-      piece: piece ? `${piece.color}${piece.type}` : 'empty',
-      premoveSelectedSquare,
-      premove,
-      isPlayerTurn,
-      enablePremove,
-      playerColor,
-    });
 
     // CASE 1: Handle completing a premove when we had selected a piece earlier
     // This handles the case where you select a piece during opponent's turn,
@@ -116,13 +105,11 @@ const ChessBoardComponent = ({
           // Clicking same piece - cancel selection
           setPremoveSelectedSquare(null);
           clearPremove();
-          console.log("[ChessBoard] Premove selection cancelled");
           return;
         }
         // Clicking different own piece - switch selection
         setPremoveSelectedSquare(square);
         clearPremove();
-        console.log("[ChessBoard] Premove piece switched to:", square);
         return;
       }
       
@@ -138,7 +125,6 @@ const ChessBoardComponent = ({
 
       // If it's already our turn, execute immediately as a regular move
       if (isPlayerTurn) {
-        console.log("[ChessBoard] Turn already ours, executing as regular move:", premoveSelectedSquare, "->", square);
         const success = onMove(premoveSelectedSquare, square, promotion);
         setPremoveSelectedSquare(null);
         clearPremove();
@@ -162,7 +148,6 @@ const ChessBoardComponent = ({
       const newPremove = { from: premoveSelectedSquare, to: square, promotion };
       setPremove(newPremove);
       setPremoveSelectedSquare(null);
-      console.log("[ChessBoard] Premove set in store:", premoveSelectedSquare, "->", square);
       return;
     }
 
@@ -172,7 +157,6 @@ const ChessBoardComponent = ({
       if (piece && piece.color === playerColor) {
         setPremoveSelectedSquare(square);
         clearPremove();
-        console.log("[ChessBoard] Premove piece selected:", square);
         return;
       }
       
@@ -284,14 +268,6 @@ const ChessBoardComponent = ({
   const isPremoveFrom = premove?.from;
   const isPremoveTo = premove?.to;
   const isPremoveSelected = premoveSelectedSquare;
-  
-  // DEBUG: Log premove state on every render
-  console.log("[ChessBoard] Render - premove state:", { 
-    premove, 
-    premoveSelectedSquare,
-    isPremoveFrom, 
-    isPremoveTo 
-  });
 
   return (
     <div className="relative">
@@ -320,14 +296,15 @@ const ChessBoardComponent = ({
                   isLightSquare(row, col) ? "chess-square-light" : "chess-square-dark",
                   isSelected && "ring-4 ring-primary ring-inset",
                   // Gray highlight for opponent's last move
-                  isLastMoveSquare && !isPremoveSquare && "bg-muted-foreground/30",
+                  isLastMoveSquare && !isPremoveSquare && "!bg-muted-foreground/30",
                   // Red highlight for king in check (either player's)
-                  isKingInCheck && "bg-destructive/40",
+                  isKingInCheck && "!bg-destructive/40",
                   // Capture highlighting - red tint for capturable squares
-                  isCaptureMove && "bg-red-500/30",
-                  // Premove highlighting - cyan/blue color
-                  isPremoveSquare && "bg-cyan-500/40",
-                  isPremoveSelecting && "ring-4 ring-cyan-400 ring-inset",
+                  isCaptureMove && "!bg-red-500/30",
+                  // Premove highlighting - cyan/blue color (! forces override of chess-square bg)
+                  isPremoveSquare && "!bg-cyan-400/50 border-2 border-dashed border-cyan-300",
+                  // Premove piece selection - cyan ring around selected piece
+                  isPremoveSelecting && "ring-4 ring-cyan-400 ring-inset !bg-cyan-400/30",
                   // Only show not-allowed cursor if premove is disabled
                   !isPlayerTurn && !enablePremove && "cursor-not-allowed",
                   isGameOver && "cursor-not-allowed opacity-90"
@@ -370,6 +347,13 @@ const ChessBoardComponent = ({
                   >
                     {PIECE_SYMBOLS[`${piece.color}${piece.type}`]}
                   </span>
+                )}
+
+                {/* Premove indicator dot/arrow for queued premove */}
+                {isPremoveSquare && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-lg shadow-cyan-400/50" />
+                  </div>
                 )}
 
                 {/* Coordinate labels */}
