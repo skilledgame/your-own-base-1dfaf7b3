@@ -100,6 +100,7 @@ const ChessBoardComponent = ({
       square,
       piece: piece ? `${piece.color}${piece.type}` : 'empty',
       premoveSelectedSquare,
+      premove,
       isPlayerTurn,
       enablePremove,
       playerColor,
@@ -283,6 +284,14 @@ const ChessBoardComponent = ({
   const isPremoveFrom = premove?.from;
   const isPremoveTo = premove?.to;
   const isPremoveSelected = premoveSelectedSquare;
+  
+  // DEBUG: Log premove state on every render
+  console.log("[ChessBoard] Render - premove state:", { 
+    premove, 
+    premoveSelectedSquare,
+    isPremoveFrom, 
+    isPremoveTo 
+  });
 
   return (
     <div className="relative">
