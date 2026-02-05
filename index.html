@@ -18,35 +18,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Hide Voiceflow default launcher completely -->
+    <!-- Hide only the Voiceflow launcher button, not the chat widget -->
     <style>
-      /* Nuclear option: hide the entire voiceflow widget container initially, 
-         then show only the chat window when opened via our custom buttons */
-      #voiceflow-chat {
-        visibility: hidden !important;
-      }
-      #voiceflow-chat [class*="Widget"],
-      #voiceflow-chat [class*="widget"],
-      #voiceflow-chat iframe[title*="chat"],
-      #voiceflow-chat > div > div:last-child {
-        visibility: visible !important;
-      }
-      /* Hide any launcher/bubble elements */
+      /* Target the launcher button specifically - it's usually the first interactive element */
+      #voiceflow-chat > div:first-child > button,
+      #voiceflow-chat > div > button:first-of-type,
+      #voiceflow-chat button[aria-label],
       #voiceflow-chat [data-testid="launcher"],
-      #voiceflow-chat button[class*="launcher"],
-      #voiceflow-chat button[class*="Launcher"],
-      #voiceflow-chat > div > div:first-child:not([class*="Widget"]):not([class*="widget"]),
-      .vfrc-launcher,
-      [class*="Launcher"],
-      [class*="launcher"],
-      div[style*="position: fixed"][style*="bottom"][style*="right"]:not([class*="Widget"]):not([class*="widget"]) {
+      #voiceflow-chat .vfrc-launcher {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
+        position: absolute !important;
         width: 0 !important;
         height: 0 !important;
-        transform: scale(0) !important;
+        overflow: hidden !important;
       }
     </style>
   </head>
