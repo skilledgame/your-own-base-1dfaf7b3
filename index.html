@@ -20,15 +20,27 @@
     
     <!-- Hide Voiceflow default launcher - we use custom buttons -->
     <style>
+      /* Hide all possible Voiceflow launcher elements */
       #voiceflow-chat [data-testid="launcher"],
       .vfrc-launcher,
       [class*="Launcher"],
+      [class*="launcher"],
       .voiceflow-chat-launcher,
-      #vf-chat-launcher {
+      #vf-chat-launcher,
+      div[id^="voiceflow"] > div:first-child,
+      /* Target the floating button by common widget patterns */
+      [data-testid="widget-button"],
+      [aria-label*="chat"],
+      [aria-label*="Chat"],
+      /* Aggressive: hide any fixed bottom-right element from voiceflow container */
+      #voiceflow-chat > div:not([class*="Widget"]):not([class*="widget"]) {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
       }
     </style>
   </head>
