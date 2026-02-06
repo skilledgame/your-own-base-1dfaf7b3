@@ -18,17 +18,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Hide Voiceflow default launcher - we use custom buttons -->
+    <!-- Hide Voiceflow default launcher completely - we use custom buttons -->
     <style>
       #voiceflow-chat [data-testid="launcher"],
       .vfrc-launcher,
       [class*="Launcher"],
+      [class*="launcher"],
       .voiceflow-chat-launcher,
-      #vf-chat-launcher {
+      #vf-chat-launcher,
+      .vfrc-widget-launcher,
+      [data-testid="widget-launcher"],
+      div[class*="vfrc"][class*="launcher"],
+      button[class*="launcher"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
       }
     </style>
   </head>
@@ -37,7 +47,7 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Voiceflow Chatbot Widget -->
+    <!-- Voiceflow Chatbot Widget (launcher hidden, opened via custom buttons) -->
     <script type="text/javascript">
       (function(d, t) {
           var v = d.createElement(t), s = d.getElementsByTagName(t)[0];
@@ -48,6 +58,10 @@
               versionID: 'production',
               voice: {
                 url: "https://runtime-api.voiceflow.com"
+              },
+              launcher: {
+                type: 'button',
+                visible: false
               }
             });
           }
