@@ -127,7 +127,7 @@ export default function Auth() {
         });
       } else {
         // For signup, create the user with password
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -145,13 +145,22 @@ export default function Auth() {
           throw signUpError;
         }
 
-        // Success - user created
+        // Check if user is automatically signed in (email confirmation disabled)
+        if (signUpData?.session) {
+          toast({
+            title: 'Account created!',
+            description: 'Welcome to Skilled!',
+          });
+          // Navigate immediately since we have a session
+          navigate('/');
+          return;
+        }
+
+        // If no session, email confirmation might be required
         toast({
           title: 'Account created!',
-          description: 'Welcome to Skilled! You can now start playing.',
+          description: 'Please check your email to confirm your account.',
         });
-        
-        // Navigation will happen via auth state change
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An error occurred';
