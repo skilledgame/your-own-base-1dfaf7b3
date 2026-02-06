@@ -8,8 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface LeaderboardEntry {
   rank: number;
   playerName: string;
-  totalWagered: number;
-  gamesPlayed: number;
+  totalWon: number;
+  gamesWon: number;
 }
 
 const getRankIcon = (rank: number) => {
@@ -72,13 +72,13 @@ const Leaderboard = () => {
         const entries: LeaderboardEntry[] = (data || []).map((row: {
           rank: number;
           player_name: string;
-          total_wagered: number;
-          games_played: number;
+          total_won: number;
+          games_won: number;
         }) => ({
           rank: Number(row.rank),
           playerName: row.player_name || 'Anonymous',
-          totalWagered: Number(row.total_wagered),
-          gamesPlayed: Number(row.games_played),
+          totalWon: Number(row.total_won),
+          gamesWon: Number(row.games_won),
         }));
 
         setLeaderboard(entries);
@@ -119,7 +119,7 @@ const Leaderboard = () => {
             <Trophy className="w-8 h-8 text-primary" />
             <div>
               <h1 className="text-2xl font-bold text-foreground">Weekly Leaderboard</h1>
-              <p className="text-sm text-muted-foreground">Top 20 players by SC wagered this week</p>
+              <p className="text-sm text-muted-foreground">Top 20 players by SC won this week</p>
             </div>
           </div>
 
@@ -128,8 +128,8 @@ const Leaderboard = () => {
             <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-secondary/50 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <div className="col-span-1">Rank</div>
               <div className="col-span-5">Player</div>
-              <div className="col-span-3 text-right">SC Wagered</div>
-              <div className="col-span-3 text-right">Games</div>
+              <div className="col-span-3 text-right">SC Won</div>
+              <div className="col-span-3 text-right">Wins</div>
             </div>
 
             {/* Loading State */}
@@ -166,10 +166,10 @@ const Leaderboard = () => {
                       <span className="font-medium text-foreground truncate">{entry.playerName}</span>
                     </div>
                     <div className="col-span-3 text-right font-bold text-accent">
-                      {entry.totalWagered.toLocaleString()} SC
+                      {entry.totalWon.toLocaleString()} SC
                     </div>
                     <div className="col-span-3 text-right text-muted-foreground">
-                      {entry.gamesPlayed}
+                      {entry.gamesWon}
                     </div>
                   </div>
                 ))}
