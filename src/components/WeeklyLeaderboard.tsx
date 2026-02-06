@@ -6,8 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface LeaderboardEntry {
   rank: number;
   playerName: string;
-  totalWagered: number;
-  gamesPlayed: number;
+  totalWon: number;
+  gamesWon: number;
 }
 
 const getRankIcon = (rank: number) => {
@@ -68,13 +68,13 @@ export const WeeklyLeaderboard = ({ compact = false }: WeeklyLeaderboardProps) =
         const entries: LeaderboardEntry[] = (data || []).map((row: {
           rank: number;
           player_name: string;
-          total_wagered: number;
-          games_played: number;
+          total_won: number;
+          games_won: number;
         }) => ({
           rank: Number(row.rank),
           playerName: row.player_name || 'Anonymous',
-          totalWagered: Number(row.total_wagered),
-          gamesPlayed: Number(row.games_played),
+          totalWon: Number(row.total_won),
+          gamesWon: Number(row.games_won),
         }));
 
         setLeaderboard(entries);
@@ -109,8 +109,8 @@ export const WeeklyLeaderboard = ({ compact = false }: WeeklyLeaderboardProps) =
           <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-secondary/50 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             <div className="col-span-1">Rank</div>
             <div className="col-span-5">Player</div>
-            <div className="col-span-3 text-right">SC Wagered</div>
-            <div className="col-span-3 text-right">Games</div>
+            <div className="col-span-3 text-right">SC Won</div>
+            <div className="col-span-3 text-right">Wins</div>
           </div>
 
           {/* Loading State */}
@@ -147,10 +147,10 @@ export const WeeklyLeaderboard = ({ compact = false }: WeeklyLeaderboardProps) =
                     <span className="font-medium text-foreground truncate">{entry.playerName}</span>
                   </div>
                   <div className="col-span-3 text-right font-bold text-accent">
-                    {entry.totalWagered.toLocaleString()} SC
+                    {entry.totalWon.toLocaleString()} SC
                   </div>
                   <div className="col-span-3 text-right text-muted-foreground">
-                    {entry.gamesPlayed}
+                    {entry.gamesWon}
                   </div>
                 </div>
               ))}

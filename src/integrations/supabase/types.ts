@@ -499,10 +499,10 @@ export type Database = {
       get_weekly_leaderboard: {
         Args: never
         Returns: {
-          games_played: number
+          games_won: number
           player_name: string
           rank: number
-          total_wagered: number
+          total_won: number
           user_id: string
         }[]
       }
