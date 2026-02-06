@@ -9,9 +9,8 @@ import { useWalletModal } from '@/contexts/WalletModalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   User, Wallet, Settings, 
-  Trophy, History, Users, LogOut, BarChart3, X, MessageCircle
+  Trophy, History, Users, LogOut, BarChart3, X
 } from 'lucide-react';
-import { openChatWidget } from '@/components/ChatSupportButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
@@ -94,18 +93,12 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
     return null;
   }
 
-  const handleOpenSupport = () => {
-    onClose();
-    openChatWidget();
-  };
-
   const menuItems = [
     { icon: Wallet, label: 'Wallet', onClick: handleOpenCashier, color: 'text-emerald-400' },
     { icon: Trophy, label: 'VIP Rewards', path: '/vip', color: 'text-yellow-400' },
     { icon: BarChart3, label: 'Stats', path: '/stats', color: 'text-blue-400' },
     { icon: History, label: 'Game History', path: '/game-history', color: 'text-orange-400' },
     { icon: Users, label: 'Refer & Earn', path: '/affiliate', color: 'text-red-400' },
-    { icon: MessageCircle, label: 'Customer Support', onClick: handleOpenSupport, color: 'text-purple-400' },
   ];
 
   return (
