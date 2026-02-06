@@ -36,8 +36,9 @@ import Affiliate from "./pages/Affiliate";
 import VIP from "./pages/VIP";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { useEffect } from "react";
-import { useBalanceStore } from "./stores/balanceStore";
-import { useProfileStore } from "./stores/profileStore";
+import { useUserDataStore } from "./stores/userDataStore";
+// Note: balanceStore and profileStore are still available for legacy compatibility
+// but useBalance and useProfile hooks now delegate to userDataStore
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -46,6 +47,7 @@ const queryClient = new QueryClient({
       staleTime: 1000 * 60 * 5, // 5 minutes
       gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
       refetchOnWindowFocus: false, // Reduce refetches
+      refetchOnReconnect: false, // Don't refetch on reconnect
       retry: 1,
     },
   },
@@ -54,8 +56,7 @@ const queryClient = new QueryClient({
 // Wrapper that handles auth-ready gate and initializations
 function AppWithAuth({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isAuthReady } = useAuth();
-  const { fetchBalance, subscribeToBalance, reset: resetBalance } = useBalanceStore();
-  const { fetchProfile, subscribeToProfile, reset: resetProfile } = useProfileStore();
+  const { initialize: initializeUserData, reset: resetUserData } = useUserDataStore();
   
   // Run ensure-user after auth is ready
   useEnsureUser();
@@ -70,19 +71,16 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
     }
   }, []);
   
-  // Set up balance and profile subscriptions when authenticated
+  // Initialize centralized user data store when authenticated
+  // This replaces separate balance and profile store initialization
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      fetchBalance(user.id);
-      subscribeToBalance(user.id);
-      fetchProfile(user.id);
-      subscribeToProfile(user.id);
+      initializeUserData(user.id);
     } else if (isAuthReady && !isAuthenticated) {
       // Only reset if auth is ready and user is definitely logged out
-      resetBalance();
-      resetProfile();
+      resetUserData();
     }
-  }, [isAuthenticated, isAuthReady, user?.id, fetchBalance, subscribeToBalance, resetBalance, fetchProfile, subscribeToProfile, resetProfile]);
+  }, [isAuthenticated, isAuthReady, user?.id, initializeUserData, resetUserData]);
   
   // Show loading screen until auth is ready
   if (!isAuthReady) {

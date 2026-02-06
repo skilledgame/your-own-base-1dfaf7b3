@@ -8,7 +8,7 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalance } from '@/hooks/useBalance';
@@ -318,38 +318,52 @@ export default function LiveGame() {
     }
   }, [playerDisplayName, totalWageredSc, gameState, isPrivateGame, setGameState, setPlayerRank]);
 
-  // Fetch player and opponent ranks
+  // Fetch opponent info ONCE when game starts - NOT on every gameState change
+  // This prevents Supabase calls during active games
+  const opponentFetchedRef = useRef<string | null>(null);
+  
   useEffect(() => {
     if (!gameState) return;
+    
+    // CRITICAL: Only fetch opponent info ONCE per game
+    // Skip if we already fetched for this game
+    const gameKey = `${gameState.gameId}-${gameState.dbGameId || 'no-db'}`;
+    if (opponentFetchedRef.current === gameKey) {
+      return;
+    }
+    
+    // Set player rank from profile hook (no Supabase call)
+    const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
+    setPlayerRank(playerRankInfo);
+    
+    // Update player's own name from profile if available (no Supabase call)
+    if (playerDisplayName && !isPrivateGame) {
+      const storeState = useChessStore.getState();
+      const currentGameState = storeState.gameState;
+      if (currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)) {
+        setGameState({
+          ...currentGameState,
+          playerName: playerDisplayName,
+        });
+      }
+    }
 
-    const fetchRanks = async () => {
+    // Fetch opponent info only ONCE
+    const fetchOpponentInfo = async () => {
+      // Mark as fetched BEFORE the async call to prevent duplicate fetches
+      opponentFetchedRef.current = gameKey;
+      
       try {
-        // Get player rank from profile hook
-        const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
-        setPlayerRank(playerRankInfo);
-        
-        // Update player's own name from profile if available (for WebSocket games)
-        if (playerDisplayName && gameState && !isPrivateGame) {
-          // Get latest gameState from store to avoid stale closure
-          const storeState = useChessStore.getState();
-          const currentGameState = storeState.gameState;
-          if (currentGameState && (currentGameState.playerName === "Player" || currentGameState.playerName !== playerDisplayName)) {
-            setGameState({
-              ...currentGameState,
-              playerName: playerDisplayName,
-            });
-            console.log('[LiveGame] Updated player name from profile:', {
-              oldName: currentGameState.playerName,
-              newName: playerDisplayName,
-            });
-          }
-        }
-
-        // Get opponent rank
         let opponentUserId: string | null = null;
 
-        if (isPrivateGame && gameState.dbGameId) {
-          // For private games, get opponent from game data
+        // For WebSocket games, try matchmaking state first (no Supabase call)
+        if (!isPrivateGame) {
+          opponentUserId = matchmaking.opponentUserId || null;
+        }
+        
+        // Only query Supabase if we don't have opponent info and have dbGameId
+        // This is a ONE-TIME query at game start
+        if (!opponentUserId && gameState?.dbGameId) {
           const { data: game } = await supabase
             .from('games')
             .select(`
@@ -362,139 +376,64 @@ export default function LiveGame() {
             .maybeSingle();
 
           if (game && user?.id) {
-            // Find opponent user_id
             const whitePlayerUserId = (game.white_player as any)?.user_id;
             const blackPlayerUserId = (game.black_player as any)?.user_id;
             
-            if (gameState.color === 'w') {
-              opponentUserId = blackPlayerUserId;
-            } else {
-              opponentUserId = whitePlayerUserId;
-            }
-          }
-        } else if (!isPrivateGame) {
-          // For WebSocket games, get from matchmaking state
-          opponentUserId = matchmaking.opponentUserId || null;
-          
-          // If opponentUserId is not in matchmaking state, try to get it from gameState.dbGameId
-          // by querying the game to find the opponent
-          if (!opponentUserId && gameState?.dbGameId) {
-            try {
-              const { data: game } = await supabase
-                .from('games')
-                .select('white_player_id, black_player_id')
-                .eq('id', gameState.dbGameId)
-                .maybeSingle();
-              
-              if (game && user?.id) {
-                // Find opponent user_id by checking which player we are
-                const { data: myPlayer } = await supabase
-                  .from('players')
-                  .select('id, user_id')
-                  .or(`user_id.eq.${user.id},id.eq.${gameState.color === 'w' ? game.white_player_id : game.black_player_id}`)
-                  .maybeSingle();
-                
-                if (gameState.color === 'w') {
-                  // We're white, opponent is black
-                  const { data: blackPlayer } = await supabase
-                    .from('players')
-                    .select('user_id')
-                    .eq('id', game.black_player_id)
-                    .maybeSingle();
-                  opponentUserId = blackPlayer?.user_id || null;
-                } else {
-                  // We're black, opponent is white
-                  const { data: whitePlayer } = await supabase
-                    .from('players')
-                    .select('user_id')
-                    .eq('id', game.white_player_id)
-                    .maybeSingle();
-                  opponentUserId = whitePlayer?.user_id || null;
-                }
-              }
-            } catch (err) {
-              console.error('[LiveGame] Error fetching opponent from game:', err);
-            }
+            opponentUserId = gameState.color === 'w' ? blackPlayerUserId : whitePlayerUserId;
           }
         }
 
         if (opponentUserId) {
-          // Fetch opponent's profile using RPC function (bypasses RLS)
+          // ONE-TIME fetch of opponent profile
+          const { data: rpcData, error: rpcError } = await supabase
+            .rpc('get_opponent_profile', { p_user_id: opponentUserId });
+          
           let opponentProfile: { display_name: string | null; total_wagered_sc: number | null } | null = null;
           
-          try {
-            // Try RPC function first (bypasses RLS)
-            const { data: rpcData, error: rpcError } = await supabase
-              .rpc('get_opponent_profile', { p_user_id: opponentUserId });
+          if (!rpcError && rpcData && rpcData.length > 0) {
+            opponentProfile = rpcData[0];
+          } else {
+            // Fallback to direct query
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('total_wagered_sc, display_name')
+              .eq('user_id', opponentUserId)
+              .maybeSingle();
             
-            if (!rpcError && rpcData && rpcData.length > 0) {
-              opponentProfile = rpcData[0];
-            } else {
-              // Fallback to direct query if RPC fails
-              const { data: profileData, error: queryError } = await supabase
-                .from('profiles')
-                .select('total_wagered_sc, display_name')
-                .eq('user_id', opponentUserId)
-                .maybeSingle();
-              
-              if (!queryError && profileData) {
-                opponentProfile = profileData;
-              } else {
-                console.error('[LiveGame] Error fetching opponent profile:', rpcError || queryError);
-              }
+            if (profileData) {
+              opponentProfile = profileData;
             }
-          } catch (err) {
-            console.error('[LiveGame] Exception fetching opponent profile:', err);
           }
 
           if (opponentProfile) {
             const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
             setOpponentRank(opponentRankInfo);
             
-            // Always update opponent name from profile (more reliable than server payload)
             const opponentDisplayName = opponentProfile.display_name || "Opponent";
-            // Get latest gameState from store to avoid stale closure
-            // Access store directly to get the latest state (avoids stale closure)
             const storeState = useChessStore.getState();
             const currentGameState = storeState.gameState;
-            if (currentGameState) {
-              // Always update if name is different or if it's still "Opponent"
-              if (opponentDisplayName !== currentGameState.opponentName || currentGameState.opponentName === "Opponent") {
-                // Update the gameState with the actual opponent name from profile
-                setGameState({
-                  ...currentGameState,
-                  opponentName: opponentDisplayName,
-                });
-                console.log('[LiveGame] Updated opponent name from profile:', {
-                  oldName: currentGameState.opponentName,
-                  newName: opponentDisplayName,
-                  opponentUserId,
-                });
-              }
+            if (currentGameState && opponentDisplayName !== currentGameState.opponentName) {
+              setGameState({
+                ...currentGameState,
+                opponentName: opponentDisplayName,
+              });
             }
           } else {
-            // If no profile found, set to unranked
             setOpponentRank(getRankFromTotalWagered(0));
-            console.warn('[LiveGame] No profile found for opponentUserId:', opponentUserId);
           }
         } else {
-          // No opponent user_id available, set to unranked
           setOpponentRank(getRankFromTotalWagered(0));
-          console.warn('[LiveGame] No opponentUserId available for WebSocket game', {
-            hasMatchmaking: !!matchmaking,
-            opponentUserIdFromMatchmaking: matchmaking.opponentUserId,
-            hasDbGameId: !!gameState?.dbGameId,
-          });
         }
       } catch (error) {
-        console.error('[LiveGame] Error fetching ranks:', error);
-        // On error, set to unranked
+        console.error('[LiveGame] Error fetching opponent info:', error);
         setOpponentRank(getRankFromTotalWagered(0));
       }
     };
 
-    fetchRanks();
-  }, [gameState, isPrivateGame, totalWageredSc, user?.id, matchmaking.opponentUserId, playerDisplayName, setGameState, setPlayerRank]);
+    fetchOpponentInfo();
+  // IMPORTANT: Remove gameState from dependencies to prevent re-running on every move
+  // Only re-run when game ID changes (new game) or opponent info becomes available
+  }, [gameState?.gameId, gameState?.dbGameId, isPrivateGame, matchmaking.opponentUserId, totalWageredSc, playerDisplayName, user?.id, setGameState]);
 
   // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
   useEffect(() => {

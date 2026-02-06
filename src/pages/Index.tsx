@@ -6,7 +6,7 @@ import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProfileStore } from '@/stores/profileStore';
+import { useUserDataStore } from '@/stores/userDataStore';
 import { UsernameCreationModal } from '@/components/UsernameCreationModal';
 
 const Index = () => {
@@ -14,7 +14,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { isPrivileged } = useUserRole();
   const { user, isAuthenticated, isAuthReady } = useAuth();
-  const { profile, fetchProfile } = useProfileStore();
+  const { skilledCoins, refresh: refreshUserData } = useUserDataStore();
   
   // Username modal state
   const [showUsernameModal, setShowUsernameModal] = useState(false);
@@ -28,7 +28,6 @@ const Index = () => {
   } = useMultiplayer();
 
   const [showBotGame, setShowBotGame] = useState(false);
-  const [botGameBalance, setBotGameBalance] = useState(0);
 
   // Check if user needs to create a username after login
   useEffect(() => {
@@ -90,25 +89,8 @@ const Index = () => {
     }
   }, [location.state, navigate, location.pathname]);
 
-  // Fetch user balance for bot game
-  useEffect(() => {
-    const fetchBalance = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('skilled_coins')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (data) {
-          setBotGameBalance(data.skilled_coins);
-        }
-      }
-    };
-    if (showBotGame) {
-      fetchBalance();
-    }
-  }, [showBotGame]);
+  // REMOVED: fetchBalance for bot game - now uses centralized store
+  // Balance is already loaded via userDataStore in App.tsx
 
   const handleJoinGame = (playerName: string) => {
     // Navigate to quick play for WebSocket matchmaking
@@ -120,22 +102,21 @@ const Index = () => {
   };
 
   const handleBotBalanceChange = (newBalance: number) => {
-    setBotGameBalance(newBalance);
+    // Balance changes are now handled by centralized store
+    // This callback is for compatibility but actual updates come via Realtime
   };
 
   const handleUsernameComplete = (username: string) => {
     setShowUsernameModal(false);
-    // Refresh profile to get the updated username
-    if (user) {
-      fetchProfile(user.id);
-    }
+    // Refresh user data to get the updated username
+    refreshUserData();
   };
 
   // Show bot game view
   if (showBotGame) {
     return (
       <GameView
-        balance={botGameBalance}
+        balance={skilledCoins ?? 0}
         onBalanceChange={handleBotBalanceChange}
         onBack={handleGoHome}
         isFreePlay={true}

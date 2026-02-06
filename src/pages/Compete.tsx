@@ -80,25 +80,41 @@ export default function Compete() {
       .limit(20);
 
     if (games) {
-      const matchesWithDetails = await Promise.all(
-        games.map(async (game) => {
+      // OPTIMIZED: Batch fetch all opponent IDs in a single query
+      // instead of N queries (one per game)
+      const opponentIds = [...new Set(
+        games.map(game => {
           const isWhite = game.white_player_id === pId;
-          const opponentId = isWhite ? game.black_player_id : game.white_player_id;
-          
-          // Get opponent name
-          const { data: opponent } = await supabase
-            .from('players')
-            .select('name')
-            .eq('id', opponentId)
-            .maybeSingle();
+          return isWhite ? game.black_player_id : game.white_player_id;
+        }).filter(Boolean)
+      )];
 
-          return {
-            ...game,
-            isWhite,
-            opponentName: opponent?.name || 'Unknown'
-          };
-        })
-      );
+      // Single batch query for all opponents
+      const opponentNameMap = new Map<string, string>();
+      if (opponentIds.length > 0) {
+        const { data: opponents } = await supabase
+          .from('players')
+          .select('id, name')
+          .in('id', opponentIds);
+        
+        if (opponents) {
+          for (const opp of opponents) {
+            opponentNameMap.set(opp.id, opp.name);
+          }
+        }
+      }
+
+      // Map games with opponent names from cache
+      const matchesWithDetails = games.map(game => {
+        const isWhite = game.white_player_id === pId;
+        const opponentId = isWhite ? game.black_player_id : game.white_player_id;
+        
+        return {
+          ...game,
+          isWhite,
+          opponentName: opponentNameMap.get(opponentId) || 'Unknown'
+        };
+      });
 
       setActiveMatches(matchesWithDetails.filter(m => m.status === 'active' || m.status === 'waiting'));
       setCompletedMatches(matchesWithDetails.filter(m => m.status === 'completed').slice(0, 10));

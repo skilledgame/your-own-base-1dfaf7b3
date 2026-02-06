@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Coins, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { trackQuery } from '@/lib/supabaseInstrumentation';
 
 interface Win {
   id: string;
@@ -13,15 +14,38 @@ interface Win {
   gradientTo: string;
 }
 
+// Cache for player names to avoid repeated lookups
+const playerNameCache = new Map<string, { name: string | null; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const LiveWins = () => {
   const [wins, setWins] = useState<Win[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastFetchRef = useRef<number>(0);
+  const isFetchingRef = useRef<boolean>(false);
 
-  // Fetch recent finished games
-  const fetchRecentWins = async () => {
+  // Fetch recent finished games - with deduplication and caching
+  const fetchRecentWins = useCallback(async () => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+    
+    // Throttle: minimum 60 seconds between fetches (except initial)
+    const now = Date.now();
+    if (lastFetchRef.current > 0 && now - lastFetchRef.current < 60000) {
+      console.log('[LiveWins] Fetch throttled - too soon');
+      return;
+    }
+    
+    isFetchingRef.current = true;
+    lastFetchRef.current = now;
+    
     try {
-      // Get the most recent finished games (without join to avoid RLS blocking)
+      trackQuery('games', 'select');
+      
+      // Get the most recent finished games
       const { data: games, error } = await supabase
         .from('games')
         .select(`
@@ -48,37 +72,61 @@ export const LiveWins = () => {
         return;
       }
 
-      // Get unique winner IDs (player_ids) and fetch their display_names from profiles
+      // Get unique winner IDs - filter out cached ones
       const uniqueWinnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))] as string[];
+      const uncachedIds = uniqueWinnerIds.filter(id => {
+        const cached = playerNameCache.get(id);
+        return !cached || (now - cached.timestamp > CACHE_TTL);
+      });
 
-      // Fetch display_name by looking up player -> user_id -> profile
-      const playerNameMap = new Map<string, string | null>();
-      
-      for (const playerId of uniqueWinnerIds) {
-        // First get the user_id from the players table
-        const { data: playerData } = await supabase
-          .from('players')
-          .select('user_id')
-          .eq('id', playerId)
-          .maybeSingle();
+      // Batch fetch player -> user_id mappings for uncached IDs
+      if (uncachedIds.length > 0) {
+        trackQuery('players', 'select');
         
-        if (playerData?.user_id) {
-          // Then get the display_name from profiles
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('display_name')
-            .eq('user_id', playerData.user_id)
-            .maybeSingle();
+        const { data: players } = await supabase
+          .from('players')
+          .select('id, user_id')
+          .in('id', uncachedIds);
+        
+        if (players && players.length > 0) {
+          const userIds = players.map(p => p.user_id).filter(Boolean);
           
-          playerNameMap.set(playerId, profileData?.display_name || null);
-        } else {
-          playerNameMap.set(playerId, null);
+          if (userIds.length > 0) {
+            trackQuery('profiles', 'select');
+            
+            // Batch fetch profiles
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('user_id, display_name')
+              .in('user_id', userIds);
+            
+            // Build mapping
+            const userToName = new Map<string, string | null>();
+            if (profiles) {
+              for (const p of profiles) {
+                userToName.set(p.user_id, p.display_name);
+              }
+            }
+            
+            // Update cache
+            for (const player of players) {
+              const name = player.user_id ? userToName.get(player.user_id) : null;
+              playerNameCache.set(player.id, { name, timestamp: now });
+            }
+          }
+        }
+        
+        // Mark uncached IDs that weren't found
+        for (const id of uncachedIds) {
+          if (!playerNameCache.has(id)) {
+            playerNameCache.set(id, { name: null, timestamp: now });
+          }
         }
       }
 
       const recentWins: Win[] = games.map((game) => {
-        const playerName = playerNameMap.get(game.winner_id);
-        const displayName = playerName || 'Skilled Player';
+        const cached = playerNameCache.get(game.winner_id);
+        const displayName = cached?.name || 'Skilled Player';
         const timestampSource = game.settled_at || game.updated_at || game.created_at || Date.now();
 
         return {
@@ -93,7 +141,7 @@ export const LiveWins = () => {
         };
       });
 
-      // Games are already sorted by settled_at from the query, but ensure proper sorting
+      // Sort by timestamp
       const sortedWins = recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       
       setWins(sortedWins);
@@ -101,25 +149,23 @@ export const LiveWins = () => {
       console.error('Failed to fetch recent wins:', err);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, []);
 
-  // Initial fetch
+  // Initial fetch only
   useEffect(() => {
     fetchRecentWins();
-  }, []);
+  }, [fetchRecentWins]);
 
-  // Poll for new games every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchRecentWins();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
+  // NO polling interval - rely on Realtime subscription only
+  // This eliminates the 10-second polling that was causing spam
 
   // Subscribe to real-time updates for new finished games
+  // Debounced: only refetch once per update batch
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    
     const channel = supabase
       .channel('live-wins')
       .on(
@@ -130,17 +176,25 @@ export const LiveWins = () => {
           table: 'games',
           filter: 'status=eq.finished',
         },
-        (payload) => {
-          // Refetch when a game finishes
-          fetchRecentWins();
+        () => {
+          // Debounce updates - wait 2s after last update before refetching
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+          }
+          debounceTimer = setTimeout(() => {
+            fetchRecentWins();
+          }, 2000);
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchRecentWins]);
 
   // Auto-scroll animation with continuous loop
   useEffect(() => {

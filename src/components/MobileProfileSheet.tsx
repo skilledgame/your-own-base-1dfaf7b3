@@ -1,12 +1,14 @@
 /**
  * MobileProfileSheet - Profile options sheet for mobile bottom nav
+ * 
+ * FIXED: Now uses centralized userDataStore instead of direct Supabase calls
  */
 
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletModal } from '@/contexts/WalletModalContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useUserDataStore } from '@/stores/userDataStore';
 import { 
   User, Wallet, Settings, 
   Trophy, History, Users, LogOut, BarChart3, X
@@ -20,43 +22,15 @@ interface MobileProfileSheetProps {
 }
 
 export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps) => {
-  const { user, isAuthenticated, isAuthReady, signOut } = useAuth();
+  const { user, isAuthenticated, signOut } = useAuth();
   const { openWallet } = useWalletModal();
   const navigate = useNavigate();
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   
-  // Fetch display name from profile
-  useEffect(() => {
-    const fetchDisplayName = async () => {
-      if (!user?.id) {
-        setDisplayName(null);
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (data?.display_name) {
-          setDisplayName(data.display_name);
-        } else {
-          setDisplayName(user.email?.split('@')[0] || null);
-        }
-      } catch (error) {
-        console.error('[MobileProfileSheet] Error fetching display name:', error);
-        setDisplayName(user.email?.split('@')[0] || null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchDisplayName();
-  }, [user?.id, user?.email]);
+  // Use centralized store - no direct Supabase calls
+  const { displayName, loading } = useUserDataStore(state => ({
+    displayName: state.profile?.display_name ?? null,
+    loading: state.loading,
+  }));
 
   // Prevent body scroll when sheet is open
   useEffect(() => {
@@ -87,6 +61,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
   };
   
   const name = displayName || user?.email?.split('@')[0] || 'User';
+  // Note: 'loading' from store indicates initial load, not per-component fetch
 
   // Show nothing if not authenticated
   if (!isAuthenticated || !user) {

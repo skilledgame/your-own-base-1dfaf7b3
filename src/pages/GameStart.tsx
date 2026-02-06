@@ -330,7 +330,8 @@ export default function GameStart() {
         });
         window.open(data.invoice_url, '_blank');
         setShowDeposit(false);
-        setTimeout(fetchBalance, 3000);
+        // REMOVED: setTimeout(fetchBalance, 3000) - balance updates via Realtime subscription
+        // The balance will automatically update when the payment is confirmed
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to create payment';
