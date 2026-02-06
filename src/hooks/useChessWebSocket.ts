@@ -198,7 +198,6 @@ function initializeGlobalMessageHandler(): void {
             blackTimeSeconds: payload.blackTime,
             serverTimeMs: payload.serverTimeMs,
             currentTurn: 'w', // White moves first
-            clientPerfNowMs: performance.now(),
           });
           lastTimerSnapshotUpdatePerfMs = performance.now();
           console.log("[Chess WS] Timer snapshot updated (match_found)", {
@@ -221,7 +220,6 @@ function initializeGlobalMessageHandler(): void {
             blackTimeSeconds: 60,
             serverTimeMs: Date.now(),
             currentTurn: 'w',
-            clientPerfNowMs: performance.now(),
           });
           lastTimerSnapshotUpdatePerfMs = performance.now();
         }
@@ -292,7 +290,6 @@ function initializeGlobalMessageHandler(): void {
               blackTimeSeconds: payload.blackTime,
               serverTimeMs: payload.serverTimeMs,
               currentTurn: payload.turn,
-              clientPerfNowMs: performance.now(),
             });
             lastTimerSnapshotUpdatePerfMs = performance.now();
             console.log("[Chess WS] Timer snapshot updated (move_applied)", {
@@ -379,7 +376,6 @@ function initializeGlobalMessageHandler(): void {
                 blackTimeSeconds: payload.blackTime,
                 serverTimeMs: payload.serverTimeMs,
                 currentTurn: payload.turn,
-                clientPerfNowMs: performance.now(),
               });
               lastTimerSnapshotUpdatePerfMs = performance.now();
             }

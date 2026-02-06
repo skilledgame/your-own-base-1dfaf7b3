@@ -18,22 +18,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Hide only the Voiceflow launcher button, not the chat widget -->
+    <!-- Hide Voiceflow default launcher - we use custom buttons -->
     <style>
-      /* Target the launcher button specifically - it's usually the first interactive element */
-      #voiceflow-chat > div:first-child > button,
-      #voiceflow-chat > div > button:first-of-type,
-      #voiceflow-chat button[aria-label],
       #voiceflow-chat [data-testid="launcher"],
-      #voiceflow-chat .vfrc-launcher {
+      .vfrc-launcher,
+      [class*="Launcher"],
+      .voiceflow-chat-launcher,
+      #vf-chat-launcher {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
-        position: absolute !important;
-        width: 0 !important;
-        height: 0 !important;
-        overflow: hidden !important;
       }
     </style>
   </head>
@@ -55,27 +50,6 @@
                 url: "https://runtime-api.voiceflow.com"
               }
             });
-            
-            // Hide the launcher button after widget loads
-            function hideLauncher() {
-              var container = document.body.querySelector(':scope > div:not(#root)');
-              if (container) {
-                var btn = container.querySelector('button');
-                if (btn) {
-                  btn.style.display = 'none';
-                  return true;
-                }
-              }
-              return false;
-            }
-            
-            // Try immediately and retry a few times
-            if (!hideLauncher()) {
-              var attempts = 0;
-              var interval = setInterval(function() {
-                if (hideLauncher() || ++attempts > 20) clearInterval(interval);
-              }, 200);
-            }
           }
           v.src = "https://cdn.voiceflow.com/widget-next/bundle.mjs"; v.type = "text/javascript"; s.parentNode.insertBefore(v, s);
       })(document, 'script');
