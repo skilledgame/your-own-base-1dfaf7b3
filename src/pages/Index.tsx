@@ -14,7 +14,11 @@ const Index = () => {
   const navigate = useNavigate();
   const { isPrivileged } = useUserRole();
   const { user, isAuthenticated, isAuthReady } = useAuth();
-  const { skilledCoins, refresh: refreshUserData } = useUserDataStore();
+  // Use individual selectors to prevent infinite re-renders
+  const profile = useUserDataStore(state => state.profile);
+  const cachedSkilledCoins = useUserDataStore(state => state.cachedSkilledCoins);
+  const refreshUserData = useUserDataStore(state => state.refresh);
+  const skilledCoins = profile?.skilled_coins ?? cachedSkilledCoins ?? 0;
   
   // Username modal state
   const [showUsernameModal, setShowUsernameModal] = useState(false);

@@ -56,7 +56,9 @@ const queryClient = new QueryClient({
 // Wrapper that handles auth-ready gate and initializations
 function AppWithAuth({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isAuthReady } = useAuth();
-  const { initialize: initializeUserData, reset: resetUserData } = useUserDataStore();
+  // Use individual selectors to prevent infinite re-renders
+  const initializeUserData = useUserDataStore(state => state.initialize);
+  const resetUserData = useUserDataStore(state => state.reset);
   
   // Run ensure-user after auth is ready
   useEnsureUser();

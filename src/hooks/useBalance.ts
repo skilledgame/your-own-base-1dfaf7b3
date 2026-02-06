@@ -15,19 +15,16 @@
 import { useUserDataStore } from '@/stores/userDataStore';
 
 export function useBalance() {
-  const store = useUserDataStore();
+  // Use individual selectors to prevent infinite re-renders
+  const profile = useUserDataStore(state => state.profile);
+  const cachedBalance = useUserDataStore(state => state.cachedSkilledCoins);
+  const loading = useUserDataStore(state => state.loading);
+  const error = useUserDataStore(state => state.error);
+  const refresh = useUserDataStore(state => state.refresh);
   
-  // Get values from centralized store
-  const skilledCoins = store.profile?.skilled_coins ?? null;
-  const cachedBalance = store.cachedSkilledCoins;
-  const loading = store.loading;
-  const error = store.error;
-  
-  // Display value: show cached while loading, or actual value
+  // Compute derived values
+  const skilledCoins = profile?.skilled_coins ?? null;
   const displayBalance = skilledCoins ?? cachedBalance;
-  
-  // Throttled refresh (min 30s between calls)
-  const refresh = store.refresh;
   
   return {
     // The actual balance (null if unknown)
@@ -37,7 +34,7 @@ export function useBalance() {
     // Is balance unknown/loading?
     isLoading: loading && skilledCoins === null,
     // Has the balance been fetched at least once?
-    isReady: store.profile !== null,
+    isReady: profile !== null,
     // Error state
     error,
     // Manual refresh (throttled to 30s)

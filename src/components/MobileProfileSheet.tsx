@@ -27,10 +27,9 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
   const navigate = useNavigate();
   
   // Use centralized store - no direct Supabase calls
-  const { displayName, loading } = useUserDataStore(state => ({
-    displayName: state.profile?.display_name ?? null,
-    loading: state.loading,
-  }));
+  // Use separate selectors to avoid creating new objects on every render
+  const displayName = useUserDataStore(state => state.profile?.display_name ?? null);
+  const loading = useUserDataStore(state => state.loading);
 
   // Prevent body scroll when sheet is open
   useEffect(() => {

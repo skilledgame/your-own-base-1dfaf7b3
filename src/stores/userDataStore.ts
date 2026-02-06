@@ -79,11 +79,6 @@ interface UserDataStore {
   // Subscription
   subscription: RealtimeChannel | null;
   
-  // Computed getters (for convenience)
-  skilledCoins: number | null;
-  totalWageredSc: number;
-  displayName: string | null;
-  
   // Actions
   initialize: (userId: string) => Promise<void>;
   refresh: () => Promise<void>;
@@ -112,20 +107,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
     cachedSkilledCoins: cached?.skilledCoins ?? null,
     subscription: null,
     _minRefreshInterval: MIN_REFRESH_INTERVAL,
-    
-    // Computed getters
-    get skilledCoins() {
-      const state = get();
-      return state.profile?.skilled_coins ?? state.cachedSkilledCoins ?? null;
-    },
-    
-    get totalWageredSc() {
-      return get().profile?.total_wagered_sc ?? 0;
-    },
-    
-    get displayName() {
-      return get().profile?.display_name ?? null;
-    },
     
     initialize: async (userId: string) => {
       const state = get();
@@ -402,27 +383,39 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
 /**
  * Hook for components to read user data
  * This is a convenience wrapper - components should use this instead of direct store access
+ * Uses individual selectors to prevent unnecessary re-renders
  */
 export function useUserData() {
-  const store = useUserDataStore();
+  // Use individual selectors to avoid creating new objects
+  const profile = useUserDataStore(state => state.profile);
+  const loading = useUserDataStore(state => state.loading);
+  const error = useUserDataStore(state => state.error);
+  const cachedSkilledCoins = useUserDataStore(state => state.cachedSkilledCoins);
+  const refresh = useUserDataStore(state => state.refresh);
+  const applyBalanceDelta = useUserDataStore(state => state.applyBalanceDelta);
+  
+  // Compute derived values
+  const skilledCoins = profile?.skilled_coins ?? cachedSkilledCoins ?? null;
+  const totalWageredSc = profile?.total_wagered_sc ?? 0;
+  const displayName = profile?.display_name ?? null;
   
   return {
     // Balance
-    skilledCoins: store.skilledCoins,
-    balance: store.skilledCoins ?? 0,
+    skilledCoins,
+    balance: skilledCoins ?? 0,
     
     // Profile
-    totalWageredSc: store.totalWageredSc,
-    displayName: store.displayName,
-    profile: store.profile,
+    totalWageredSc,
+    displayName,
+    profile,
     
     // Loading states
-    isLoading: store.loading,
-    isReady: store.profile !== null,
-    error: store.error,
+    isLoading: loading,
+    isReady: profile !== null,
+    error,
     
     // Actions
-    refresh: store.refresh,
-    applyBalanceDelta: store.applyBalanceDelta,
+    refresh,
+    applyBalanceDelta,
   };
 }
