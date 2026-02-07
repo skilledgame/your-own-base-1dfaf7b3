@@ -42,11 +42,12 @@ export default function LiveGame() {
   const { totalWageredSc, displayName: playerDisplayName } = useProfile();
   const showNetworkDebug = isAdmin;
   
-  // WebSocket connection and actions (only for matchmade games)
+  // WebSocket connection and actions (for matchmade AND private games)
   const {
     status,
     connect,
     disconnect,
+    joinGame,
     sendMove: wsSendMove,
     resignGame,
     syncGame,
@@ -122,27 +123,15 @@ export default function LiveGame() {
   };
 
   const handleSendMove = async (from: string, to: string, promotion?: string) => {
-    // Only use privateGame for actual private games (not WebSocket games)
-    const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
-    if (isPrivateGame && !isWebSocketGameId && privateGame.sendMove) {
-      // Use Realtime for private games
-      await privateGame.sendMove(from, to, promotion);
-    } else {
-      // Use WebSocket for matchmade games
-      wsSendMove(from, to, promotion);
-    }
+    // All games now use WebSocket (both matchmade and private)
+    wsSendMove(from, to, promotion);
   };
 
   const handleTimeLoss = async (loserColor: 'w' | 'b') => {
     // When time runs out, resign the game
     console.log(`[LiveGame] Time loss for ${loserColor === 'w' ? 'white' : 'black'}`);
-    // Only use privateGame for actual private games (not WebSocket games)
-    const isWebSocketGameId = gameId?.startsWith('g_') ?? false;
-    if (isPrivateGame && !isWebSocketGameId && privateGame.resign) {
-      await privateGame.resign();
-    } else {
-      resignGame();
-    }
+    // All games now use WebSocket for time loss handling
+    resignGame();
   };
 
   const handlePlayAgain = () => {
@@ -157,6 +146,9 @@ export default function LiveGame() {
     navigate('/');
   };
 
+  // Ref to track if we've already sent join_game for this UUID
+  const joinGameSentRef = useRef<string | null>(null);
+  
   // Load game from database if gameId is in URL but no gameState
   // Also reload if URL gameId doesn't match store gameId (game changed)
   useEffect(() => {
@@ -193,102 +185,34 @@ export default function LiveGame() {
       return;
     }
     
-    // If URL gameId doesn't match store gameId, clear store and load new game
-    if (gameState && gameState.gameId !== gameId) {
+    // UUID game (from private rooms) — join via WebSocket instead of loading from DB
+    // This gives us server-authoritative game state and no per-move DB writes
+    
+    // If URL gameId doesn't match store gameId and store has stale data, clear it
+    if (gameState && gameState.gameId !== gameId && gameState.dbGameId !== gameId) {
       console.log('[LiveGame] GameId mismatch - clearing old game state and gameEndResult');
       setGameState(null);
       setPhase('idle');
-      clearGameEnd(); // Clear any stale game end result from previous game
+      clearGameEnd();
       setIsPrivateGame(false);
       setPrivateGamePlayerId(null);
-      // Don't return - continue to load new game
+      joinGameSentRef.current = null;
     }
     
-    // If we already have the correct gameState, don't reload
-    if (gameState && gameState.gameId === gameId) return;
-
-    const loadPrivateGame = async () => {
-      setLoadingGame(true);
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.error('[LiveGame] No user found');
-          navigate('/auth');
-          return;
-        }
-
-        // Get user's player record
-        const { data: player } = await supabase
-          .from('players')
-          .select('id, name, user_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (!player) {
-          console.error('[LiveGame] Player not found');
-          navigate('/');
-          return;
-        }
-
-        // Load game from database
-        const { data: game, error: gameError } = await supabase
-          .from('games')
-          .select('*, white_player:players!games_white_player_id_fkey(name, user_id), black_player:players!games_black_player_id_fkey(name, user_id)')
-          .eq('id', gameId)
-          .maybeSingle();
-
-        if (gameError || !game) {
-          console.error('[LiveGame] Error loading game:', gameError);
-          // Only show for admin users
-          if (isAdmin) {
-            toast.error('Game not found');
-          }
-          navigate('/');
-          return;
-        }
-
-        // Determine player color
-        const isWhite = game.white_player_id === player.id;
-        const color = isWhite ? 'w' : 'b';
-        const opponent = isWhite 
-          ? (game.black_player as any)?.name || 'Opponent'
-          : (game.white_player as any)?.name || 'Opponent';
-
-        // Set up game state
-        setPlayerName(player.name);
-        setGameState({
-          gameId: game.id, // Use database ID as gameId for private games
-          dbGameId: game.id,
-          color,
-          fen: game.fen,
-          turn: game.current_turn as 'w' | 'b',
-          isMyTurn: game.current_turn === color,
-          playerName: player.name,
-          opponentName: opponent,
-          wager: game.wager,
-        });
-        setPhase('in_game');
-        
-        // Mark as private game and store player ID
-        setIsPrivateGame(true);
-        setPrivateGamePlayerId(player.id);
-        
-        // Don't connect to WebSocket for private games - use Realtime instead
-      } catch (error) {
-        console.error('[LiveGame] Error loading private game:', error);
-        // Only show for admin users
-        if (isAdmin) {
-          toast.error('Failed to load game');
-        }
-        navigate('/');
-      } finally {
-        setLoadingGame(false);
-      }
-    };
-
-    loadPrivateGame();
-  }, [gameId, gameState, loadingGame, navigate, setPhase, setGameState, setPlayerName, connect]);
+    // If we already have the correct gameState (dbGameId matches UUID), we're good
+    if (gameState && (gameState.gameId === gameId || gameState.dbGameId === gameId)) {
+      return;
+    }
+    
+    // Send join_game to WebSocket server (only once per gameId)
+    if (status === 'connected' && joinGameSentRef.current !== gameId) {
+      console.log('[LiveGame] Sending join_game for private game:', gameId);
+      joinGameSentRef.current = gameId;
+      setIsPrivateGame(false); // Will use WS, not private game hook
+      setPrivateGamePlayerId(null);
+      joinGame(gameId);
+    }
+  }, [gameId, gameState, loadingGame, navigate, setPhase, setGameState, setPlayerName, connect, status, joinGame]);
 
   // Update player name and rank immediately when they become available (for WebSocket games)
   useEffect(() => {
@@ -468,11 +392,8 @@ export default function LiveGame() {
   }, [gameId, isPrivateGame, gameState, phase, status, syncGame]);
 
   // Loading state (connecting or loading game)
-  // For private games, check privateGame.loading instead of WebSocket status
-  // Only check privateGame.loading if it's actually a private game (not WebSocket)
-  const isLoading = (isPrivateGame && !isWebSocketGameId)
-    ? (loadingGame || privateGame.loading)
-    : (loadingGame || status === "connecting" || status === "reconnecting");
+  // All games now use WebSocket, so check WS status
+  const isLoading = loadingGame || status === "connecting" || status === "reconnecting";
   
   if (isLoading) {
     return (
@@ -650,23 +571,11 @@ export default function LiveGame() {
   // Convert color from "w"/"b" to "white"/"black"
   const playerColor = gameState.color === "w" ? "white" : "black";
 
-  // For private games, use Realtime state; for WebSocket games, use store state
-  // Only use privateGame state if it's actually a private game (not WebSocket)
-  // Note: isWebSocketGameId is already defined at component level (line 60)
-  const usePrivateGameState = isPrivateGame && !isWebSocketGameId && privateGame.gameState;
-  
-  const currentFen = usePrivateGameState
-    ? privateGame.gameState.fen 
-    : gameState.fen;
-  const isMyTurn = usePrivateGameState
-    ? privateGame.gameState.isMyTurn
-    : gameState.isMyTurn;
-  const whiteTime = usePrivateGameState
-    ? privateGame.gameState.whiteTime
-    : 60; // Default fallback
-  const blackTime = usePrivateGameState
-    ? privateGame.gameState.blackTime
-    : 60; // Default fallback
+  // All games now use WebSocket and store state (no more private game Realtime distinction)
+  const currentFen = gameState.fen;
+  const isMyTurn = gameState.isMyTurn;
+  const whiteTime = 60; // Timer managed by WS server, displayed via timer snapshot
+  const blackTime = 60; // Timer managed by WS server, displayed via timer snapshot
 
   // Ensure playerRank is always calculated if totalWageredSc is available
   const effectivePlayerRank = useMemo(() => {

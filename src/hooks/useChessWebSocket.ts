@@ -48,6 +48,7 @@ interface UseChessWebSocketReturn {
   cancelSearch: () => void;
   
   // Game actions
+  joinGame: (gameId: string) => void;
   sendMove: (from: string, to: string, promotion?: string) => void;
   resignGame: () => void;
   syncGame: () => void;
@@ -122,6 +123,13 @@ function initializeGlobalMessageHandler(): void {
       
       case "searching": {
         console.log("[Chess WS]", clientId, "Searching for opponent...");
+        store.setPhase("searching");
+        store.setMatchmakingStatus("searching");
+        break;
+      }
+      
+      case "waiting_for_opponent": {
+        console.log("[Chess WS]", clientId, "Waiting for opponent to connect to private game...", msg);
         store.setPhase("searching");
         store.setMatchmakingStatus("searching");
         break;
@@ -942,6 +950,12 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     useChessStore.getState().resetMatchmaking();
   }, [setPhase]);
 
+  const joinGame = useCallback((gameId: string) => {
+    console.log("[Chess WS] Sending join_game for private game:", gameId);
+    setPhase("searching"); // Show waiting state
+    wsClient.send({ type: "join_game", gameId });
+  }, [setPhase]);
+
   const sendMove = useCallback((from: string, to: string, promotion?: string) => {
     const currentGameState = useChessStore.getState().gameState;
     
@@ -1070,6 +1084,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     refreshAuth,
     findMatch,
     cancelSearch,
+    joinGame,
     sendMove,
     resignGame,
     syncGame,
@@ -1087,6 +1102,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     refreshAuth,
     findMatch,
     cancelSearch,
+    joinGame,
     sendMove,
     resignGame,
     syncGame,
