@@ -581,10 +581,9 @@ export default function LiveGame() {
     );
   }
 
-  // Verify this is the correct game
-  if (gameId && gameState.gameId !== gameId) {
-    console.warn("[LiveGame] URL gameId mismatch:", gameId, "vs store:", gameState.gameId);
-    // Could redirect to correct game or show error
+  // Verify this is the correct game (for UUID private games, dbGameId matches the URL)
+  if (gameId && gameState.gameId !== gameId && gameState.dbGameId !== gameId) {
+    console.warn("[LiveGame] URL gameId mismatch:", gameId, "vs store:", gameState.gameId, "dbGameId:", gameState.dbGameId);
   }
 
   // Guard against null gameState (prevents React error #300)

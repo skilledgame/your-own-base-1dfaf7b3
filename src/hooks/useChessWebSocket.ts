@@ -261,9 +261,18 @@ function initializeGlobalMessageHandler(): void {
         }
         
         // Navigate using the callback - CRITICAL: WS must stay open during navigation
+        // For private games (dbMatchId present), the user is likely already on /game/live/{UUID}.
+        // DON'T navigate to /game/live/g_xxx — it causes a URL change mid-render (React error #310).
+        // The gameState is already set with dbGameId matching the URL, so the board will render.
         if (navigationCallback && matchId) {
-          console.log("[Chess WS] NAVIGATING to game:", `/game/live/${matchId}`);
-          navigationCallback(`/game/live/${matchId}`);
+          if (dbMatchId) {
+            // Private game: user is already on /game/live/{UUID}, stay there
+            console.log("[Chess WS] Private game match_found — NOT navigating (staying on UUID page). dbGameId:", dbMatchId);
+          } else {
+            // Public matchmaking: navigate from queue/lobby page to the game page
+            console.log("[Chess WS] NAVIGATING to game:", `/game/live/${matchId}`);
+            navigationCallback(`/game/live/${matchId}`);
+          }
         }
         break;
       }
@@ -665,6 +674,21 @@ function initializeGlobalMessageHandler(): void {
         break;
       }
       
+      case "clock_update": {
+        // Server sends periodic clock updates for active games
+        const payload = msg as any;
+        if (payload.whiteTime !== undefined && payload.blackTime !== undefined && payload.serverTimeMs) {
+          store.updateTimerSnapshot({
+            whiteTimeSeconds: payload.whiteTime,
+            blackTimeSeconds: payload.blackTime,
+            serverTimeMs: payload.serverTimeMs,
+            currentTurn: payload.currentTurn || store.gameState?.fen?.split(' ')[1] || 'w',
+            clientPerfNowMs: performance.now(),
+          });
+        }
+        break;
+      }
+
       default:
         console.log("[Chess WS]", clientId, "Unknown message type:", msg.type, msg);
     }
