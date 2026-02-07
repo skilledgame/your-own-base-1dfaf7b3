@@ -18,6 +18,7 @@ import { Chess } from 'chess.js';
 import { wsClient } from '@/lib/wsClient';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalanceStore } from '@/stores/balanceStore';
+import { useUserDataStore } from '@/stores/userDataStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import type { 
@@ -525,9 +526,18 @@ function initializeGlobalMessageHandler(): void {
           }
         }
         
-        // Trigger balance refresh via callback (throttled)
-        if (balanceRefreshCallback) {
-          balanceRefreshCallback();
+        // Trigger event-driven balance sync via userDataStore (deduped by gameId)
+        if (gameId) {
+          useUserDataStore.getState().syncBalanceAfterGame({
+            gameId,
+            creditsChange,
+            reason: payload.reason || "game_over",
+          });
+        } else {
+          console.warn("[Client] GAME_ENDED - no gameId, falling back to legacy balance refresh");
+          if (balanceRefreshCallback) {
+            balanceRefreshCallback();
+          }
         }
         
         if (isOpponentLeft) {
@@ -553,6 +563,7 @@ function initializeGlobalMessageHandler(): void {
         
         // Current player wins by default when opponent leaves
         const currentState = useChessStore.getState();
+        const opponentLeftGameId = currentState.gameState?.gameId || null;
         const myColor = currentState.gameState?.color || null;
         const wager = currentState.gameState?.wager || 0;
         
@@ -563,9 +574,17 @@ function initializeGlobalMessageHandler(): void {
           creditsChange: wager,  // Win the wager
         });
         
-        // Trigger balance refresh
-        if (balanceRefreshCallback) {
-          balanceRefreshCallback();
+        // Trigger event-driven balance sync via userDataStore (deduped by gameId)
+        if (opponentLeftGameId) {
+          useUserDataStore.getState().syncBalanceAfterGame({
+            gameId: opponentLeftGameId,
+            creditsChange: wager,
+            reason: payload.reason || "opponent_disconnect",
+          });
+        } else {
+          if (balanceRefreshCallback) {
+            balanceRefreshCallback();
+          }
         }
         
         // Only show for admin users

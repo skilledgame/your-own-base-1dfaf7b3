@@ -79,11 +79,15 @@ interface UserDataStore {
   // Subscription
   subscription: RealtimeChannel | null;
   
+  // Dedup: track which gameIds have already been synced
+  _syncedGameIds: Set<string>;
+  
   // Actions
   initialize: (userId: string) => Promise<void>;
   refresh: () => Promise<void>;
   applyBalanceDelta: (delta: number) => void;
   setBalance: (balance: number) => void;
+  syncBalanceAfterGame: (params: { gameId: string; creditsChange: number; reason: string }) => void;
   reset: () => void;
   
   // Internal
@@ -106,6 +110,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
     lastFetchTime: null,
     cachedSkilledCoins: cached?.skilledCoins ?? null,
     subscription: null,
+    _syncedGameIds: new Set<string>(),
     _minRefreshInterval: MIN_REFRESH_INTERVAL,
     
     initialize: async (userId: string) => {
@@ -297,6 +302,99 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
       }
     },
     
+    syncBalanceAfterGame: ({ gameId, creditsChange, reason }) => {
+      const state = get();
+      
+      // DEDUP: Skip if we already synced for this gameId
+      if (state._syncedGameIds.has(gameId)) {
+        console.log('[balance-sync] SKIPPED duplicate sync for gameId=' + gameId);
+        return;
+      }
+      
+      // Mark this gameId as synced (prevent duplicate calls from rerenders / WS retries)
+      const updatedSyncedIds = new Set(state._syncedGameIds);
+      updatedSyncedIds.add(gameId);
+      set({ _syncedGameIds: updatedSyncedIds });
+      
+      console.log(`[balance-sync] gameId=${gameId} started, reason=${reason}, delta=${creditsChange}`);
+      
+      // Step 1: Optimistically apply the known delta immediately
+      if (creditsChange !== 0 && state.profile) {
+        const newBalance = Math.max(0, state.profile.skilled_coins + creditsChange);
+        console.log(`[balance-sync] optimistic delta applied: ${state.profile.skilled_coins} + (${creditsChange}) = ${newBalance}`);
+        
+        set({
+          profile: {
+            ...state.profile,
+            skilled_coins: newBalance,
+          },
+          cachedSkilledCoins: newBalance,
+        });
+        
+        // Update cache
+        if (state.userId) {
+          setCachedData({
+            userId: state.userId,
+            skilledCoins: newBalance,
+            timestamp: Date.now(),
+          });
+        }
+      }
+      
+      // Step 2: Do ONE authoritative refresh from Supabase (bypasses throttle)
+      // Delayed slightly to let DB settle after the server's end_game call
+      const userId = state.userId;
+      if (!userId) {
+        console.log('[balance-sync] no userId, skipping authoritative refresh');
+        return;
+      }
+      
+      setTimeout(async () => {
+        try {
+          console.log(`[balance-sync] gameId=${gameId} refreshing from supabase...`);
+          trackQuery('profiles', 'select');
+          
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('user_id, skilled_coins, total_wagered_sc, display_name, email')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (error) {
+            console.error('[balance-sync] refresh error:', error);
+            return;
+          }
+          
+          if (data) {
+            const profile: UserProfile = {
+              user_id: data.user_id,
+              skilled_coins: data.skilled_coins ?? 0,
+              total_wagered_sc: data.total_wagered_sc ?? 0,
+              display_name: data.display_name,
+              email: data.email,
+            };
+            
+            setCachedData({
+              userId,
+              skilledCoins: profile.skilled_coins,
+              timestamp: Date.now(),
+            });
+            
+            set({
+              profile,
+              cachedSkilledCoins: profile.skilled_coins,
+              loading: false,
+              lastFetchTime: Date.now(),
+            });
+            
+            console.log(`[balance-sync] gameId=${gameId} refreshed from supabase, balance=${profile.skilled_coins}`);
+          }
+        } catch (err) {
+          console.error('[balance-sync] unexpected error:', err);
+        }
+      }, 500); // 500ms delay to let DB commit settle
+    },
+    
     _setupSubscription: (userId: string) => {
       const state = get();
       
@@ -373,6 +471,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         lastFetchTime: null,
         cachedSkilledCoins: null,
         subscription: null,
+        _syncedGameIds: new Set<string>(),
       });
       
       console.log('[UserDataStore] Reset complete');

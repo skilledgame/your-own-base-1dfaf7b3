@@ -165,6 +165,8 @@ export interface GameEndedMessage {
   reason: string;
   winnerColor: "w" | "b" | null;  // null = draw
   dbGameId?: string;              // For refreshing credits
+  wager?: number;                 // Wager amount (for optimistic balance delta)
+  creditsUpdated?: boolean;       // true = DB credits already updated, safe to refresh
 }
 
 /**
