@@ -204,21 +204,28 @@ export default function PrivateGameLobby() {
     setStarting(true);
 
     try {
-      // Update room status to 'started' — both players' Realtime subscriptions will trigger navigation
-      const { error } = await supabase
+      // Update room status to 'started' — the OTHER player navigates via Realtime
+      const { error, count } = await supabase
         .from('private_rooms')
         .update({ status: 'started' })
         .eq('id', roomId)
-        .in('status', ['matched']); // Only if still in matched state
+        .eq('status', 'matched')
+        .select('id', { count: 'exact', head: true });
 
       if (error) {
         console.error('[Lobby] Failed to start game:', error);
-        setStarting(false);
-        return;
       }
-      // Navigation happens via the Realtime subscription below
+
+      // Navigate immediately for the player who clicked Start
+      // (don't wait for Realtime — it might be slow or the update might have failed silently)
+      sonnerToast.success('Game starting!');
+      navigate(`/game/live/${room.game_id}`);
     } catch (err) {
       console.error('[Lobby] Start game exception:', err);
+      // Still navigate even on exception — game exists and both players are ready
+      if (room?.game_id) {
+        navigate(`/game/live/${room.game_id}`);
+      }
       setStarting(false);
     }
   };
@@ -401,7 +408,7 @@ export default function PrivateGameLobby() {
                 size="lg"
                 onClick={handleStartGame}
                 disabled={starting}
-                className="w-full h-16 text-xl font-black bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white shadow-lg shadow-green-500/30 animate-pulse hover:animate-none"
+                className="w-full h-16 text-xl font-black bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white shadow-lg shadow-green-500/30"
               >
                 {starting ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
