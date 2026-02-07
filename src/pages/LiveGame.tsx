@@ -391,6 +391,16 @@ export default function LiveGame() {
     };
   }, [gameId, isPrivateGame, gameState, phase, status, syncGame]);
 
+  // Ensure playerRank is always calculated if totalWageredSc is available
+  // IMPORTANT: useMemo must be called BEFORE any early returns to satisfy React hooks rules
+  const effectivePlayerRank = useMemo(() => {
+    if (playerRank) return playerRank;
+    if (totalWageredSc !== undefined && totalWageredSc !== null) {
+      return getRankFromTotalWagered(totalWageredSc);
+    }
+    return undefined;
+  }, [playerRank, totalWageredSc]);
+
   // Loading state (connecting or loading game)
   // All games now use WebSocket, so check WS status
   const isLoading = loadingGame || status === "connecting" || status === "reconnecting";
@@ -452,7 +462,8 @@ export default function LiveGame() {
   if (phase === "game_over" && gameEndResult) {
     // Guard: Only show modal if we have a gameState that matches the current gameId
     // If gameState doesn't match gameId, this is a stale result from a previous game - don't show
-    const shouldShowModal = gameState && gameState.gameId === gameId;
+    // For private games: URL has UUID, gameState has g_xxx, so also check dbGameId
+    const shouldShowModal = gameState && (gameState.gameId === gameId || gameState.dbGameId === gameId);
     
     if (!shouldShowModal) {
       console.log("[LiveGame] NOT showing GameResultModal - gameId mismatch or no gameState", {
@@ -604,16 +615,6 @@ export default function LiveGame() {
   const isMyTurn = gameState.isMyTurn;
   const whiteTime = 60; // Timer managed by WS server, displayed via timer snapshot
   const blackTime = 60; // Timer managed by WS server, displayed via timer snapshot
-
-  // Ensure playerRank is always calculated if totalWageredSc is available
-  const effectivePlayerRank = useMemo(() => {
-    if (playerRank) return playerRank;
-    if (totalWageredSc !== undefined && totalWageredSc !== null) {
-      return getRankFromTotalWagered(totalWageredSc);
-    }
-    return undefined;
-  }, [playerRank, totalWageredSc]);
-
 
   return (
     <>
