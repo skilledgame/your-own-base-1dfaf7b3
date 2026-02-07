@@ -152,12 +152,6 @@ export default function PrivateGameLobby() {
           if (updated.joiner_id && !joiner) {
             fetchRoom();
           }
-
-          // When ANY player clicks Start, both navigate to the game
-          if (updated.status === 'started' && updated.game_id) {
-            sonnerToast.success('Game starting!');
-            navigate(`/game/live/${updated.game_id}`);
-          }
         }
       )
       .subscribe();
@@ -166,6 +160,14 @@ export default function PrivateGameLobby() {
       supabase.removeChannel(channel);
     };
   }, [roomId, joiner, fetchRoom]);
+
+  // Navigate when room status becomes 'started' (triggered by either player clicking Start)
+  useEffect(() => {
+    if (room?.status === 'started' && room?.game_id) {
+      sonnerToast.success('Game starting!');
+      navigate(`/game/live/${room.game_id}`);
+    }
+  }, [room?.status, room?.game_id, navigate]);
 
   // Toggle ready state
   const handleToggleReady = async () => {
