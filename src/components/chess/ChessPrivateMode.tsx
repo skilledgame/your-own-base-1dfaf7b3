@@ -151,14 +151,13 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
               const room = payload.new as any;
               console.log('[ChessPrivateMode] Room updated:', room.status, 'game_id:', room.game_id);
               if (room.status === 'matched' && room.game_id) {
-                // Opponent joined! Game has been created.
+                // Opponent joined! Navigate to lobby for ready-up.
                 const { dismiss } = toast({
                   title: 'Opponent joined!',
-                  description: 'The game is starting...',
+                  description: 'Head to the lobby to ready up.',
                 });
                 setTimeout(() => dismiss(), 2000);
-                // Navigate to the game (will use WebSocket for gameplay)
-                navigate(`/game/live/${room.game_id}`);
+                navigate(`/game/lobby/${data.roomId}`);
               }
             }
           )
@@ -241,11 +240,11 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       if ((data?.game || data?.gameId) && data?.success !== false) {
         toast({
           title: 'Joined lobby!',
-          description: `Playing against ${data.opponent?.name || 'opponent'}`,
+          description: `Playing against ${data.opponent?.name || 'opponent'}. Ready up!`,
         });
-        // Navigate directly to the game (will use WebSocket for gameplay)
-        const gameId = data.gameId || data.game?.id;
-        navigate(`/game/live/${gameId}`);
+        // Navigate to lobby for ready-up (not directly to game)
+        const targetRoomId = data.roomId;
+        navigate(`/game/lobby/${targetRoomId}`);
       }
     } catch (error) {
       toast({
