@@ -29,15 +29,14 @@ export function useServerAuthoritativeTimer(
     lastRenderTimeRef.current = Date.now();
   }, []);
 
-  // Calculate effective time for a color based on current server time
+  // Calculate effective time for a color based on client-local time (no clock drift)
   const getEffectiveTime = useCallback((color: 'w' | 'b'): number => {
     if (!snapshot || isGameOver) {
       return snapshot?.whiteTimeSeconds ?? 60;
     }
 
-    const nowMs = Date.now();
-    const elapsedMs = nowMs - snapshot.serverTimeMs;
-    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    const elapsedMs = Date.now() - lastRenderTimeRef.current;
+    const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
 
     // Only count down for the side whose turn it is
     if (snapshot.currentTurn === color) {

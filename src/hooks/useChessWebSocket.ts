@@ -675,16 +675,43 @@ function initializeGlobalMessageHandler(): void {
       }
       
       case "clock_update": {
-        // Server sends periodic clock updates for active games
+        // Server sends periodic clock updates (~every 1.5s).
+        // Only apply if the local timer has drifted significantly (>2s) from the server,
+        // to avoid small jumps that make the timer look glitchy.
         const payload = msg as any;
-        if (payload.whiteTime !== undefined && payload.blackTime !== undefined && payload.serverTimeMs) {
-          store.updateTimerSnapshot({
-            whiteTimeSeconds: payload.whiteTime,
-            blackTimeSeconds: payload.blackTime,
-            serverTimeMs: payload.serverTimeMs,
-            currentTurn: payload.currentTurn || store.gameState?.fen?.split(' ')[1] || 'w',
-            clientPerfNowMs: performance.now(),
-          });
+        if (payload.whiteTime !== undefined && payload.blackTime !== undefined) {
+          const currentSnapshot = store.timerSnapshot;
+          if (currentSnapshot && currentSnapshot.clientPerfNowMs > 0) {
+            const elapsedMs = performance.now() - currentSnapshot.clientPerfNowMs;
+            const elapsedSeconds = Math.floor(elapsedMs / 1000);
+            const localWhite = currentSnapshot.currentTurn === 'w'
+              ? currentSnapshot.whiteTimeSeconds - elapsedSeconds
+              : currentSnapshot.whiteTimeSeconds;
+            const localBlack = currentSnapshot.currentTurn === 'b'
+              ? currentSnapshot.blackTimeSeconds - elapsedSeconds
+              : currentSnapshot.blackTimeSeconds;
+            const whiteOff = Math.abs(localWhite - payload.whiteTime);
+            const blackOff = Math.abs(localBlack - payload.blackTime);
+            // Only correct if drifted more than 2 seconds
+            if (whiteOff > 2 || blackOff > 2) {
+              store.updateTimerSnapshot({
+                whiteTimeSeconds: payload.whiteTime,
+                blackTimeSeconds: payload.blackTime,
+                serverTimeMs: Date.now(),
+                currentTurn: payload.currentTurn || currentSnapshot.currentTurn || 'w',
+                clientPerfNowMs: performance.now(),
+              });
+            }
+          } else {
+            // No existing snapshot — apply directly
+            store.updateTimerSnapshot({
+              whiteTimeSeconds: payload.whiteTime,
+              blackTimeSeconds: payload.blackTime,
+              serverTimeMs: Date.now(),
+              currentTurn: payload.currentTurn || store.gameState?.fen?.split(' ')[1] || 'w',
+              clientPerfNowMs: performance.now(),
+            });
+          }
         }
         break;
       }

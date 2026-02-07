@@ -152,6 +152,12 @@ export default function PrivateGameLobby() {
           if (updated.joiner_id && !joiner) {
             fetchRoom();
           }
+
+          // When ANY player clicks Start, both navigate to the game
+          if (updated.status === 'started' && updated.game_id) {
+            sonnerToast.success('Game starting!');
+            navigate(`/game/live/${updated.game_id}`);
+          }
         }
       )
       .subscribe();
@@ -192,12 +198,29 @@ export default function PrivateGameLobby() {
     }
   };
 
-  // Start game (navigate to game page)
-  const handleStartGame = () => {
-    if (!room?.game_id || !bothReady) return;
+  // Start game — update room status so BOTH players navigate via Realtime
+  const handleStartGame = async () => {
+    if (!room?.game_id || !bothReady || starting) return;
     setStarting(true);
-    sonnerToast.success('Game starting!');
-    navigate(`/game/live/${room.game_id}`);
+
+    try {
+      // Update room status to 'started' — both players' Realtime subscriptions will trigger navigation
+      const { error } = await supabase
+        .from('private_rooms')
+        .update({ status: 'started' })
+        .eq('id', roomId)
+        .in('status', ['matched']); // Only if still in matched state
+
+      if (error) {
+        console.error('[Lobby] Failed to start game:', error);
+        setStarting(false);
+        return;
+      }
+      // Navigation happens via the Realtime subscription below
+    } catch (err) {
+      console.error('[Lobby] Start game exception:', err);
+      setStarting(false);
+    }
   };
 
   // Copy code
@@ -366,7 +389,7 @@ export default function PrivateGameLobby() {
                   </>
                 ) : (
                   <>
-                    <Circle className="w-5 h-5 mr-2" />
+                    <CheckCircle2 className="w-5 h-5 mr-2" />
                     Ready Up
                   </>
                 )}
