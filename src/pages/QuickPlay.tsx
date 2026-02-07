@@ -16,7 +16,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBalanceStore } from '@/stores/balanceStore';
+import { useBalance } from '@/hooks/useBalance';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,8 +75,8 @@ export default function QuickPlay() {
   // STEP C: Get IDs safely (normalized, never from raw objects)
   const userId = user?.id ?? null;
   
-  // Balance from store
-  const { balance: storeBalance } = useBalanceStore();
+  // Balance from centralized userDataStore (single source of truth)
+  const { balance: storeBalance } = useBalance();
   
   // Global state from Zustand store
   const { 

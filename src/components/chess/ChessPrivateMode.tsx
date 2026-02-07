@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBalanceStore } from '@/stores/balanceStore';
+import { useBalance } from '@/hooks/useBalance';
 import { LogoLink } from '@/components/LogoLink';
 import {
   ArrowLeft,
@@ -43,7 +43,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { isAuthenticated, isAuthReady, user } = useAuth();
-  const { balance } = useBalanceStore();
+  const { balance } = useBalance();
 
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [lobbyCode, setLobbyCode] = useState('');

@@ -18,6 +18,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { trackQuery } from '@/lib/supabaseInstrumentation';
+import { useBalanceStore } from '@/stores/balanceStore';
 
 // LocalStorage key for persisting last known balance
 const STORAGE_KEY = 'user_data_cache';
@@ -331,6 +332,9 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
           cachedSkilledCoins: newBalance,
         });
         
+        // Cross-sync to legacy balanceStore (used by some /chess page components)
+        useBalanceStore.getState().setBalance(newBalance);
+        
         // Update cache
         if (state.userId) {
           setCachedData({
@@ -386,6 +390,9 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
               loading: false,
               lastFetchTime: Date.now(),
             });
+            
+            // Cross-sync to legacy balanceStore
+            useBalanceStore.getState().setBalance(profile.skilled_coins);
             
             console.log(`[balance-sync] gameId=${gameId} refreshed from supabase, balance=${profile.skilled_coins}`);
           }
