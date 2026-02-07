@@ -891,6 +891,44 @@ serve(async (req) => {
         );
       }
 
+      case "activate_game": {
+        const gameId = params.game_id || params.gameId;
+        
+        if (!gameId) {
+          console.error("activate_game missing game_id, received keys:", Object.keys(params));
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "MISSING_GAME_ID", 
+              message: "activate_game requires game_id" 
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        console.log("activate_game:", { gameId });
+        
+        const { error: activateError } = await supabase
+          .from("games")
+          .update({ status: "active", updated_at: new Date().toISOString() })
+          .eq("id", gameId)
+          .in("status", ["created", "waiting"]);
+        
+        if (activateError) {
+          console.error("activate_game error:", activateError);
+          return new Response(
+            JSON.stringify({ success: false, error: activateError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        console.log("activate_game success:", gameId);
+        return new Response(
+          JSON.stringify({ success: true, game_id: gameId }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         console.warn("Unknown action:", action);
         return new Response(

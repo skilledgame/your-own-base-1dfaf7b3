@@ -506,6 +506,35 @@ export default function LiveGame() {
 
   // No game state - check phase to determine what to show
   if (!gameState) {
+    // For UUID private games in searching/waiting phase, show connecting/waiting UI
+    const isPrivateUuidGame = gameId && !gameId.startsWith('g_');
+    if (isPrivateUuidGame && (phase === "searching" || phase === "idle")) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">
+            {status === 'connected' ? 'Waiting for opponent to connect...' : 'Connecting to game server...'}
+          </p>
+          <p className="text-sm text-muted-foreground/60">Game code: {gameId.slice(0, 8)}…</p>
+          <Button variant="outline" onClick={handleBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
+          {showNetworkDebug && (
+            <NetworkDebugPanel
+              status={status}
+              logs={logs}
+              reconnectAttempts={reconnectAttempts}
+              onConnect={connect}
+              onDisconnect={disconnect}
+              onSendRaw={sendRaw}
+              onClearLogs={clearLogs}
+            />
+          )}
+        </div>
+      );
+    }
+
     // If phase is not in_game, show "no active game"
     if (phase !== "in_game") {
       return (
