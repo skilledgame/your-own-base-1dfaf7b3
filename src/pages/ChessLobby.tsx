@@ -153,9 +153,9 @@ export default function ChessLobby() {
         setWaitingForOpponent(true);
         setShowWagerSelection(false);
         
-        // Store game ID for later
-        if (data.game?.id) {
-          sessionStorage.setItem('lobbyGameId', data.game.id);
+        // Store room ID for later
+        if (data.roomId) {
+          sessionStorage.setItem('lobbyRoomId', data.roomId);
         }
 
         toast({
@@ -163,28 +163,28 @@ export default function ChessLobby() {
           description: `Wager: ${effectiveWager} coins. Winner takes 95% of pot.`,
         });
 
-        // Subscribe to game updates to detect when opponent joins
+        // Subscribe to private_rooms updates to detect when opponent joins
         const channel = supabase
-          .channel(`lobby-${data.game.id}`)
+          .channel(`room-${data.roomId}`)
           .on(
             'postgres_changes',
             {
               event: 'UPDATE',
               schema: 'public',
-              table: 'games',
-              filter: `id=eq.${data.game.id}`,
+              table: 'private_rooms',
+              filter: `id=eq.${data.roomId}`,
             },
             (payload) => {
-              const game = payload.new;
-              if (game.status === 'active') {
-                // Dismiss any existing waiting notifications and show new one
+              const room = payload.new as any;
+              console.log('[ChessLobby] Room updated:', room.status, 'game_id:', room.game_id);
+              if (room.status === 'matched' && room.game_id) {
+                // Opponent joined! Navigate to lobby for ready-up.
                 const { dismiss } = toast({
                   title: 'Opponent joined!',
-                  description: 'The game is starting...',
+                  description: 'Head to the lobby to ready up.',
                 });
-                // Auto-dismiss after 2 seconds
                 setTimeout(() => dismiss(), 2000);
-                navigate('/', { state: { startLobbyGame: true, gameId: game.id } });
+                navigate(`/game/lobby/${data.roomId}`);
               }
             }
           )
@@ -249,13 +249,14 @@ export default function ChessLobby() {
         return;
       }
 
-      if (data?.game) {
+      if (data?.game || data?.gameId) {
         toast({
           title: 'Joined lobby!',
-          description: `Playing against ${data.opponent?.name || 'opponent'}`,
+          description: `Playing against ${data.opponent?.name || 'opponent'}. Ready up!`,
         });
-        // Navigate to game
-        navigate('/', { state: { startLobbyGame: true, gameId: data.game.id } });
+        // Navigate to lobby for ready-up (not directly to game)
+        const targetRoomId = data.roomId;
+        navigate(`/game/lobby/${targetRoomId}`);
       }
     } catch (error) {
       console.error('Join lobby error:', error);

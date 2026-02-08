@@ -795,6 +795,59 @@ serve(async (req) => {
         }
       }
 
+      case "get_game": {
+        const gameId = params.game_id || params.gameId;
+        
+        if (!gameId) {
+          console.error("get_game missing game_id, received keys:", Object.keys(params));
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "MISSING_GAME_ID", 
+              message: "get_game requires game_id" 
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        const { data: game, error: gameError } = await supabase
+          .from("games")
+          .select("*, white_player:players!games_white_player_id_fkey(id, user_id, name), black_player:players!games_black_player_id_fkey(id, user_id, name)")
+          .eq("id", gameId)
+          .maybeSingle();
+        
+        if (gameError || !game) {
+          console.error("get_game error:", gameError);
+          return new Response(
+            JSON.stringify({ success: false, error: "GAME_NOT_FOUND", details: gameError?.message }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        console.log("get_game success:", game.id);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            game: {
+              id: game.id,
+              white_player_id: game.white_player_id,
+              black_player_id: game.black_player_id,
+              white_user_id: (game.white_player as any)?.user_id,
+              black_user_id: (game.black_player as any)?.user_id,
+              white_name: (game.white_player as any)?.name,
+              black_name: (game.black_player as any)?.name,
+              wager: game.wager,
+              fen: game.fen,
+              status: game.status,
+              current_turn: game.current_turn,
+              white_time: game.white_time,
+              black_time: game.black_time,
+            }
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       case "update_game_state": {
         const { gameId, fen, currentTurn, whiteTime, blackTime } = params;
         
@@ -834,6 +887,44 @@ serve(async (req) => {
         
         return new Response(
           JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "activate_game": {
+        const gameId = params.game_id || params.gameId;
+        
+        if (!gameId) {
+          console.error("activate_game missing game_id, received keys:", Object.keys(params));
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "MISSING_GAME_ID", 
+              message: "activate_game requires game_id" 
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        console.log("activate_game:", { gameId });
+        
+        const { error: activateError } = await supabase
+          .from("games")
+          .update({ status: "active", updated_at: new Date().toISOString() })
+          .eq("id", gameId)
+          .in("status", ["created", "waiting"]);
+        
+        if (activateError) {
+          console.error("activate_game error:", activateError);
+          return new Response(
+            JSON.stringify({ success: false, error: activateError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        console.log("activate_game success:", gameId);
+        return new Response(
+          JSON.stringify({ success: true, game_id: gameId }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

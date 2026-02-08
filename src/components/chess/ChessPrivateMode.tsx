@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBalanceStore } from '@/stores/balanceStore';
+import { useBalance } from '@/hooks/useBalance';
 import { LogoLink } from '@/components/LogoLink';
 import {
   ArrowLeft,
@@ -43,7 +43,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { isAuthenticated, isAuthReady, user } = useAuth();
-  const { balance } = useBalanceStore();
+  const { balance } = useBalance();
 
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [lobbyCode, setLobbyCode] = useState('');
@@ -122,13 +122,13 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       }
 
       if (data?.lobbyCode && data?.success !== false) {
-        console.log('[ChessPrivateMode] Lobby created successfully! Code:', data.lobbyCode, 'Game ID:', data.game?.id);
+        console.log('[ChessPrivateMode] Room created successfully! Code:', data.lobbyCode, 'Room ID:', data.roomId);
         setLobbyCode(data.lobbyCode);
         setLobbyCreated(true);
         setWaitingForOpponent(true);
 
-        if (data.game?.id) {
-          sessionStorage.setItem('lobbyGameId', data.game.id);
+        if (data.roomId) {
+          sessionStorage.setItem('lobbyRoomId', data.roomId);
         }
 
         toast({
@@ -136,29 +136,28 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
           description: `Wager: ${selectedWager} SC. Winner takes 95% of pot.`,
         });
 
-        // Subscribe to game updates
+        // Subscribe to private_rooms updates (not games - game doesn't exist yet)
         const channel = supabase
-          .channel(`lobby-${data.game.id}`)
+          .channel(`room-${data.roomId}`)
           .on(
             'postgres_changes',
             {
               event: 'UPDATE',
               schema: 'public',
-              table: 'games',
-              filter: `id=eq.${data.game.id}`,
+              table: 'private_rooms',
+              filter: `id=eq.${data.roomId}`,
             },
             (payload) => {
-              const game = payload.new;
-              if (game.status === 'active') {
-                // Dismiss any existing waiting notifications
+              const room = payload.new as any;
+              console.log('[ChessPrivateMode] Room updated:', room.status, 'game_id:', room.game_id);
+              if (room.status === 'matched' && room.game_id) {
+                // Opponent joined! Navigate to lobby for ready-up.
                 const { dismiss } = toast({
                   title: 'Opponent joined!',
-                  description: 'The game is starting...',
+                  description: 'Head to the lobby to ready up.',
                 });
-                // Auto-dismiss after 2 seconds
                 setTimeout(() => dismiss(), 2000);
-                // Navigate directly to the game
-                navigate(`/game/live/${game.id}`);
+                navigate(`/game/lobby/${data.roomId}`);
               }
             }
           )
@@ -238,13 +237,14 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         return;
       }
 
-      if (data?.game && data?.success !== false) {
+      if ((data?.game || data?.gameId) && data?.success !== false) {
         toast({
           title: 'Joined lobby!',
-          description: `Playing against ${data.opponent?.name || 'opponent'}`,
+          description: `Playing against ${data.opponent?.name || 'opponent'}. Ready up!`,
         });
-        // Navigate directly to the game
-        navigate(`/game/live/${data.game.id}`);
+        // Navigate to lobby for ready-up (not directly to game)
+        const targetRoomId = data.roomId;
+        navigate(`/game/lobby/${targetRoomId}`);
       }
     } catch (error) {
       toast({

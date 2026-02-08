@@ -9,7 +9,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBalanceStore } from '@/stores/balanceStore';
+import { useBalance } from '@/hooks/useBalance';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { LogoLink } from '@/components/LogoLink';
@@ -65,7 +65,7 @@ const WAGER_OPTIONS = [
 export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
   const navigate = useNavigate();
   const { isAuthenticated, isAuthReady, user } = useAuth();
-  const { balance } = useBalanceStore();
+  const { balance } = useBalance();
   const { phase, playerName, setSelectedWager, selectedWager } = useChessStore();
   const { status, findMatch, cancelSearch, isAuthenticated: wsAuth } = useChessWebSocket();
   

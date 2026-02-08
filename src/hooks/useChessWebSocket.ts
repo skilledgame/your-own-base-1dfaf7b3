@@ -18,6 +18,7 @@ import { Chess } from 'chess.js';
 import { wsClient } from '@/lib/wsClient';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalanceStore } from '@/stores/balanceStore';
+import { useUserDataStore } from '@/stores/userDataStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import type { 
@@ -47,6 +48,7 @@ interface UseChessWebSocketReturn {
   cancelSearch: () => void;
   
   // Game actions
+  joinGame: (gameId: string) => void;
   sendMove: (from: string, to: string, promotion?: string) => void;
   resignGame: () => void;
   syncGame: () => void;
@@ -121,6 +123,13 @@ function initializeGlobalMessageHandler(): void {
       
       case "searching": {
         console.log("[Chess WS]", clientId, "Searching for opponent...");
+        store.setPhase("searching");
+        store.setMatchmakingStatus("searching");
+        break;
+      }
+      
+      case "waiting_for_opponent": {
+        console.log("[Chess WS]", clientId, "Waiting for opponent to connect to private game...", msg);
         store.setPhase("searching");
         store.setMatchmakingStatus("searching");
         break;
@@ -252,9 +261,18 @@ function initializeGlobalMessageHandler(): void {
         }
         
         // Navigate using the callback - CRITICAL: WS must stay open during navigation
+        // For private games (dbMatchId present), the user is likely already on /game/live/{UUID}.
+        // DON'T navigate to /game/live/g_xxx — it causes a URL change mid-render (React error #310).
+        // The gameState is already set with dbGameId matching the URL, so the board will render.
         if (navigationCallback && matchId) {
-          console.log("[Chess WS] NAVIGATING to game:", `/game/live/${matchId}`);
-          navigationCallback(`/game/live/${matchId}`);
+          if (dbMatchId) {
+            // Private game: user is already on /game/live/{UUID}, stay there
+            console.log("[Chess WS] Private game match_found — NOT navigating (staying on UUID page). dbGameId:", dbMatchId);
+          } else {
+            // Public matchmaking: navigate from queue/lobby page to the game page
+            console.log("[Chess WS] NAVIGATING to game:", `/game/live/${matchId}`);
+            navigationCallback(`/game/live/${matchId}`);
+          }
         }
         break;
       }
@@ -525,9 +543,18 @@ function initializeGlobalMessageHandler(): void {
           }
         }
         
-        // Trigger balance refresh via callback (throttled)
-        if (balanceRefreshCallback) {
-          balanceRefreshCallback();
+        // Trigger event-driven balance sync via userDataStore (deduped by gameId)
+        if (gameId) {
+          useUserDataStore.getState().syncBalanceAfterGame({
+            gameId,
+            creditsChange,
+            reason: payload.reason || "game_over",
+          });
+        } else {
+          console.warn("[Client] GAME_ENDED - no gameId, falling back to legacy balance refresh");
+          if (balanceRefreshCallback) {
+            balanceRefreshCallback();
+          }
         }
         
         if (isOpponentLeft) {
@@ -553,6 +580,7 @@ function initializeGlobalMessageHandler(): void {
         
         // Current player wins by default when opponent leaves
         const currentState = useChessStore.getState();
+        const opponentLeftGameId = currentState.gameState?.gameId || null;
         const myColor = currentState.gameState?.color || null;
         const wager = currentState.gameState?.wager || 0;
         
@@ -563,9 +591,17 @@ function initializeGlobalMessageHandler(): void {
           creditsChange: wager,  // Win the wager
         });
         
-        // Trigger balance refresh
-        if (balanceRefreshCallback) {
-          balanceRefreshCallback();
+        // Trigger event-driven balance sync via userDataStore (deduped by gameId)
+        if (opponentLeftGameId) {
+          useUserDataStore.getState().syncBalanceAfterGame({
+            gameId: opponentLeftGameId,
+            creditsChange: wager,
+            reason: payload.reason || "opponent_disconnect",
+          });
+        } else {
+          if (balanceRefreshCallback) {
+            balanceRefreshCallback();
+          }
         }
         
         // Only show for admin users
@@ -638,6 +674,48 @@ function initializeGlobalMessageHandler(): void {
         break;
       }
       
+      case "clock_update": {
+        // Server sends periodic clock updates (~every 1.5s).
+        // Only apply if the local timer has drifted significantly (>2s) from the server,
+        // to avoid small jumps that make the timer look glitchy.
+        const payload = msg as any;
+        if (payload.whiteTime !== undefined && payload.blackTime !== undefined) {
+          const currentSnapshot = store.timerSnapshot;
+          if (currentSnapshot && currentSnapshot.clientPerfNowMs > 0) {
+            const elapsedMs = performance.now() - currentSnapshot.clientPerfNowMs;
+            const elapsedSeconds = Math.floor(elapsedMs / 1000);
+            const localWhite = currentSnapshot.currentTurn === 'w'
+              ? currentSnapshot.whiteTimeSeconds - elapsedSeconds
+              : currentSnapshot.whiteTimeSeconds;
+            const localBlack = currentSnapshot.currentTurn === 'b'
+              ? currentSnapshot.blackTimeSeconds - elapsedSeconds
+              : currentSnapshot.blackTimeSeconds;
+            const whiteOff = Math.abs(localWhite - payload.whiteTime);
+            const blackOff = Math.abs(localBlack - payload.blackTime);
+            // Only correct if drifted more than 2 seconds
+            if (whiteOff > 2 || blackOff > 2) {
+              store.updateTimerSnapshot({
+                whiteTimeSeconds: payload.whiteTime,
+                blackTimeSeconds: payload.blackTime,
+                serverTimeMs: Date.now(),
+                currentTurn: payload.currentTurn || currentSnapshot.currentTurn || 'w',
+                clientPerfNowMs: performance.now(),
+              });
+            }
+          } else {
+            // No existing snapshot — apply directly
+            store.updateTimerSnapshot({
+              whiteTimeSeconds: payload.whiteTime,
+              blackTimeSeconds: payload.blackTime,
+              serverTimeMs: Date.now(),
+              currentTurn: payload.currentTurn || store.gameState?.fen?.split(' ')[1] || 'w',
+              clientPerfNowMs: performance.now(),
+            });
+          }
+        }
+        break;
+      }
+
       default:
         console.log("[Chess WS]", clientId, "Unknown message type:", msg.type, msg);
     }
@@ -923,6 +1001,12 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     useChessStore.getState().resetMatchmaking();
   }, [setPhase]);
 
+  const joinGame = useCallback((gameId: string) => {
+    console.log("[Chess WS] Sending join_game for private game:", gameId);
+    setPhase("searching"); // Show waiting state
+    wsClient.send({ type: "join_game", gameId });
+  }, [setPhase]);
+
   const sendMove = useCallback((from: string, to: string, promotion?: string) => {
     const currentGameState = useChessStore.getState().gameState;
     
@@ -1051,6 +1135,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     refreshAuth,
     findMatch,
     cancelSearch,
+    joinGame,
     sendMove,
     resignGame,
     syncGame,
@@ -1068,6 +1153,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     refreshAuth,
     findMatch,
     cancelSearch,
+    joinGame,
     sendMove,
     resignGame,
     syncGame,

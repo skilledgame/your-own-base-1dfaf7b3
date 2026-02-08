@@ -18,6 +18,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { trackQuery } from '@/lib/supabaseInstrumentation';
+import { useBalanceStore } from '@/stores/balanceStore';
 
 // LocalStorage key for persisting last known balance
 const STORAGE_KEY = 'user_data_cache';
@@ -79,16 +80,15 @@ interface UserDataStore {
   // Subscription
   subscription: RealtimeChannel | null;
   
-  // Computed getters (for convenience)
-  skilledCoins: number | null;
-  totalWageredSc: number;
-  displayName: string | null;
+  // Dedup: track which gameIds have already been synced
+  _syncedGameIds: Set<string>;
   
   // Actions
   initialize: (userId: string) => Promise<void>;
   refresh: () => Promise<void>;
   applyBalanceDelta: (delta: number) => void;
   setBalance: (balance: number) => void;
+  syncBalanceAfterGame: (params: { gameId: string; creditsChange: number; reason: string }) => void;
   reset: () => void;
   
   // Internal
@@ -111,21 +111,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
     lastFetchTime: null,
     cachedSkilledCoins: cached?.skilledCoins ?? null,
     subscription: null,
+    _syncedGameIds: new Set<string>(),
     _minRefreshInterval: MIN_REFRESH_INTERVAL,
-    
-    // Computed getters
-    get skilledCoins() {
-      const state = get();
-      return state.profile?.skilled_coins ?? state.cachedSkilledCoins ?? null;
-    },
-    
-    get totalWageredSc() {
-      return get().profile?.total_wagered_sc ?? 0;
-    },
-    
-    get displayName() {
-      return get().profile?.display_name ?? null;
-    },
     
     initialize: async (userId: string) => {
       const state = get();
@@ -316,6 +303,105 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
       }
     },
     
+    syncBalanceAfterGame: ({ gameId, creditsChange, reason }) => {
+      const state = get();
+      
+      // DEDUP: Skip if we already synced for this gameId
+      if (state._syncedGameIds.has(gameId)) {
+        console.log('[balance-sync] SKIPPED duplicate sync for gameId=' + gameId);
+        return;
+      }
+      
+      // Mark this gameId as synced (prevent duplicate calls from rerenders / WS retries)
+      const updatedSyncedIds = new Set(state._syncedGameIds);
+      updatedSyncedIds.add(gameId);
+      set({ _syncedGameIds: updatedSyncedIds });
+      
+      console.log(`[balance-sync] gameId=${gameId} started, reason=${reason}, delta=${creditsChange}`);
+      
+      // Step 1: Optimistically apply the known delta immediately
+      if (creditsChange !== 0 && state.profile) {
+        const newBalance = Math.max(0, state.profile.skilled_coins + creditsChange);
+        console.log(`[balance-sync] optimistic delta applied: ${state.profile.skilled_coins} + (${creditsChange}) = ${newBalance}`);
+        
+        set({
+          profile: {
+            ...state.profile,
+            skilled_coins: newBalance,
+          },
+          cachedSkilledCoins: newBalance,
+        });
+        
+        // Cross-sync to legacy balanceStore (used by some /chess page components)
+        useBalanceStore.getState().setBalance(newBalance);
+        
+        // Update cache
+        if (state.userId) {
+          setCachedData({
+            userId: state.userId,
+            skilledCoins: newBalance,
+            timestamp: Date.now(),
+          });
+        }
+      }
+      
+      // Step 2: Do ONE authoritative refresh from Supabase (bypasses throttle)
+      // Delayed slightly to let DB settle after the server's end_game call
+      const userId = state.userId;
+      if (!userId) {
+        console.log('[balance-sync] no userId, skipping authoritative refresh');
+        return;
+      }
+      
+      setTimeout(async () => {
+        try {
+          console.log(`[balance-sync] gameId=${gameId} refreshing from supabase...`);
+          trackQuery('profiles', 'select');
+          
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('user_id, skilled_coins, total_wagered_sc, display_name, email')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (error) {
+            console.error('[balance-sync] refresh error:', error);
+            return;
+          }
+          
+          if (data) {
+            const profile: UserProfile = {
+              user_id: data.user_id,
+              skilled_coins: data.skilled_coins ?? 0,
+              total_wagered_sc: data.total_wagered_sc ?? 0,
+              display_name: data.display_name,
+              email: data.email,
+            };
+            
+            setCachedData({
+              userId,
+              skilledCoins: profile.skilled_coins,
+              timestamp: Date.now(),
+            });
+            
+            set({
+              profile,
+              cachedSkilledCoins: profile.skilled_coins,
+              loading: false,
+              lastFetchTime: Date.now(),
+            });
+            
+            // Cross-sync to legacy balanceStore
+            useBalanceStore.getState().setBalance(profile.skilled_coins);
+            
+            console.log(`[balance-sync] gameId=${gameId} refreshed from supabase, balance=${profile.skilled_coins}`);
+          }
+        } catch (err) {
+          console.error('[balance-sync] unexpected error:', err);
+        }
+      }, 500); // 500ms delay to let DB commit settle
+    },
+    
     _setupSubscription: (userId: string) => {
       const state = get();
       
@@ -392,6 +478,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         lastFetchTime: null,
         cachedSkilledCoins: null,
         subscription: null,
+        _syncedGameIds: new Set<string>(),
       });
       
       console.log('[UserDataStore] Reset complete');
@@ -402,27 +489,39 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
 /**
  * Hook for components to read user data
  * This is a convenience wrapper - components should use this instead of direct store access
+ * Uses individual selectors to prevent unnecessary re-renders
  */
 export function useUserData() {
-  const store = useUserDataStore();
+  // Use individual selectors to avoid creating new objects
+  const profile = useUserDataStore(state => state.profile);
+  const loading = useUserDataStore(state => state.loading);
+  const error = useUserDataStore(state => state.error);
+  const cachedSkilledCoins = useUserDataStore(state => state.cachedSkilledCoins);
+  const refresh = useUserDataStore(state => state.refresh);
+  const applyBalanceDelta = useUserDataStore(state => state.applyBalanceDelta);
+  
+  // Compute derived values
+  const skilledCoins = profile?.skilled_coins ?? cachedSkilledCoins ?? null;
+  const totalWageredSc = profile?.total_wagered_sc ?? 0;
+  const displayName = profile?.display_name ?? null;
   
   return {
     // Balance
-    skilledCoins: store.skilledCoins,
-    balance: store.skilledCoins ?? 0,
+    skilledCoins,
+    balance: skilledCoins ?? 0,
     
     // Profile
-    totalWageredSc: store.totalWageredSc,
-    displayName: store.displayName,
-    profile: store.profile,
+    totalWageredSc,
+    displayName,
+    profile,
     
     // Loading states
-    isLoading: store.loading,
-    isReady: store.profile !== null,
-    error: store.error,
+    isLoading: loading,
+    isReady: profile !== null,
+    error,
     
     // Actions
-    refresh: store.refresh,
-    applyBalanceDelta: store.applyBalanceDelta,
+    refresh,
+    applyBalanceDelta,
   };
 }

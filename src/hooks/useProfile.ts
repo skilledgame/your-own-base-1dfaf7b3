@@ -11,20 +11,16 @@
 import { useUserDataStore } from '@/stores/userDataStore';
 
 export function useProfile() {
-  const store = useUserDataStore();
+  // Use individual selectors to prevent infinite re-renders
+  const profile = useUserDataStore(state => state.profile);
+  const loading = useUserDataStore(state => state.loading);
+  const error = useUserDataStore(state => state.error);
+  const refresh = useUserDataStore(state => state.refresh);
   
-  // Get values from centralized store
-  const profile = store.profile;
-  const loading = store.loading;
-  const error = store.error;
-  
-  // Derived values
+  // Compute derived values
   const skilledCoins = profile?.skilled_coins ?? 0;
   const totalWageredSc = profile?.total_wagered_sc ?? 0;
   const displayName = profile?.display_name ?? null;
-  
-  // Throttled refresh (min 30s between calls)
-  const refresh = store.refresh;
   
   return {
     profile,

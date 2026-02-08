@@ -99,6 +99,7 @@ export const WSMultiplayerGameView = ({
   const [timerTick, setTimerTick] = useState(0);
   
   // Calculate effective time from server snapshot (only for WebSocket games)
+  // Uses performance.now() (monotonic, client-local) to avoid clock drift between server and client
   const { whiteTime, blackTime } = useMemo(() => {
     if (isPrivateGame) {
       return {
@@ -115,9 +116,9 @@ export const WSMultiplayerGameView = ({
       };
     }
     
-    const nowMs = Date.now();
-    const elapsedMs = nowMs - timerSnapshot.serverTimeMs;
-    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    // Use performance.now() for smooth, drift-free countdown
+    const elapsedMs = performance.now() - timerSnapshot.clientPerfNowMs;
+    const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
     
     let whiteTime = timerSnapshot.whiteTimeSeconds;
     let blackTime = timerSnapshot.blackTimeSeconds;
@@ -218,12 +219,10 @@ export const WSMultiplayerGameView = ({
     timerIntervalRef.current = setInterval(() => {
       setTimerTick((tick) => tick + 1);
 
-      // Check for time loss (calculated from snapshot)
-      // Only check if we have a valid snapshot
-      if (timerSnapshot && timerSnapshot.serverTimeMs > 0) {
-        const nowMs = Date.now();
-        const elapsedMs = nowMs - timerSnapshot.serverTimeMs;
-        const elapsedSeconds = Math.floor(elapsedMs / 1000);
+      // Check for time loss (calculated from snapshot using performance.now for consistency)
+      if (timerSnapshot && timerSnapshot.clientPerfNowMs > 0) {
+        const elapsedMs = performance.now() - timerSnapshot.clientPerfNowMs;
+        const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
         
         if (timerSnapshot.currentTurn === 'w') {
           const remaining = timerSnapshot.whiteTimeSeconds - elapsedSeconds;
