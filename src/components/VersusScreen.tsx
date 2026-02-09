@@ -74,7 +74,7 @@ export function VersusScreen({
   return (
     <div
       className={cn(
-        'fixed inset-0 z-[100] flex items-center justify-center overflow-hidden pointer-events-none',
+        'fixed inset-0 z-[200] flex items-center justify-center overflow-hidden pointer-events-none',
         'transition-opacity duration-500',
         phase === 0 && 'opacity-0',
         phase >= 1 && phase < 3 && 'opacity-100',

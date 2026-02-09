@@ -1,19 +1,42 @@
 /**
  * FullScreenLoaderOverlay
  * 
- * Minimal blank loading overlay: site background + centered spinner.
+ * Global overlay that renders on top of the entire app.
+ * Two modes:
+ *   - "spinner" (default): site background + centered spinning loader
+ *   - "versus": the dramatic Player VS Opponent animation
+ *
  * Controlled by the global uiLoadingStore.
- * No text, no icons, no drama — just a clean loading state.
  */
 
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
+import { VersusScreen } from '@/components/VersusScreen';
 import { Loader2 } from 'lucide-react';
 
 export function FullScreenLoaderOverlay() {
   const isLoading = useUILoadingStore((s) => s.isLoading);
+  const mode = useUILoadingStore((s) => s.mode);
+  const versusData = useUILoadingStore((s) => s.versusData);
+  const hideLoading = useUILoadingStore((s) => s.hideLoading);
 
   if (!isLoading) return null;
 
+  // ── Versus mode ──
+  if (mode === "versus" && versusData) {
+    return (
+      <VersusScreen
+        playerName={versusData.playerName}
+        opponentName={versusData.opponentName}
+        playerColor={versusData.playerColor}
+        wager={versusData.wager}
+        playerRank={versusData.playerRank}
+        opponentRank={versusData.opponentRank}
+        onComplete={hideLoading}
+      />
+    );
+  }
+
+  // ── Spinner mode (default) ──
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#0a0f1a]">
       {/* Subtle background pulse */}

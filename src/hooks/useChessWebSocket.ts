@@ -241,7 +241,15 @@ function initializeGlobalMessageHandler(): void {
           wager,
         });
         
-        // VersusScreen removed — no longer setting versusScreenPending
+        // Show "Versus" overlay — the VersusScreen animation plays inside
+        // the global FullScreenLoaderOverlay until onComplete fires.
+        useUILoadingStore.getState().showVersus({
+          playerName: store.playerName || "You",
+          opponentName,
+          playerColor: color === "w" ? "white" : "black",
+          wager,
+          // Ranks will be patched in by LiveGame once fetched
+        });
         
         // Only show match found toast for admin users
         if (isAdminCallback && isAdminCallback()) {
@@ -395,8 +403,18 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as GameEndedMessage;
         const currentState = useChessStore.getState();
         
-        // Hide global loading overlay (safety net)
+        console.log("[resign] game_end received", { reason: payload.reason, winnerColor: payload.winnerColor, timestamp: new Date().toISOString() });
+        
+        // Clear resign fallback timeout (if any)
+        if ((window as any).__resignTimeoutId) {
+          clearTimeout((window as any).__resignTimeoutId);
+          (window as any).__resignTimeoutId = null;
+          console.log("[resign] timeout cleared (game_end arrived in time)");
+        }
+        
+        // ALWAYS hide global loading/transition overlay on game end
         useUILoadingStore.getState().hideLoading();
+        console.log("[resign] overlay hidden");
         
         // PART B: Reset navigation guard so next game can navigate
         navigatedToGameId = null;
@@ -551,6 +569,9 @@ function initializeGlobalMessageHandler(): void {
       case "opponent_left": {
         const payload = msg as unknown as OpponentLeftMessage;
         console.log("[Chess WS]", clientId, "Opponent left:", payload);
+        
+        // ALWAYS hide loading/transition overlay
+        useUILoadingStore.getState().hideLoading();
         
         wsClient.setSearching(false);
         wsClient.setInGame(false);
@@ -1054,7 +1075,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     const currentGameState = currentState.gameState;
     const wsStatus = wsClient.getStatus();
     
-    console.log("[Client] RESIGN clicked", {
+    console.log("[resign] clicked", {
       gameId: currentGameState?.gameId || 'unknown',
       dbGameId: currentGameState?.dbGameId || 'unknown',
       userId: currentState.playerName || 'unknown',
@@ -1069,23 +1090,27 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     
     // Idempotent: if game already ended, do nothing
     if (currentState.phase === "game_over") {
-      console.log("[Client] RESIGN - Game already ended, resign is no-op");
+      console.log("[resign] Game already ended, resign is no-op");
       return;
     }
     
     if (!currentGameState) {
-      console.warn("[Client] RESIGN - Cannot resign - no game state");
-      // Only show for admin users
+      console.warn("[resign] Cannot resign - no game state");
       if (isAdminCallback && isAdminCallback()) {
         toast.error("Cannot resign - no active game");
       }
       return;
     }
     
+    // ── IMMEDIATELY show loading overlay BEFORE any WS call ──
+    // This prevents any intermediate UI/route from rendering.
+    useUILoadingStore.getState().showLoading();
+    console.log("[resign] overlay shown (spinner)");
+    
     // Check if WS is connected
     if (wsStatus !== "connected") {
-      console.warn("[Client] RESIGN - WebSocket not connected, status:", wsStatus);
-      // Only show for admin users
+      console.warn("[resign] WebSocket not connected, status:", wsStatus);
+      useUILoadingStore.getState().hideLoading();
       if (isAdminCallback && isAdminCallback()) {
         toast.error("Not connected to server. Please reconnect.");
       }
@@ -1098,16 +1123,31 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       dbGameId: currentGameState.dbGameId,
     };
 
-    console.log("[Client] RESIGN payload being sent", payload);
+    console.log("[resign] ws sent", payload);
     try {
       wsClient.send(payload);
     } catch (error) {
-      console.error("[Client] RESIGN - Error sending resign:", error);
-      // Only show for admin users
+      console.error("[resign] Error sending resign:", error);
+      useUILoadingStore.getState().hideLoading();
       if (isAdminCallback && isAdminCallback()) {
         toast.error("Failed to send resign request");
       }
+      return;
     }
+    
+    // ── Fallback timeout: if no game_ended arrives within 7s, bail out ──
+    const resignTimeoutId = setTimeout(() => {
+      const storeState = useChessStore.getState();
+      // If still in_game (no game_ended arrived), clear overlay and show error
+      if (storeState.phase === "in_game") {
+        console.warn("[resign] timeout fallback fired — no game_end received within 7s");
+        useUILoadingStore.getState().hideLoading();
+        toast.error("Resign request timed out. Please try again.");
+      }
+    }, 7000);
+    
+    // Store the timeout ID so game_ended can clear it
+    (window as any).__resignTimeoutId = resignTimeoutId;
   }, []);
 
   const syncGame = useCallback(() => {

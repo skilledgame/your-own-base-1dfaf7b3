@@ -111,16 +111,25 @@ export default function LiveGame() {
   });
 
   const handleBack = () => {
-    // If in game, resign first
+    // If in game, resign first — DO NOT navigate immediately.
+    // The resign sends WS, shows overlay, and game_ended will trigger the result modal.
+    // Navigating here would cause route flicker.
     if (phase === "in_game") {
+      console.log("[resign] handleBack: resigning (no navigate, wait for game_end)");
       resignGame();
+      return; // Don't navigate — overlay is shown, game_ended will handle it
     }
     navigate('/');
   };
 
   const handleExit = () => {
-    // Resign and go back to matchmaking
-    resignGame();
+    // Resign — DO NOT navigate immediately.
+    // The overlay is shown by resignGame(). game_ended → result modal.
+    if (phase === "in_game") {
+      console.log("[resign] handleExit: resigning (no navigate, wait for game_end)");
+      resignGame();
+      return; // Don't navigate — overlay is shown, game_ended will handle it
+    }
     navigate('/quick-play');
   };
 
@@ -420,11 +429,18 @@ export default function LiveGame() {
 
   // Hide the global loading overlay once the game is ready to render
   // This covers: matchmaking flow, reconnect flow, private game join
+  // NOTE: If the overlay is in "versus" mode, do NOT auto-hide — VersusScreen's
+  // onComplete callback will call hideLoading() when its animation finishes.
   const gameReadyRef = useRef(false);
   useEffect(() => {
     if (gameState && phase === 'in_game' && !gameReadyRef.current) {
       gameReadyRef.current = true;
-      hideLoading();
+      const uiState = useUILoadingStore.getState();
+      if (uiState.mode !== "versus") {
+        // Spinner mode: hide immediately once board is ready
+        hideLoading();
+      }
+      // Versus mode: VersusScreen.onComplete() will handle hideLoading
     }
     // Reset if game ends or state clears, so next game can show/hide properly
     if (!gameState || phase !== 'in_game') {
