@@ -90,6 +90,8 @@ export const WSMultiplayerGameView = ({
   
   // Get timer snapshot from store (server-authoritative for WebSocket games)
   const timerSnapshot = useChessStore((state) => state.timerSnapshot);
+  // Read premove from store for the "Premove set" indicator
+  const premove = useChessStore((state) => state.premove);
   
   // Sound effects (must be declared before the display clock effect that uses playGameEnd)
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
@@ -521,10 +523,18 @@ export const WSMultiplayerGameView = ({
                 ♟ Your Move
               </span>
             ) : (
-              <span className="text-muted-foreground flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Waiting for {opponentName}...
-              </span>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-muted-foreground flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Waiting for {opponentName}...
+                </span>
+                {/* Premove set indicator */}
+                {premove && (
+                  <span className="text-xs font-medium text-red-400 animate-pulse">
+                    Premove set · click piece to cancel
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

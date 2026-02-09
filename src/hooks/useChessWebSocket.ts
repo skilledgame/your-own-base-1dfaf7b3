@@ -355,6 +355,34 @@ function initializeGlobalMessageHandler(): void {
           if (payload.status === "ended") {
             console.log("[Chess WS] Sync shows game already ended");
             store.clearTimerSnapshot();
+            store.clearPremove();
+          }
+          
+          // PREMOVE: Also attempt premove execution on game_sync (safety net for reconnect)
+          const syncState = useChessStore.getState();
+          const syncMyColor = syncState.gameState?.color;
+          const syncIsMyTurn = syncMyColor === payload.turn;
+          const syncPremove = syncState.premove;
+          
+          if (syncIsMyTurn && syncPremove && syncState.phase === "in_game" && payload.status !== "ended") {
+            console.log("[Chess WS] PREMOVE (game_sync): Turn is ours, attempting premove:", syncPremove);
+            try {
+              const syncTestChess = new Chess(payload.fen);
+              const syncMoveResult = syncTestChess.move({
+                from: syncPremove.from,
+                to: syncPremove.to,
+                promotion: syncPremove.promotion || 'q',
+              });
+              if (syncMoveResult) {
+                const syncUci = `${syncPremove.from.toLowerCase()}${syncPremove.to.toLowerCase()}${syncPremove.promotion ? syncPremove.promotion.toLowerCase() : ""}`;
+                wsClient.send({ type: "move", move: syncUci });
+              } else {
+                console.log("[Chess WS] PREMOVE (game_sync): Invalid, discarding");
+              }
+            } catch (e) {
+              console.log("[Chess WS] PREMOVE (game_sync): Error, discarding:", e);
+            }
+            store.clearPremove();
           }
         }
         break;
@@ -675,6 +703,9 @@ function initializeGlobalMessageHandler(): void {
         const reconnGameId: string = payload.gameId ?? '';
         const reconnDbGameId: string = payload.dbGameId ?? '';
         const reconnWager: number = payload.wager ?? 0;
+
+        // Clear any stale premove from before the disconnect
+        store.clearPremove();
 
         // Update or create game state
         if (store.gameState && store.gameState.gameId === reconnGameId) {
