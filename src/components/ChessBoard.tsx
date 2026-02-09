@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Chess, Square as ChessSquare, Move } from 'chess.js';
 import { cn } from '@/lib/utils';
 import { PIECE_SYMBOLS, FILES, RANKS } from '@/lib/chessConstants';
@@ -61,6 +61,34 @@ const ChessBoardComponent = ({
   }, [flipped]);
 
   const playerColor = flipped ? 'b' : 'w';
+
+  // ─── PREMOVE TARGET VALIDATION ──────────────────────────────────────
+  // Compute legal squares for the premove-selected piece by temporarily
+  // flipping the side-to-move in the FEN.  This ensures the user can only
+  // queue premoves to squares the piece can actually reach.
+  const currentFen = game.fen();
+
+  const premoveTargets = useMemo<string[]>(() => {
+    if (!premoveSelectedSquare) return [];
+    try {
+      const fenParts = currentFen.split(' ');
+      fenParts[1] = playerColor; // force player's turn
+      const tempChess = new Chess(fenParts.join(' '));
+      const moves = tempChess.moves({ square: premoveSelectedSquare as ChessSquare, verbose: true });
+      return moves.map(m => m.to);
+    } catch {
+      return [];
+    }
+  }, [premoveSelectedSquare, currentFen, playerColor]);
+
+  // Subset of premoveTargets that are captures (opponent piece sits there now)
+  const premoveCaptureTargets = useMemo<string[]>(() => {
+    if (!premoveSelectedSquare || premoveTargets.length === 0) return [];
+    return premoveTargets.filter(sq => {
+      const p = game.get(sq as ChessSquare);
+      return p && p.color !== playerColor;
+    });
+  }, [premoveTargets, premoveSelectedSquare, game, playerColor]);
 
   // Clear selection when game ends
   useEffect(() => {
@@ -171,15 +199,17 @@ const ChessBoardComponent = ({
         }
       }
     } else if (enablePremove) {
-      // ── Premove via drag ──
-      setPremove({ from: dragFrom, to: toSquare, promotion });
+      // ── Premove via drag — only if target is a valid premove square ──
+      if (premoveTargets.includes(toSquare)) {
+        setPremove({ from: dragFrom, to: toSquare, promotion });
+      }
       setPremoveSelectedSquare(null);
     }
 
     setDragFrom(null);
     setSelectedSquare(null);
     setValidMoves([]);
-  }, [dragFrom, isPlayerTurn, game, flipped, onMove, enablePremove, getSquareNotation, playerColor, clearPremove, setPremove, onMoveSound, onCaptureSound]);
+  }, [dragFrom, isPlayerTurn, game, flipped, onMove, enablePremove, getSquareNotation, playerColor, clearPremove, setPremove, onMoveSound, onCaptureSound, premoveTargets]);
 
   const handleDragEnd = useCallback(() => {
     setDragFrom(null);
@@ -218,8 +248,14 @@ const ChessBoardComponent = ({
         clearPremove();
         return;
       }
+
+      // ── Only allow premove to a valid target square ──
+      if (!premoveTargets.includes(square)) {
+        // Clicked an unreachable square → ignore (keep selection)
+        return;
+      }
       
-      // Clicking on empty square or opponent's piece - complete the premove
+      // Clicking on valid target – complete the premove
       const movingPiece = game.get(premoveSelectedSquare as ChessSquare);
       
       // Check for pawn promotion
@@ -394,6 +430,9 @@ const ChessBoardComponent = ({
             // Premove highlighting – RED chess.com style
             const isPremoveSquare = isPremoveFrom === square || isPremoveTo === square;
             const isPremoveSelecting = isPremoveSelected === square;
+            // Valid premove target dots (shown while selecting premove piece)
+            const isPremoveTarget = premoveSelectedSquare !== null && premoveTargets.includes(square);
+            const isPremoveCaptureTarget = premoveSelectedSquare !== null && premoveCaptureTargets.includes(square);
 
             return (
               <div
@@ -424,17 +463,17 @@ const ChessBoardComponent = ({
                   isGameOver && "cursor-not-allowed opacity-90"
                 )}
               >
-                {/* Valid move indicator (non-capture) */}
+                {/* ── Normal turn: valid move indicator (non-capture dot) ── */}
                 {isValidMove && !piece && !isCaptureMove && (
                   <div className="absolute w-4 h-4 rounded-full bg-primary/40 animate-pulse" />
                 )}
                 
-                {/* Valid move indicator for non-capture squares with pieces */}
+                {/* Normal turn: valid move indicator for squares with pieces */}
                 {isValidMove && piece && !isCaptureMove && (
                   <div className="absolute inset-1 rounded-full border-4 border-primary/50 animate-pulse" />
                 )}
                 
-                {/* Capture indicator - Red X overlay */}
+                {/* Normal turn: capture indicator - Red X overlay */}
                 {isCaptureMove && (
                   <>
                     <div className="absolute inset-0 bg-red-500/20 z-10" />
@@ -442,6 +481,15 @@ const ChessBoardComponent = ({
                       <X className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-red-500/70 stroke-[3]" />
                     </div>
                   </>
+                )}
+
+                {/* ── Premove: valid target dots (shown while selecting piece) ── */}
+                {isPremoveTarget && !isPremoveCaptureTarget && !piece && (
+                  <div className="absolute w-4 h-4 rounded-full bg-red-500/50" />
+                )}
+                {/* Premove: capture ring around opponent pieces */}
+                {isPremoveCaptureTarget && (
+                  <div className="absolute inset-1 rounded-full border-4 border-red-500/50" />
                 )}
 
                 {/* Piece – supports drag for both normal moves and premoves */}
@@ -466,13 +514,6 @@ const ChessBoardComponent = ({
                   >
                     {PIECE_SYMBOLS[`${piece.color}${piece.type}`]}
                   </span>
-                )}
-
-                {/* Premove indicator: small red dot on from & to squares */}
-                {isPremoveSquare && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                    <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-lg shadow-red-500/50" />
-                  </div>
                 )}
 
                 {/* Coordinate labels */}
