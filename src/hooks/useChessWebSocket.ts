@@ -83,17 +83,18 @@ function buildTimerSnapshot(payload: any, fallbackTurn: 'w' | 'b' = 'w'): import
   const bMs = payload.bMs ?? ((payload.blackTime ?? 60) * 1000);
   const turn: 'w' | 'b' = payload.turn ?? payload.currentTurn ?? fallbackTurn;
   const clockRunning = payload.clockRunning === true;
-  const serverNowMs = payload.serverNow ?? payload.serverTimeMs ?? Date.now();
-  const lastMoveAtMs = payload.lastMoveAt ?? null;
+  const serverNow = payload.serverNow ?? payload.serverTimeMs ?? Date.now();
+  const lastTurnStartedAt = payload.lastMoveAt ?? null;
+  const clientNow = Date.now();
 
   return {
     wMs,
     bMs,
     turn,
     clockRunning,
-    serverNowMs,
-    lastMoveAtMs,
-    receivedAtPerfMs: performance.now(),
+    serverNow,
+    lastTurnStartedAt,
+    serverTimeOffsetMs: serverNow - clientNow,
   };
 }
 
@@ -616,15 +617,16 @@ function initializeGlobalMessageHandler(): void {
         break;
       }
       
+      case "clock_snapshot":
       case "clock_update": {
-        // Server sends 1 Hz clock sync. Only apply if local clock has drifted
-        // significantly (>1500ms) from the server, or if clockRunning state changed.
+        // Server sends clock snapshots: 1Hz periodic sync + explicit sync responses.
+        // Always accept if no local snapshot, or if clockRunning/turn changed.
+        // Otherwise, drift-check: only apply if local estimate drifted >500ms from server.
         const payload = msg as any;
         const incomingSnapshot = buildTimerSnapshot(payload);
         const currentSnapshot = store.timerSnapshot;
 
         if (!currentSnapshot) {
-          // No local snapshot — accept server values unconditionally
           store.updateTimerSnapshot(incomingSnapshot);
           break;
         }
@@ -635,28 +637,29 @@ function initializeGlobalMessageHandler(): void {
           break;
         }
 
-        // If turn changed (should already be handled by move_applied, but safety net)
+        // If turn changed (safety net — should already be handled by move_applied)
         if (currentSnapshot.turn !== incomingSnapshot.turn) {
           store.updateTimerSnapshot(incomingSnapshot);
           break;
         }
 
-        // Drift check: compute local estimated remaining ms for active side
+        // Drift check using server time offset
         if (currentSnapshot.clockRunning) {
-          const elapsed = performance.now() - currentSnapshot.receivedAtPerfMs;
+          const serverNowEstimate = Date.now() + currentSnapshot.serverTimeOffsetMs;
+          const elapsedSinceSnapshot = Math.max(0, serverNowEstimate - currentSnapshot.serverNow);
           const localActiveMs = currentSnapshot.turn === 'w'
-            ? currentSnapshot.wMs - elapsed
-            : currentSnapshot.bMs - elapsed;
+            ? currentSnapshot.wMs - elapsedSinceSnapshot
+            : currentSnapshot.bMs - elapsedSinceSnapshot;
           const serverActiveMs = incomingSnapshot.turn === 'w'
             ? incomingSnapshot.wMs
             : incomingSnapshot.bMs;
           const driftMs = Math.abs(localActiveMs - serverActiveMs);
 
-          // Only correct if drifted more than 1.5 seconds
-          if (driftMs > 1500) {
+          // Only correct if drifted more than 500ms
+          if (driftMs > 500) {
             store.updateTimerSnapshot(incomingSnapshot);
           }
-          // else: local clock is close enough — skip update to avoid jumps
+          // else: close enough — skip update to avoid visual jumps
         }
         break;
       }

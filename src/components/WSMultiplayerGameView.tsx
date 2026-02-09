@@ -29,6 +29,7 @@ import { useChessSound } from '@/hooks/useChessSound';
 import { supabase } from '@/integrations/supabase/client';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 import { useChessStore } from '@/stores/chessStore';
+import { wsClient } from '@/lib/wsClient';
 
 interface WSMultiplayerGameViewProps {
   gameId: string;
@@ -114,6 +115,8 @@ export const WSMultiplayerGameView = ({
   const [displayBlackSec, setDisplayBlackSec] = useState(CHESS_TIME_CONTROL.BASE_TIME);
   
   // Display clock tick (runs every 200ms for responsive countdown + time-loss detection)
+  // IMPORTANT: Elapsed is computed in SERVER time (Date.now() + serverTimeOffsetMs)
+  // so the display stays correct even after alt-tab / background throttling.
   useEffect(() => {
     if (isPrivateGame || isGameOver) {
       // For private games, derive from props
@@ -134,8 +137,10 @@ export const WSMultiplayerGameView = ({
       let bMs = snap.bMs;
       
       if (snap.clockRunning) {
-        // Subtract elapsed since we received this snapshot
-        const elapsed = performance.now() - snap.receivedAtPerfMs;
+        // Compute elapsed in SERVER time since this snapshot was created
+        // serverNowEstimate = Date.now() + serverTimeOffsetMs ≈ current server time
+        const serverNowEstimate = Date.now() + snap.serverTimeOffsetMs;
+        const elapsed = Math.max(0, serverNowEstimate - snap.serverNow);
         if (snap.turn === 'w') {
           wMs = Math.max(0, wMs - elapsed);
         } else {
@@ -173,6 +178,34 @@ export const WSMultiplayerGameView = ({
       }
     };
   }, [isPrivateGame, isGameOver, propWhiteTime, propBlackTime, playGameEnd, onTimeLoss]);
+  
+  // Alt-tab / focus resync: request fresh clock snapshot from server
+  // when the tab becomes visible or window regains focus.
+  useEffect(() => {
+    if (isPrivateGame || isGameOver) return;
+    
+    const requestSync = () => {
+      const state = useChessStore.getState();
+      const currentGameId = state.gameState?.gameId;
+      if (currentGameId && wsClient.getStatus() === 'connected') {
+        wsClient.send({ type: "clock_sync_request", gameId: currentGameId });
+      }
+    };
+    
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        requestSync();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', requestSync);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', requestSync);
+    };
+  }, [isPrivateGame, isGameOver]);
   
   // Final displayed times (seconds)
   const whiteTime = displayWhiteSec;

@@ -72,6 +72,16 @@ export interface SyncGameMessage {
   gameId: string;
 }
 
+/**
+ * Request a fresh clock snapshot from the server.
+ * Sent on tab focus / visibility change for alt-tab correctness.
+ * Server responds with ClockSnapshotMessage (no DB calls needed).
+ */
+export interface ClockSyncRequestMessage {
+  type: "clock_sync_request";
+  gameId: string;
+}
+
 // All outbound message types
 export type OutboundMessage =
   | FindMatchMessage
@@ -79,7 +89,8 @@ export type OutboundMessage =
   | MoveMessage
   | ResignMessage
   | LeaveGameMessage
-  | SyncGameMessage;
+  | SyncGameMessage
+  | ClockSyncRequestMessage;
 
 // ============ Inbound Messages ============
 
@@ -208,6 +219,22 @@ export interface OpponentLeftMessage {
 }
 
 /**
+ * Clock snapshot - server-authoritative clock state.
+ * Sent on join, move, 1Hz sync, and in response to clock_sync_request.
+ * Client uses serverNow + offset to derive display clock locally.
+ */
+export interface ClockSnapshotMessage {
+  type: "clock_snapshot";
+  gameId: string;
+  wMs: number;
+  bMs: number;
+  turn: "w" | "b";
+  clockRunning: boolean;
+  serverNow: number;
+  lastMoveAt: number | null;
+}
+
+/**
  * Error - something went wrong
  */
 export interface ErrorMessage {
@@ -223,6 +250,7 @@ export type InboundMessage =
   | MatchFoundMessage
   | MoveAppliedMessage
   | GameSyncMessage
+  | ClockSnapshotMessage
   | GameEndedMessage
   | OpponentLeftMessage
   | ErrorMessage

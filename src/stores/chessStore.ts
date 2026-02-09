@@ -18,12 +18,17 @@ export interface TimerSnapshot {
   turn: 'w' | 'b';
   /** False until the first move is made; when false, clocks are frozen */
   clockRunning: boolean;
-  /** Server's Date.now() when snapshot was created */
-  serverNowMs: number;
+  /** Server's Date.now() when this snapshot was created */
+  serverNow: number;
   /** Server timestamp when current turn began (null before first move) */
-  lastMoveAtMs: number | null;
-  /** Client's performance.now() when this snapshot was received — monotonic, drift-free */
-  receivedAtPerfMs: number;
+  lastTurnStartedAt: number | null;
+  /**
+   * Estimated offset between server and client clocks:
+   *   serverTimeOffsetMs = serverNow - clientDateNowAtReceipt
+   * Use: serverNowEstimate = Date.now() + serverTimeOffsetMs
+   * This keeps the display tied to SERVER time, not client time.
+   */
+  serverTimeOffsetMs: number;
 }
 
 export type GamePhase = "idle" | "searching" | "in_game" | "game_over";
