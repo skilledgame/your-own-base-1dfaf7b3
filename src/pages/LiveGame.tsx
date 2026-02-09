@@ -422,12 +422,23 @@ export default function LiveGame() {
   }, []);
 
   // ── Trigger VS screen when gameState first appears for a new game ──
+  // Uses a hard safety timeout so the overlay is ALWAYS removed, even if
+  // the VersusScreen onComplete callback somehow doesn't fire.
+  const versusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (gameState && phase === 'in_game' && versusShownForRef.current !== gameState.gameId) {
       versusShownForRef.current = gameState.gameId;
       setShowVersusScreen(true);
+
+      // Hard safety: force-dismiss after 4s no matter what
+      if (versusTimerRef.current) clearTimeout(versusTimerRef.current);
+      versusTimerRef.current = setTimeout(() => setShowVersusScreen(false), 4000);
     }
-  }, [gameState, phase]);
+    return () => {
+      if (versusTimerRef.current) clearTimeout(versusTimerRef.current);
+    };
+  }, [gameState?.gameId, phase]);
 
   // Loading state (connecting or loading game)
   // All games now use WebSocket, so check WS status

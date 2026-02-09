@@ -10,7 +10,7 @@
  *   2800   → onComplete() fires → overlay removed
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PIECE_SYMBOLS } from '@/lib/chessConstants';
@@ -51,15 +51,19 @@ export function VersusScreen({
   // Animation phase: 0→hidden  1→slide-in  2→VS flash  3→fade-out
   const [phase, setPhase] = useState(0);
 
-  const stableComplete = useCallback(onComplete, [onComplete]);
+  // Store onComplete in a ref so the effect never re-runs due to callback identity changes.
+  // This was the root cause of the freeze: inline () => setState(...) changed every render,
+  // which reset all timers, so the animation never progressed and the overlay never dismissed.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase(1), 100);
     const t2 = setTimeout(() => setPhase(2), 700);
     const t3 = setTimeout(() => setPhase(3), 2200);
-    const t4 = setTimeout(() => stableComplete(), 2800);
+    const t4 = setTimeout(() => onCompleteRef.current(), 2800);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
-  }, [stableComplete]);
+  }, []); // no deps — runs exactly once on mount
 
   const isWhite = playerColor === 'white';
 
@@ -70,7 +74,7 @@ export function VersusScreen({
   return (
     <div
       className={cn(
-        'fixed inset-0 z-[100] flex items-center justify-center overflow-hidden',
+        'fixed inset-0 z-[100] flex items-center justify-center overflow-hidden pointer-events-none',
         'transition-opacity duration-500',
         phase === 0 && 'opacity-0',
         phase >= 1 && phase < 3 && 'opacity-100',
