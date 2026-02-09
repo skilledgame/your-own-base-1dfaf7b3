@@ -10,6 +10,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
+import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 import { LogoLink } from '@/components/LogoLink';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ export default function PrivateGameLobby() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { balance } = useBalance();
+  const { showLoading: globalShowLoading, hideLoading: globalHideLoading } = useUILoadingStore();
 
   const [loading, setLoading] = useState(true);
   const [room, setRoom] = useState<RoomData | null>(null);
@@ -161,15 +163,15 @@ export default function PrivateGameLobby() {
     };
   }, [roomId, joiner, fetchRoom]);
 
-  // PART B: When room status becomes 'started', navigate IMMEDIATELY (no countdown)
-  // The old 3-second countdown added unnecessary delay. Navigate directly to game.
+  // When room status becomes 'started', show overlay and navigate immediately
   useEffect(() => {
     if (room?.status === 'started' && room?.game_id && !starting) {
       setStarting(true);
+      globalShowLoading(); // Overlay until LiveGame renders the board
       console.log('[Lobby] Game started, navigating immediately to:', room.game_id);
       navigate(`/game/live/${room.game_id}`);
     }
-  }, [room?.status, room?.game_id, starting, navigate]);
+  }, [room?.status, room?.game_id, starting, navigate, globalShowLoading]);
 
   // Toggle ready state
   const handleToggleReady = async () => {
@@ -203,10 +205,10 @@ export default function PrivateGameLobby() {
   };
 
   // Start game — call RPC to set status='started', which triggers Realtime for BOTH players
-  // PART B: Navigate immediately after RPC returns, no countdown delay
   const handleStartGame = async () => {
     if (!room?.game_id || !bothReady || starting) return;
     setStarting(true);
+    globalShowLoading(); // Overlay during start
 
     try {
       const { data, error } = await supabase.rpc('start_private_game', { p_room_id: roomId });
@@ -214,21 +216,24 @@ export default function PrivateGameLobby() {
       if (error) {
         console.error('[Lobby] Failed to start game:', error);
         setStarting(false);
+        globalHideLoading();
         return;
       }
 
       if (!data?.success) {
         console.error('[Lobby] Start game RPC failed:', data?.error);
         setStarting(false);
+        globalHideLoading();
         return;
       }
 
-      // Navigate immediately (other player's nav starts via Realtime → room.status watcher above)
+      // Navigate immediately — overlay stays until LiveGame renders the board
       console.log('[Lobby] Start game RPC succeeded, navigating to:', room.game_id);
       navigate(`/game/live/${room.game_id}`);
     } catch (err) {
       console.error('[Lobby] Start game exception:', err);
       setStarting(false);
+      globalHideLoading();
     }
   };
 
@@ -261,16 +266,18 @@ export default function PrivateGameLobby() {
     navigate('/chess');
   };
 
-  // Loading state
+  // Show global overlay while loading, hide once loaded
+  useEffect(() => {
+    if (loading) {
+      globalShowLoading();
+    } else {
+      globalHideLoading();
+    }
+  }, [loading, globalShowLoading, globalHideLoading]);
+
+  // Loading state — global overlay handles it
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
-          <p className="text-white/60">Loading lobby...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   if (!room) {
@@ -450,10 +457,9 @@ export default function PrivateGameLobby() {
             )}
 
             {myReady && !opponentReady && (
-              <p className="text-white/40 text-sm text-center flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Waiting for opponent to ready up...
-              </p>
+              <div className="flex justify-center">
+                <Loader2 className="w-4 h-4 animate-spin text-white/30" />
+              </div>
             )}
           </div>
         </main>

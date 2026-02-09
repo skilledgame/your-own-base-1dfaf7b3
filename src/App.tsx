@@ -5,12 +5,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { WalletModalProvider } from "@/contexts/WalletModalContext";
-import { AuthLoadingScreen } from "@/components/AuthLoadingScreen";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GameErrorBoundary } from "@/components/GameErrorBoundary";
 import { WalletModal } from "@/components/WalletModal";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { FullScreenLoaderOverlay } from "@/components/FullScreenLoaderOverlay";
+import { useUILoadingStore } from "@/stores/uiLoadingStore";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
@@ -60,6 +61,7 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
   // Use individual selectors to prevent infinite re-renders
   const initializeUserData = useUserDataStore(state => state.initialize);
   const resetUserData = useUserDataStore(state => state.reset);
+  const { showLoading, hideLoading } = useUILoadingStore();
   
   // Run ensure-user after auth is ready
   useEnsureUser();
@@ -85,9 +87,18 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isAuthReady, user?.id, initializeUserData, resetUserData]);
   
-  // Show loading screen until auth is ready
+  // Show global loading overlay until auth is ready
+  useEffect(() => {
+    if (!isAuthReady) {
+      showLoading("Loading session...");
+    } else {
+      hideLoading();
+    }
+  }, [isAuthReady, showLoading, hideLoading]);
+
+  // Don't render children until auth is ready — overlay handles the visual
   if (!isAuthReady) {
-    return <AuthLoadingScreen />;
+    return null;
   }
   
   return <>{children}</>;
@@ -142,6 +153,8 @@ const App = () => (
                   {/* Debug panel - only visible with ?debug=1 or in dev */}
                   <AuthDebugPanel />
                 </AppWithAuth>
+                {/* Global loading overlay — OUTSIDE AppWithAuth so it renders during auth loading */}
+                <FullScreenLoaderOverlay />
               </BrowserRouter>
             </ThemeProvider>
           </TooltipProvider>

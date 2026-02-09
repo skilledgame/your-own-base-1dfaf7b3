@@ -19,6 +19,7 @@ import { wsClient } from '@/lib/wsClient';
 import { useChessStore } from '@/stores/chessStore';
 import { useBalanceStore } from '@/stores/balanceStore';
 import { useUserDataStore } from '@/stores/userDataStore';
+import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { perf } from '@/lib/perfLog';
@@ -240,8 +241,7 @@ function initializeGlobalMessageHandler(): void {
           wager,
         });
         
-        // Show VS splash for fresh matches (NOT reconnects — those go through game_reconnected)
-        useChessStore.setState({ versusScreenPending: true });
+        // VersusScreen removed — no longer setting versusScreenPending
         
         // Only show match found toast for admin users
         if (isAdminCallback && isAdminCallback()) {
@@ -394,6 +394,9 @@ function initializeGlobalMessageHandler(): void {
       case "game_ended": {
         const payload = msg as unknown as GameEndedMessage;
         const currentState = useChessStore.getState();
+        
+        // Hide global loading overlay (safety net)
+        useUILoadingStore.getState().hideLoading();
         
         // PART B: Reset navigation guard so next game can navigate
         navigatedToGameId = null;
@@ -588,6 +591,9 @@ function initializeGlobalMessageHandler(): void {
       case "error": {
         const payload = msg as unknown as ErrorMessage;
         console.log("[Chess WS]", clientId, "Error:", payload.code, payload.message);
+        
+        // Always hide global loading overlay on error
+        useUILoadingStore.getState().hideLoading();
         
         // Handle "already in a game" desync
         if (payload.message?.toLowerCase().includes("already in") || 
@@ -1014,6 +1020,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     wsClient.setSearching(false);
     setPhase("idle");
     useChessStore.getState().resetMatchmaking();
+    useUILoadingStore.getState().hideLoading();
   }, [setPhase]);
 
   const joinGame = useCallback((gameId: string) => {

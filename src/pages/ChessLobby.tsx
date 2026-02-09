@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { LogoLink } from '@/components/LogoLink';
 import { 
   ArrowLeft, 
@@ -205,6 +206,8 @@ export default function ChessLobby() {
     setIsCreating(false);
   };
 
+  const { showLoading: globalShowLoading, hideLoading: globalHideLoading } = useUILoadingStore();
+
   const handleJoinLobby = async () => {
     if (!user) {
       navigate('/auth');
@@ -221,6 +224,7 @@ export default function ChessLobby() {
     }
 
     setIsJoining(true);
+    globalShowLoading(); // overlay during network call
     
     try {
       const response = await supabase.functions.invoke('join-lobby', {
@@ -235,6 +239,7 @@ export default function ChessLobby() {
           description: response.error.message || 'Please try again',
         });
         setIsJoining(false);
+        globalHideLoading();
         return;
       }
 
@@ -246,17 +251,15 @@ export default function ChessLobby() {
           description: data.error,
         });
         setIsJoining(false);
+        globalHideLoading();
         return;
       }
 
       if (data?.game || data?.gameId) {
-        toast({
-          title: 'Joined lobby!',
-          description: `Playing against ${data.opponent?.name || 'opponent'}. Ready up!`,
-        });
-        // Navigate to lobby for ready-up (not directly to game)
+        // Navigate to lobby for ready-up — overlay stays until lobby page renders
         const targetRoomId = data.roomId;
         navigate(`/game/lobby/${targetRoomId}`);
+        // hideLoading will be called by PrivateGameLobby once it loads
       }
     } catch (error) {
       console.error('Join lobby error:', error);
@@ -265,6 +268,7 @@ export default function ChessLobby() {
         title: 'Failed to join lobby',
         description: 'Please try again',
       });
+      globalHideLoading();
     }
     
     setIsJoining(false);
@@ -297,12 +301,17 @@ export default function ChessLobby() {
     }
   };
 
+  // Show global overlay while loading auth
+  useEffect(() => {
+    if (loading) {
+      globalShowLoading();
+    } else {
+      globalHideLoading();
+    }
+  }, [loading, globalShowLoading, globalHideLoading]);
+
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
+    return null; // Global overlay handles it
   }
 
   return (
@@ -459,12 +468,10 @@ export default function ChessLobby() {
                 </Button>
               </div>
 
+              {/* Subtle waiting indicator — no text-heavy waiting state */}
               {waitingForOpponent && (
-                <div className="pt-4 border-t border-blue-500/20">
-                  <div className="flex items-center justify-center gap-3 text-blue-200/60">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Waiting for opponent to join...</span>
-                  </div>
+                <div className="pt-4 border-t border-blue-500/20 flex justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-500/40" />
                 </div>
               )}
 

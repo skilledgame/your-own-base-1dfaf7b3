@@ -15,10 +15,9 @@ import { useBalance } from '@/hooks/useBalance';
 import { WSMultiplayerGameView } from '@/components/WSMultiplayerGameView';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { GameResultModal } from '@/components/GameResultModal';
-import { MatchTransition } from '@/components/MatchTransition';
-import { VersusScreen } from '@/components/VersusScreen';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, WifiOff } from 'lucide-react';
+import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePrivateGame } from '@/hooks/usePrivateGame';
@@ -154,13 +153,9 @@ export default function LiveGame() {
   // PART A: Perf ref for board_rendered (only mark once)
   const boardRenderedRef = useRef(false);
   
-  // ── Versus screen ──
-  // Show the VS splash overlay exactly once after matchmaking (match_found).
-  // The store flag `versusScreenPending` is set in the WS handler on match_found
-  // and consumed here. It is NEVER set on reconnect, resign, or game end.
-  const versusScreenPending = useChessStore((s) => s.versusScreenPending);
-  const consumeVersusScreen = useChessStore((s) => s.consumeVersusScreen);
-  const [showVersusScreen, setShowVersusScreen] = useState(false);
+  // Global loading overlay
+  const hideLoading = useUILoadingStore((s) => s.hideLoading);
+  const showLoading = useUILoadingStore((s) => s.showLoading);
   
   // Load game from database if gameId is in URL but no gameState
   // Also reload if URL gameId doesn't match store gameId (game changed)
@@ -423,65 +418,64 @@ export default function LiveGame() {
     }
   }, []);
 
-  // ── Trigger VS screen when the store flag is set (match_found only) ──
-  // Consume the flag immediately so it never fires twice, even across remounts.
-  const versusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  // Hide the global loading overlay once the game is ready to render
+  // This covers: matchmaking flow, reconnect flow, private game join
+  const gameReadyRef = useRef(false);
   useEffect(() => {
-    if (versusScreenPending && gameState && phase === 'in_game') {
-      // Consume flag immediately — even if the component remounts, the flag is gone
-      consumeVersusScreen();
-      setShowVersusScreen(true);
-
-      // Hard safety: force-dismiss after 4s no matter what
-      if (versusTimerRef.current) clearTimeout(versusTimerRef.current);
-      versusTimerRef.current = setTimeout(() => setShowVersusScreen(false), 4000);
+    if (gameState && phase === 'in_game' && !gameReadyRef.current) {
+      gameReadyRef.current = true;
+      hideLoading();
     }
-    return () => {
-      if (versusTimerRef.current) clearTimeout(versusTimerRef.current);
-    };
-  }, [versusScreenPending, gameState, phase, consumeVersusScreen]);
+    // Reset if game ends or state clears, so next game can show/hide properly
+    if (!gameState || phase !== 'in_game') {
+      gameReadyRef.current = false;
+    }
+  }, [gameState, phase, hideLoading]);
 
-  // Loading state (connecting or loading game)
-  // All games now use WebSocket, so check WS status
-  const isLoading = loadingGame || status === "connecting" || status === "reconnecting";
+  // Loading state (connecting or loading game) — show global overlay
+  const isLoadingConnection = loadingGame || status === "connecting" || status === "reconnecting";
   
-  if (isLoading) {
-    // PART B: Use unified MatchTransition overlay instead of raw spinner
-    return (
-      <>
-        <MatchTransition
-          variant={status === "reconnecting" ? "reconnecting" : "connecting"}
-          gameCode={gameId?.slice(0, 8)}
-          wager={gameState?.wager}
-        />
-        {showNetworkDebug && (
-          <NetworkDebugPanel
-            status={status}
-            logs={logs}
-            reconnectAttempts={reconnectAttempts}
-            onConnect={connect}
-            onDisconnect={disconnect}
-            onSendRaw={sendRaw}
-            onClearLogs={clearLogs}
-          />
-        )}
-      </>
-    );
+  useEffect(() => {
+    if (isLoadingConnection) {
+      showLoading();
+    }
+  }, [isLoadingConnection, showLoading]);
+
+  // No game state yet — show global overlay while waiting for game data
+  useEffect(() => {
+    if (!isLoadingConnection && !gameState) {
+      showLoading();
+    }
+  }, [isLoadingConnection, gameState, showLoading]);
+  
+  if (isLoadingConnection) {
+    // Global overlay is shown — render nothing else
+    return showNetworkDebug ? (
+      <NetworkDebugPanel
+        status={status}
+        logs={logs}
+        reconnectAttempts={reconnectAttempts}
+        onConnect={connect}
+        onDisconnect={disconnect}
+        onSendRaw={sendRaw}
+        onClearLogs={clearLogs}
+      />
+    ) : null;
   }
 
-  // Disconnected state (only for WebSocket games, not private games)
+  // Disconnected state — show overlay + minimal reconnect action
   if (!isPrivateGame && status === "disconnected") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <WifiOff className="w-12 h-12 text-destructive" />
-        <p className="text-lg font-semibold">Disconnected from server</p>
-        <p className="text-sm text-muted-foreground">The game may have ended due to connection loss.</p>
-        <div className="flex gap-4">
-          <Button onClick={connect}>Reconnect</Button>
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
+      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#0a0f1a] gap-4">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
+        </div>
+        <WifiOff className="relative z-10 w-10 h-10 text-red-400/70" />
+        <div className="relative z-10 flex gap-3">
+          <Button size="sm" onClick={connect}>Reconnect</Button>
+          <Button size="sm" variant="ghost" onClick={handleBack} className="text-blue-400">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Home
           </Button>
         </div>
         {showNetworkDebug && (
@@ -558,77 +552,37 @@ export default function LiveGame() {
     }
   }
 
-  // No game state - check phase to determine what to show
+  // No game state yet — global overlay is shown via useEffect above
   if (!gameState) {
-    // For UUID private games in searching/waiting phase, show unified transition overlay
-    const isPrivateUuidGame = gameId && !gameId.startsWith('g_');
-    if (isPrivateUuidGame && (phase === "searching" || phase === "idle")) {
-      // PART B: Use MatchTransition instead of raw spinner
+    // If phase is not in_game and not searching, offer escape
+    if (phase !== "in_game" && phase !== "searching" && phase !== "idle") {
       return (
-        <>
-          <MatchTransition
-            variant="private_waiting"
-            gameCode={gameId.slice(0, 8)}
-            onBack={handleBack}
-          />
-          {showNetworkDebug && (
-            <NetworkDebugPanel
-              status={status}
-              logs={logs}
-              reconnectAttempts={reconnectAttempts}
-              onConnect={connect}
-              onDisconnect={disconnect}
-              onSendRaw={sendRaw}
-              onClearLogs={clearLogs}
-            />
-          )}
-        </>
-      );
-    }
-
-    // If phase is not in_game, show "no active game"
-    if (phase !== "in_game") {
-      return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-          <p className="text-muted-foreground">No active game found</p>
-          <p className="text-sm text-muted-foreground/60">Phase: {phase}</p>
-          <Button onClick={() => navigate('/quick-play')}>
-            Find a Match
-          </Button>
-          <NetworkDebugPanel
-            status={status}
-            logs={logs}
-            reconnectAttempts={reconnectAttempts}
-            onConnect={connect}
-            onDisconnect={disconnect}
-            onSendRaw={sendRaw}
-            onClearLogs={clearLogs}
-          />
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#0a0f1a] gap-4">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
+          </div>
+          <div className="relative z-10 flex gap-3">
+            <Button size="sm" onClick={() => navigate('/quick-play')}>Find a Match</Button>
+            <Button size="sm" variant="ghost" onClick={handleBack} className="text-blue-400">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Home
+            </Button>
+          </div>
         </div>
       );
     }
-    
-    // In game phase but waiting for game state — show MatchTransition
-    return (
-      <>
-        <MatchTransition
-          variant="connecting"
-          gameCode={gameId?.slice(0, 8)}
-          onBack={handleBack}
-        />
-        {showNetworkDebug && (
-          <NetworkDebugPanel
-            status={status}
-            logs={logs}
-            reconnectAttempts={reconnectAttempts}
-            onConnect={connect}
-            onDisconnect={disconnect}
-            onSendRaw={sendRaw}
-            onClearLogs={clearLogs}
-          />
-        )}
-      </>
-    );
+
+    // Overlay is already shown globally — render nothing else
+    return showNetworkDebug ? (
+      <NetworkDebugPanel
+        status={status}
+        logs={logs}
+        reconnectAttempts={reconnectAttempts}
+        onConnect={connect}
+        onDisconnect={disconnect}
+        onSendRaw={sendRaw}
+        onClearLogs={clearLogs}
+      />
+    ) : null;
   }
 
   // Verify this is the correct game (for UUID private games, dbGameId matches the URL)
@@ -685,19 +639,6 @@ export default function LiveGame() {
         onBack={handleBack}
         onTimeLoss={handleTimeLoss}
       />
-
-      {/* ── Versus splash overlay (shown once per game) ── */}
-      {showVersusScreen && (
-        <VersusScreen
-          playerName={gameState.playerName}
-          opponentName={gameState.opponentName}
-          playerColor={playerColor}
-          wager={gameState.wager}
-          playerRank={effectivePlayerRank}
-          opponentRank={opponentRank}
-          onComplete={() => setShowVersusScreen(false)}
-        />
-      )}
 
       {showNetworkDebug && (!isPrivateGame || isWebSocketGameId) && (
         <NetworkDebugPanel

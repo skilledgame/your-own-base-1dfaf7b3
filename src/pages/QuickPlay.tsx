@@ -17,8 +17,8 @@ import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
+import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { perf } from '@/lib/perfLog';
-import { MatchTransition } from '@/components/MatchTransition';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,6 +127,8 @@ export default function QuickPlay() {
     }
   }, [setSelectedWager]);
 
+  const showLoading = useUILoadingStore((s) => s.showLoading);
+
   const handleFindMatch = useCallback(async () => {
     if (!isAuthenticated) {
       navigate('/auth');
@@ -141,11 +143,15 @@ export default function QuickPlay() {
     // PART A: Start perf measurement session
     perf.start('click_matchmake');
     
+    // Show global loading overlay — stays until LiveGame hides it
+    showLoading();
+    
     findMatch(selectedWager, playerName);
-  }, [isAuthenticated, selectedWager, displayBalance, findMatch, playerName, navigate]);
+  }, [isAuthenticated, selectedWager, displayBalance, findMatch, playerName, navigate, showLoading]);
 
   const handleCancelSearch = useCallback(() => {
     cancelSearch();
+    // hideLoading is called inside cancelSearch via uiLoadingStore
   }, [cancelSearch]);
 
   const handleSignIn = useCallback(() => {
@@ -228,17 +234,10 @@ export default function QuickPlay() {
           </div>
         )}
 
-        {/* PART B: Searching State — unified MatchTransition overlay */}
-        {isAuthenticated && isSearching && (
-          <MatchTransition
-            variant="matchmaking"
-            wager={selectedWager}
-            onCancel={handleCancelSearch}
-          />
-        )}
+        {/* Searching state is handled by the global FullScreenLoaderOverlay */}
 
-        {/* Idle State */}
-        {isAuthenticated && phase === "idle" && (
+        {/* Idle or Searching State — show real UI underneath the overlay */}
+        {isAuthenticated && (phase === "idle" || phase === "searching") && (
           <>
             {/* Player Info */}
             <div className="text-center p-4 rounded-xl bg-blue-950/40 border border-blue-500/20">
