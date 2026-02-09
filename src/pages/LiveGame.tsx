@@ -16,6 +16,7 @@ import { WSMultiplayerGameView } from '@/components/WSMultiplayerGameView';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { GameResultModal } from '@/components/GameResultModal';
 import { MatchTransition } from '@/components/MatchTransition';
+import { VersusScreen } from '@/components/VersusScreen';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -152,6 +153,12 @@ export default function LiveGame() {
   const joinGameSentRef = useRef<string | null>(null);
   // PART A: Perf ref for board_rendered (only mark once)
   const boardRenderedRef = useRef(false);
+  
+  // ── Versus screen ──
+  // Show the VS splash overlay the first time a game loads.
+  // Track which gameId it was shown for so it only fires once per game.
+  const [showVersusScreen, setShowVersusScreen] = useState(false);
+  const versusShownForRef = useRef<string | null>(null);
   
   // Load game from database if gameId is in URL but no gameState
   // Also reload if URL gameId doesn't match store gameId (game changed)
@@ -414,6 +421,14 @@ export default function LiveGame() {
     }
   }, []);
 
+  // ── Trigger VS screen when gameState first appears for a new game ──
+  useEffect(() => {
+    if (gameState && phase === 'in_game' && versusShownForRef.current !== gameState.gameId) {
+      versusShownForRef.current = gameState.gameId;
+      setShowVersusScreen(true);
+    }
+  }, [gameState, phase]);
+
   // Loading state (connecting or loading game)
   // All games now use WebSocket, so check WS status
   const isLoading = loadingGame || status === "connecting" || status === "reconnecting";
@@ -657,6 +672,20 @@ export default function LiveGame() {
         onBack={handleBack}
         onTimeLoss={handleTimeLoss}
       />
+
+      {/* ── Versus splash overlay (shown once per game) ── */}
+      {showVersusScreen && (
+        <VersusScreen
+          playerName={gameState.playerName}
+          opponentName={gameState.opponentName}
+          playerColor={playerColor}
+          wager={gameState.wager}
+          playerRank={effectivePlayerRank}
+          opponentRank={opponentRank}
+          onComplete={() => setShowVersusScreen(false)}
+        />
+      )}
+
       {showNetworkDebug && (!isPrivateGame || isWebSocketGameId) && (
         <NetworkDebugPanel
           status={status}
