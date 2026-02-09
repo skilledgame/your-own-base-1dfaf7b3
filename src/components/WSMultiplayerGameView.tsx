@@ -90,62 +90,93 @@ export const WSMultiplayerGameView = ({
   // Get timer snapshot from store (server-authoritative for WebSocket games)
   const timerSnapshot = useChessStore((state) => state.timerSnapshot);
   
+  // Sound effects (must be declared before the display clock effect that uses playGameEnd)
+  const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
+  
+  const isWhite = playerColor === "white";
+  const myColor = isWhite ? 'w' : 'b';
+  
   // Timers - use props for private games, calculate from snapshot for WebSocket games
   const [isGameOver, setIsGameOver] = useState(false);
   
   // Track whose turn it was when they moved (for increment)
   const lastMoveByRef = useRef<'w' | 'b' | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [timerTick, setTimerTick] = useState(0);
   
-  // Calculate effective time from server snapshot (only for WebSocket games)
-  // Uses performance.now() (monotonic, client-local) to avoid clock drift between server and client
-  const { whiteTime, blackTime } = useMemo(() => {
-    if (isPrivateGame) {
-      return {
-        whiteTime: propWhiteTime ?? CHESS_TIME_CONTROL.BASE_TIME,
-        blackTime: propBlackTime ?? CHESS_TIME_CONTROL.BASE_TIME,
-      };
-    }
-    
-    // For WebSocket games, calculate from server snapshot
-    if (!timerSnapshot || isGameOver) {
-      return {
-        whiteTime: CHESS_TIME_CONTROL.BASE_TIME,
-        blackTime: CHESS_TIME_CONTROL.BASE_TIME,
-      };
-    }
-    
-    // PART D: If clockRunning is false (no first move yet), show full time frozen
-    if (!timerSnapshot.clockRunning) {
-      return {
-        whiteTime: timerSnapshot.whiteTimeSeconds,
-        blackTime: timerSnapshot.blackTimeSeconds,
-      };
-    }
-    
-    // Use performance.now() for smooth, drift-free countdown
-    const elapsedMs = performance.now() - timerSnapshot.clientPerfNowMs;
-    const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-    
-    let whiteTime = timerSnapshot.whiteTimeSeconds;
-    let blackTime = timerSnapshot.blackTimeSeconds;
-    
-    // Only count down for the side whose turn it is
-    if (timerSnapshot.currentTurn === 'w') {
-      whiteTime = Math.max(0, whiteTime - elapsedSeconds);
-    } else {
-      blackTime = Math.max(0, blackTime - elapsedSeconds);
-    }
-    
-    return { whiteTime, blackTime };
-  }, [isPrivateGame, propWhiteTime, propBlackTime, timerSnapshot, isGameOver, timerTick]);
+  // --- Smooth display clock loop ---
+  // Keep the authoritative server snapshot in a ref for the display loop.
+  // The ref avoids re-creating the interval on every snapshot update.
+  const clockRef = useRef(timerSnapshot);
+  useEffect(() => { clockRef.current = timerSnapshot; }, [timerSnapshot]);
   
-  // Sound effects
-  const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
+  // Display state (updated by the interval — only when the *seconds* value changes)
+  const [displayWhiteSec, setDisplayWhiteSec] = useState(CHESS_TIME_CONTROL.BASE_TIME);
+  const [displayBlackSec, setDisplayBlackSec] = useState(CHESS_TIME_CONTROL.BASE_TIME);
   
-  const isWhite = playerColor === "white";
-  const myColor = isWhite ? 'w' : 'b';
+  // Display clock tick (runs every 200ms for responsive countdown + time-loss detection)
+  useEffect(() => {
+    if (isPrivateGame || isGameOver) {
+      // For private games, derive from props
+      setDisplayWhiteSec(propWhiteTime ?? CHESS_TIME_CONTROL.BASE_TIME);
+      setDisplayBlackSec(propBlackTime ?? CHESS_TIME_CONTROL.BASE_TIME);
+      return;
+    }
+    
+    const tick = () => {
+      const snap = clockRef.current;
+      if (!snap) {
+        setDisplayWhiteSec(CHESS_TIME_CONTROL.BASE_TIME);
+        setDisplayBlackSec(CHESS_TIME_CONTROL.BASE_TIME);
+        return;
+      }
+      
+      let wMs = snap.wMs;
+      let bMs = snap.bMs;
+      
+      if (snap.clockRunning) {
+        // Subtract elapsed since we received this snapshot
+        const elapsed = performance.now() - snap.receivedAtPerfMs;
+        if (snap.turn === 'w') {
+          wMs = Math.max(0, wMs - elapsed);
+        } else {
+          bMs = Math.max(0, bMs - elapsed);
+        }
+      }
+      
+      const wSec = Math.ceil(wMs / 1000);
+      const bSec = Math.ceil(bMs / 1000);
+      
+      // Only set state when displayed seconds change (avoids unnecessary re-renders)
+      setDisplayWhiteSec(prev => prev !== wSec ? wSec : prev);
+      setDisplayBlackSec(prev => prev !== bSec ? bSec : prev);
+      
+      // Time-loss detection
+      if (snap.clockRunning) {
+        if (snap.turn === 'w' && wMs <= 0 && !isGameOver) {
+          setIsGameOver(true);
+          playGameEnd();
+          onTimeLoss?.('w');
+        } else if (snap.turn === 'b' && bMs <= 0 && !isGameOver) {
+          setIsGameOver(true);
+          playGameEnd();
+          onTimeLoss?.('b');
+        }
+      }
+    };
+    
+    tick(); // Run immediately
+    timerIntervalRef.current = setInterval(tick, 200);
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [isPrivateGame, isGameOver, propWhiteTime, propBlackTime, playGameEnd, onTimeLoss]);
+  
+  // Final displayed times (seconds)
+  const whiteTime = displayWhiteSec;
+  const blackTime = displayBlackSec;
 
   // Calculate captured pieces and material (memoized to prevent recalculation)
   const capturedPieces = useMemo(() => calculateCapturedPieces(chess), [chess.fen()]);
@@ -214,54 +245,7 @@ export const WSMultiplayerGameView = ({
     }
   }, [currentFen, chess, localFen, myColor, isPrivateGame]);
 
-  // Timer tick + time loss check (server-authoritative calculation, 4x/sec)
-  useEffect(() => {
-    if (isPrivateGame || isGameOver) {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-      return;
-    }
-
-    timerIntervalRef.current = setInterval(() => {
-      setTimerTick((tick) => tick + 1);
-
-      // PART D: Don't check time loss if clock hasn't started
-      if (timerSnapshot && timerSnapshot.clientPerfNowMs > 0 && timerSnapshot.clockRunning) {
-        const elapsedMs = performance.now() - timerSnapshot.clientPerfNowMs;
-        const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-        
-        if (timerSnapshot.currentTurn === 'w') {
-          const remaining = timerSnapshot.whiteTimeSeconds - elapsedSeconds;
-          if (remaining <= 0 && !isGameOver) {
-            setIsGameOver(true);
-            playGameEnd();
-            onTimeLoss?.('w');
-            return;
-          }
-        } else {
-          const remaining = timerSnapshot.blackTimeSeconds - elapsedSeconds;
-          if (remaining <= 0 && !isGameOver) {
-            setIsGameOver(true);
-            playGameEnd();
-            onTimeLoss?.('b');
-            return;
-          }
-        }
-      }
-    }, 250);
-
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    };
-  }, [timerSnapshot, isGameOver, isPrivateGame, onTimeLoss, playGameEnd]);
-
-  // Timer display is now server-authoritative - no local countdown needed
-  // The render loop above handles time loss detection based on server snapshot
+  // (Timer display loop + time loss detection is handled by the display clock effect above)
 
   // Note: Premove execution is handled in useChessWebSocket when move_applied message is received
   // This ensures premove executes synchronously when the turn switches, not via React effects
@@ -332,10 +316,14 @@ export const WSMultiplayerGameView = ({
   const opponentTime = isWhite ? blackTime : whiteTime;
   const myColorLabel = isWhite ? "White" : "Black";
   const opponentColorLabel = isWhite ? "Black" : "White";
-  // PART D: Timer "active" indicator only shows when clockRunning is true
+  // Active clock indicator: the running clock is ALWAYS the side whose turn it is.
+  // BOTH are false when clockRunning=false (before first move), so neither clock appears active.
   const isMyTurnForTimer = !isPrivateGame && timerSnapshot
-    ? (timerSnapshot.clockRunning && timerSnapshot.currentTurn === myColor)
+    ? (timerSnapshot.clockRunning && timerSnapshot.turn === myColor)
     : isMyTurn;
+  const isOpponentTurnForTimer = !isPrivateGame && timerSnapshot
+    ? (timerSnapshot.clockRunning && timerSnapshot.turn !== myColor)
+    : !isMyTurn;
 
   // Get rank display names
   const playerRankDisplay = playerRank?.displayName || 'Unranked';
@@ -434,7 +422,7 @@ export const WSMultiplayerGameView = ({
                 />
               </div>
             </div>
-            <GameTimer timeLeft={opponentTime} isActive={!isMyTurnForTimer && !isGameOver} />
+            <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
           </div>
 
           {/* Chess Board with sound callbacks - only show opponent's last move */}

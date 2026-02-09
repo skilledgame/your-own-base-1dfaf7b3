@@ -70,24 +70,32 @@ let messageHandlerRegistered = false;
 let navigationCallback: ((path: string) => void) | null = null;
 let balanceRefreshCallback: (() => void) | null = null;
 let isAdminCallback: (() => boolean) | null = null;
-let lastTimerSnapshotUpdatePerfMs = 0;
 // PART B: Guard against duplicate navigation to game route
 let navigatedToGameId: string | null = null;
-const TIMER_SNAPSHOT_MIN_INTERVAL_MS = 250;
 
-const normalizeServerTimeMs = (serverTime: number): number =>
-  serverTime < 1_000_000_000_000 ? serverTime * 1000 : serverTime;
+/**
+ * Build a TimerSnapshot from a server payload.
+ * Prefers new ms-precision fields (wMs/bMs/serverNow/lastMoveAt) and
+ * falls back to legacy seconds fields (whiteTime/blackTime/serverTimeMs).
+ */
+function buildTimerSnapshot(payload: any, fallbackTurn: 'w' | 'b' = 'w'): import('@/stores/chessStore').TimerSnapshot {
+  const wMs = payload.wMs ?? ((payload.whiteTime ?? 60) * 1000);
+  const bMs = payload.bMs ?? ((payload.blackTime ?? 60) * 1000);
+  const turn: 'w' | 'b' = payload.turn ?? payload.currentTurn ?? fallbackTurn;
+  const clockRunning = payload.clockRunning === true;
+  const serverNowMs = payload.serverNow ?? payload.serverTimeMs ?? Date.now();
+  const lastMoveAtMs = payload.lastMoveAt ?? null;
 
-const shouldUpdateTimerSnapshot = (nextTurn: 'w' | 'b'): boolean => {
-  const now = performance.now();
-  const current = useChessStore.getState().timerSnapshot;
-
-  if (!current) return true;
-  if (current.currentTurn !== nextTurn) return true;
-  if (now - lastTimerSnapshotUpdatePerfMs >= TIMER_SNAPSHOT_MIN_INTERVAL_MS) return true;
-
-  return false;
-};
+  return {
+    wMs,
+    bMs,
+    turn,
+    clockRunning,
+    serverNowMs,
+    lastMoveAtMs,
+    receivedAtPerfMs: performance.now(),
+  };
+}
 
 /**
  * Initialize the global message handler ONCE
@@ -200,54 +208,16 @@ function initializeGlobalMessageHandler(): void {
         // Get opponent name from payload (try new format first, then legacy)
         const opponentName = payload.opponent?.name || (payload as any).opponentName || "Opponent";
         
-        // PART D: Extract clockRunning from server (false until first move)
-        const matchClockRunning = payload.clockRunning === true;
-        
-        // Initialize timer snapshot if server provided it (with validation)
-        if (payload.whiteTime !== undefined && 
-            payload.blackTime !== undefined && 
-            payload.serverTimeMs &&
-            typeof payload.whiteTime === 'number' &&
-            typeof payload.blackTime === 'number' &&
-            typeof payload.serverTimeMs === 'number' &&
-            payload.whiteTime >= 0 &&
-            payload.blackTime >= 0 &&
-            payload.serverTimeMs > 0) {
-          store.updateTimerSnapshot({
-            whiteTimeSeconds: payload.whiteTime,
-            blackTimeSeconds: payload.blackTime,
-            serverTimeMs: payload.serverTimeMs,
-            currentTurn: 'w', // White moves first
-            clientPerfNowMs: performance.now(),
-            clockRunning: matchClockRunning,
-          });
-          lastTimerSnapshotUpdatePerfMs = performance.now();
-          console.log("[Chess WS] Timer snapshot updated (match_found)", {
-            gameId: payload.gameId,
-            whiteTime: payload.whiteTime,
-            blackTime: payload.blackTime,
-            serverTimeMs: payload.serverTimeMs,
-            clockRunning: matchClockRunning,
-            timestamp: new Date().toISOString(),
-          });
-        } else {
-          // Fallback: initialize with default values
-          console.warn("[Chess WS] Invalid timer data in match_found, using defaults:", {
-            gameId: payload.gameId,
-            whiteTime: payload.whiteTime,
-            blackTime: payload.blackTime,
-            serverTimeMs: payload.serverTimeMs,
-          });
-          store.updateTimerSnapshot({
-            whiteTimeSeconds: 60,
-            blackTimeSeconds: 60,
-            serverTimeMs: Date.now(),
-            currentTurn: 'w',
-            clientPerfNowMs: performance.now(),
-            clockRunning: matchClockRunning,
-          });
-          lastTimerSnapshotUpdatePerfMs = performance.now();
-        }
+        // Build timer snapshot from server payload (uses ms fields with seconds fallback)
+        const snapshot = buildTimerSnapshot(payload, 'w');
+        store.updateTimerSnapshot(snapshot);
+        console.log("[Chess WS] Timer snapshot (match_found)", {
+          gameId: payload.gameId,
+          wMs: snapshot.wMs,
+          bMs: snapshot.bMs,
+          turn: snapshot.turn,
+          clockRunning: snapshot.clockRunning,
+        });
         
         // STEP D: Update normalized matchmaking state
         store.setMatchmakingMatch({
@@ -313,49 +283,16 @@ function initializeGlobalMessageHandler(): void {
         // Update FEN from server (server is authoritative)
         store.updateFromServer(payload.fen, payload.turn);
         
-        // PART D: Extract clockRunning (true after first move)
-        const moveClockRunning = (payload as any).clockRunning === true;
-        
-        // If server sent timer data, update it (server-authoritative) - with validation
-        if (payload.whiteTime !== undefined && 
-            payload.blackTime !== undefined && 
-            payload.serverTimeMs &&
-            typeof payload.whiteTime === 'number' &&
-            typeof payload.blackTime === 'number' &&
-            typeof payload.serverTimeMs === 'number' &&
-            payload.whiteTime >= 0 &&
-            payload.blackTime >= 0 &&
-            payload.serverTimeMs > 0) {
-          if (shouldUpdateTimerSnapshot(payload.turn)) {
-            // Store timer snapshot for server-authoritative calculation
-            store.updateTimerSnapshot({
-              whiteTimeSeconds: payload.whiteTime,
-              blackTimeSeconds: payload.blackTime,
-              serverTimeMs: payload.serverTimeMs,
-              currentTurn: payload.turn,
-              clientPerfNowMs: performance.now(),
-              clockRunning: moveClockRunning,
-            });
-            lastTimerSnapshotUpdatePerfMs = performance.now();
-            console.log("[Chess WS] Timer snapshot updated (move_applied)", {
-              gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
-              whiteTime: payload.whiteTime,
-              blackTime: payload.blackTime,
-              serverTimeMs: payload.serverTimeMs,
-              currentTurn: payload.turn,
-              clockRunning: moveClockRunning,
-              timestamp: new Date().toISOString(),
-            });
-          }
-        } else if (payload.whiteTime !== undefined || payload.blackTime !== undefined || payload.serverTimeMs) {
-          // Partial or invalid timer data - log warning but don't update
-          console.warn("[Chess WS] Invalid timer data in move_applied, ignoring:", {
-            gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
-            whiteTime: payload.whiteTime,
-            blackTime: payload.blackTime,
-            serverTimeMs: payload.serverTimeMs,
-          });
-        }
+        // Always update timer snapshot on move_applied (turn always changes)
+        const moveSnapshot = buildTimerSnapshot(payload, payload.turn);
+        store.updateTimerSnapshot(moveSnapshot);
+        console.log("[Chess WS] Timer snapshot (move_applied)", {
+          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
+          wMs: moveSnapshot.wMs,
+          bMs: moveSnapshot.bMs,
+          turn: moveSnapshot.turn,
+          clockRunning: moveSnapshot.clockRunning,
+        });
         
         // PREMOVE EXECUTION: Check if it's now our turn and we have a premove queued
         const updatedState = useChessStore.getState();
@@ -405,44 +342,17 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as GameSyncMessage;
         console.log("[Chess WS]", clientId, "Game sync received:", payload);
         
-        // PART D: Extract clockRunning from game_sync
-        const syncClockRunning = payload.clockRunning === true;
-        
-          // Update game state from server sync
+        // Update game state from server sync
         if (store.gameState && store.gameState.gameId === payload.gameId) {
           store.updateFromServer(payload.fen, payload.turn);
           
-          // Update timer snapshot (server-authoritative) - with validation
-          if (typeof payload.whiteTime === 'number' &&
-              typeof payload.blackTime === 'number' &&
-              typeof payload.serverTimeMs === 'number' &&
-              payload.whiteTime >= 0 &&
-              payload.blackTime >= 0 &&
-              payload.serverTimeMs > 0) {
-            if (shouldUpdateTimerSnapshot(payload.turn)) {
-              store.updateTimerSnapshot({
-                whiteTimeSeconds: payload.whiteTime,
-                blackTimeSeconds: payload.blackTime,
-                serverTimeMs: payload.serverTimeMs,
-                currentTurn: payload.turn,
-                clientPerfNowMs: performance.now(),
-                clockRunning: syncClockRunning,
-              });
-              lastTimerSnapshotUpdatePerfMs = performance.now();
-            }
-          } else {
-            console.warn("[Chess WS] Invalid timer data in game_sync, ignoring:", {
-              whiteTime: payload.whiteTime,
-              blackTime: payload.blackTime,
-              serverTimeMs: payload.serverTimeMs,
-            });
-          }
+          // Update timer snapshot from server
+          const syncSnapshot = buildTimerSnapshot(payload, payload.turn);
+          store.updateTimerSnapshot(syncSnapshot);
           
           // If game ended, handle it
           if (payload.status === "ended") {
-            // Game already ended - this is just a sync, don't trigger game end again
             console.log("[Chess WS] Sync shows game already ended");
-            // But we should still clear timer snapshot
             store.clearTimerSnapshot();
           }
         }
@@ -707,53 +617,80 @@ function initializeGlobalMessageHandler(): void {
       }
       
       case "clock_update": {
-        // Server sends periodic clock updates (~every 1.5s).
-        // Only apply if the local timer has drifted significantly (>2s) from the server,
-        // to avoid small jumps that make the timer look glitchy.
+        // Server sends 1 Hz clock sync. Only apply if local clock has drifted
+        // significantly (>1500ms) from the server, or if clockRunning state changed.
         const payload = msg as any;
-        // PART D: Extract clockRunning from clock_update
-        const clockUpdateRunning = payload.clockRunning === true;
-        
-        if (payload.whiteTime !== undefined && payload.blackTime !== undefined) {
-          const currentSnapshot = store.timerSnapshot;
-          
-          // PART D: If clockRunning just changed (e.g. first move made), always update
-          const clockStateChanged = currentSnapshot && currentSnapshot.clockRunning !== clockUpdateRunning;
-          
-          if (currentSnapshot && currentSnapshot.clientPerfNowMs > 0 && !clockStateChanged) {
-            const elapsedMs = performance.now() - currentSnapshot.clientPerfNowMs;
-            const elapsedSeconds = Math.floor(elapsedMs / 1000);
-            const localWhite = (currentSnapshot.currentTurn === 'w' && currentSnapshot.clockRunning)
-              ? currentSnapshot.whiteTimeSeconds - elapsedSeconds
-              : currentSnapshot.whiteTimeSeconds;
-            const localBlack = (currentSnapshot.currentTurn === 'b' && currentSnapshot.clockRunning)
-              ? currentSnapshot.blackTimeSeconds - elapsedSeconds
-              : currentSnapshot.blackTimeSeconds;
-            const whiteOff = Math.abs(localWhite - payload.whiteTime);
-            const blackOff = Math.abs(localBlack - payload.blackTime);
-            // Only correct if drifted more than 2 seconds
-            if (whiteOff > 2 || blackOff > 2) {
-              store.updateTimerSnapshot({
-                whiteTimeSeconds: payload.whiteTime,
-                blackTimeSeconds: payload.blackTime,
-                serverTimeMs: Date.now(),
-                currentTurn: payload.currentTurn || currentSnapshot.currentTurn || 'w',
-                clientPerfNowMs: performance.now(),
-                clockRunning: clockUpdateRunning,
-              });
-            }
-          } else {
-            // No existing snapshot or clockRunning state changed — apply directly
-            store.updateTimerSnapshot({
-              whiteTimeSeconds: payload.whiteTime,
-              blackTimeSeconds: payload.blackTime,
-              serverTimeMs: Date.now(),
-              currentTurn: payload.currentTurn || store.gameState?.fen?.split(' ')[1] || 'w',
-              clientPerfNowMs: performance.now(),
-              clockRunning: clockUpdateRunning,
-            });
-          }
+        const incomingSnapshot = buildTimerSnapshot(payload);
+        const currentSnapshot = store.timerSnapshot;
+
+        if (!currentSnapshot) {
+          // No local snapshot — accept server values unconditionally
+          store.updateTimerSnapshot(incomingSnapshot);
+          break;
         }
+
+        // If clockRunning state changed (e.g. first move), always accept
+        if (currentSnapshot.clockRunning !== incomingSnapshot.clockRunning) {
+          store.updateTimerSnapshot(incomingSnapshot);
+          break;
+        }
+
+        // If turn changed (should already be handled by move_applied, but safety net)
+        if (currentSnapshot.turn !== incomingSnapshot.turn) {
+          store.updateTimerSnapshot(incomingSnapshot);
+          break;
+        }
+
+        // Drift check: compute local estimated remaining ms for active side
+        if (currentSnapshot.clockRunning) {
+          const elapsed = performance.now() - currentSnapshot.receivedAtPerfMs;
+          const localActiveMs = currentSnapshot.turn === 'w'
+            ? currentSnapshot.wMs - elapsed
+            : currentSnapshot.bMs - elapsed;
+          const serverActiveMs = incomingSnapshot.turn === 'w'
+            ? incomingSnapshot.wMs
+            : incomingSnapshot.bMs;
+          const driftMs = Math.abs(localActiveMs - serverActiveMs);
+
+          // Only correct if drifted more than 1.5 seconds
+          if (driftMs > 1500) {
+            store.updateTimerSnapshot(incomingSnapshot);
+          }
+          // else: local clock is close enough — skip update to avoid jumps
+        }
+        break;
+      }
+
+      case "game_reconnected": {
+        // Server sent full game state after reconnecting within grace period
+        const payload = msg as any;
+        console.log("[Chess WS]", clientId, "Game reconnected:", payload);
+
+        const reconnColor: 'w' | 'b' = payload.color ?? null;
+        const reconnFen: string = payload.fen ?? '';
+        const reconnTurn: 'w' | 'b' = payload.turn ?? 'w';
+        const reconnGameId: string = payload.gameId ?? '';
+        const reconnDbGameId: string = payload.dbGameId ?? '';
+        const reconnWager: number = payload.wager ?? 0;
+
+        // Update or create game state
+        if (store.gameState && store.gameState.gameId === reconnGameId) {
+          store.updateFromServer(reconnFen, reconnTurn);
+        } else if (reconnGameId && reconnColor && reconnFen) {
+          store.handleMatchFound({
+            gameId: reconnGameId,
+            dbGameId: reconnDbGameId || undefined,
+            color: reconnColor,
+            fen: reconnFen,
+            playerName: store.playerName,
+            opponentName: store.gameState?.opponentName || "Opponent",
+            wager: reconnWager,
+          });
+        }
+
+        // Update timer snapshot
+        const reconnSnapshot = buildTimerSnapshot(payload, reconnTurn);
+        store.updateTimerSnapshot(reconnSnapshot);
         break;
       }
 

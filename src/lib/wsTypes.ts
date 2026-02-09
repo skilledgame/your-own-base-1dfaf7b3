@@ -111,10 +111,18 @@ export interface MatchFoundMessage {
   color: "w" | "b";         // "w" for white, "b" for black
   fen: string;
   wager: number;            // Wager amount for this game
+  // New ms-precision clock snapshot
+  wMs?: number;             // White remaining ms
+  bMs?: number;             // Black remaining ms
+  clockRunning?: boolean;   // false until first move is made
+  serverNow?: number;       // Server Date.now() at send time
+  lastMoveAt?: number | null; // Server timestamp when current turn started
+  whiteId?: string;         // White player user ID
+  blackId?: string;         // Black player user ID
+  // Legacy seconds fields
   whiteTime?: number;       // Initial white time in seconds
   blackTime?: number;       // Initial black time in seconds
-  serverTimeMs?: number;    // Server timestamp
-  clockRunning?: boolean;   // PART D: false until first move is made
+  serverTimeMs?: number;    // Server timestamp (legacy)
   opponent?: {
     name: string;
     playerId?: string;
@@ -128,18 +136,27 @@ export interface MatchFoundMessage {
  */
 export interface MoveAppliedMessage {
   type: "move_applied";
-  gameId?: string;  // Optional game ID for logging
+  gameId?: string;
+  dbGameId?: string;
   fen: string;
   move: {
     from: string;
     to: string;
     promotion?: string;
-  } | string;  // Can be object or UCI string
+  } | string;
   turn: "w" | "b";
-  whiteTime?: number;  // Server-authoritative time in seconds
-  blackTime?: number;  // Server-authoritative time in seconds
-  serverTimeMs?: number;  // Server timestamp when this state was calculated
-  clockRunning?: boolean;  // PART D: true after first move
+  // New ms-precision clock snapshot
+  wMs?: number;
+  bMs?: number;
+  clockRunning?: boolean;
+  serverNow?: number;
+  lastMoveAt?: number | null;
+  whiteId?: string;
+  blackId?: string;
+  // Legacy seconds fields
+  whiteTime?: number;
+  blackTime?: number;
+  serverTimeMs?: number;
 }
 
 /**
@@ -149,14 +166,24 @@ export interface MoveAppliedMessage {
 export interface GameSyncMessage {
   type: "game_sync";
   gameId: string;
+  dbGameId?: string;
   fen: string;
   turn: "w" | "b";
-  whiteTime: number;  // Remaining time in seconds
-  blackTime: number;  // Remaining time in seconds
-  serverTimeMs: number;  // Server timestamp (milliseconds since epoch)
-  clockRunning?: boolean;  // PART D: true after first move
   status: "active" | "ended";
   wager?: number;
+  color?: "w" | "b";
+  // New ms-precision clock snapshot
+  wMs?: number;
+  bMs?: number;
+  clockRunning?: boolean;
+  serverNow?: number;
+  lastMoveAt?: number | null;
+  whiteId?: string;
+  blackId?: string;
+  // Legacy seconds fields
+  whiteTime: number;
+  blackTime: number;
+  serverTimeMs: number;
 }
 
 /**

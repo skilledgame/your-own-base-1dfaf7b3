@@ -10,21 +10,20 @@
 import { create } from 'zustand';
 
 export interface TimerSnapshot {
-  whiteTimeSeconds: number;
-  blackTimeSeconds: number;
-  serverTimeMs: number;
-  currentTurn: 'w' | 'b';
-  /**
-   * Monotonic timestamp (performance.now()) captured when this snapshot was
-   * received by the client. Used to make the timer independent from the user's
-   * system clock (Date.now()).
-   */
-  clientPerfNowMs: number;
-  /**
-   * PART D: Whether clocks are running. False until the first move is made.
-   * When false, the client timer should display full time without counting down.
-   */
+  /** White remaining time in milliseconds (server-authoritative at snapshot time) */
+  wMs: number;
+  /** Black remaining time in milliseconds */
+  bMs: number;
+  /** Whose turn to move — the running clock side */
+  turn: 'w' | 'b';
+  /** False until the first move is made; when false, clocks are frozen */
   clockRunning: boolean;
+  /** Server's Date.now() when snapshot was created */
+  serverNowMs: number;
+  /** Server timestamp when current turn began (null before first move) */
+  lastMoveAtMs: number | null;
+  /** Client's performance.now() when this snapshot was received — monotonic, drift-free */
+  receivedAtPerfMs: number;
 }
 
 export type GamePhase = "idle" | "searching" | "in_game" | "game_over";
