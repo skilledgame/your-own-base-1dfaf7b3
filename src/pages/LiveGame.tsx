@@ -155,10 +155,12 @@ export default function LiveGame() {
   const boardRenderedRef = useRef(false);
   
   // ── Versus screen ──
-  // Show the VS splash overlay the first time a game loads.
-  // Track which gameId it was shown for so it only fires once per game.
+  // Show the VS splash overlay exactly once after matchmaking (match_found).
+  // The store flag `versusScreenPending` is set in the WS handler on match_found
+  // and consumed here. It is NEVER set on reconnect, resign, or game end.
+  const versusScreenPending = useChessStore((s) => s.versusScreenPending);
+  const consumeVersusScreen = useChessStore((s) => s.consumeVersusScreen);
   const [showVersusScreen, setShowVersusScreen] = useState(false);
-  const versusShownForRef = useRef<string | null>(null);
   
   // Load game from database if gameId is in URL but no gameState
   // Also reload if URL gameId doesn't match store gameId (game changed)
@@ -421,14 +423,14 @@ export default function LiveGame() {
     }
   }, []);
 
-  // ── Trigger VS screen when gameState first appears for a new game ──
-  // Uses a hard safety timeout so the overlay is ALWAYS removed, even if
-  // the VersusScreen onComplete callback somehow doesn't fire.
+  // ── Trigger VS screen when the store flag is set (match_found only) ──
+  // Consume the flag immediately so it never fires twice, even across remounts.
   const versusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (gameState && phase === 'in_game' && versusShownForRef.current !== gameState.gameId) {
-      versusShownForRef.current = gameState.gameId;
+    if (versusScreenPending && gameState && phase === 'in_game') {
+      // Consume flag immediately — even if the component remounts, the flag is gone
+      consumeVersusScreen();
       setShowVersusScreen(true);
 
       // Hard safety: force-dismiss after 4s no matter what
@@ -438,7 +440,7 @@ export default function LiveGame() {
     return () => {
       if (versusTimerRef.current) clearTimeout(versusTimerRef.current);
     };
-  }, [gameState?.gameId, phase]);
+  }, [versusScreenPending, gameState, phase, consumeVersusScreen]);
 
   // Loading state (connecting or loading game)
   // All games now use WebSocket, so check WS status

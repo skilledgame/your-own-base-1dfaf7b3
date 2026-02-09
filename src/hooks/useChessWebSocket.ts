@@ -240,6 +240,9 @@ function initializeGlobalMessageHandler(): void {
           wager,
         });
         
+        // Show VS splash for fresh matches (NOT reconnects — those go through game_reconnected)
+        useChessStore.setState({ versusScreenPending: true });
+        
         // Only show match found toast for admin users
         if (isAdminCallback && isAdminCallback()) {
           toast.success(`Match found! You play as ${color === "w" ? "White" : "Black"}. Wager: ${wager} SC`);
