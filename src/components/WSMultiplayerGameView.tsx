@@ -116,6 +116,14 @@ export const WSMultiplayerGameView = ({
       };
     }
     
+    // PART D: If clockRunning is false (no first move yet), show full time frozen
+    if (!timerSnapshot.clockRunning) {
+      return {
+        whiteTime: timerSnapshot.whiteTimeSeconds,
+        blackTime: timerSnapshot.blackTimeSeconds,
+      };
+    }
+    
     // Use performance.now() for smooth, drift-free countdown
     const elapsedMs = performance.now() - timerSnapshot.clientPerfNowMs;
     const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
@@ -219,8 +227,8 @@ export const WSMultiplayerGameView = ({
     timerIntervalRef.current = setInterval(() => {
       setTimerTick((tick) => tick + 1);
 
-      // Check for time loss (calculated from snapshot using performance.now for consistency)
-      if (timerSnapshot && timerSnapshot.clientPerfNowMs > 0) {
+      // PART D: Don't check time loss if clock hasn't started
+      if (timerSnapshot && timerSnapshot.clientPerfNowMs > 0 && timerSnapshot.clockRunning) {
         const elapsedMs = performance.now() - timerSnapshot.clientPerfNowMs;
         const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
         
@@ -324,8 +332,9 @@ export const WSMultiplayerGameView = ({
   const opponentTime = isWhite ? blackTime : whiteTime;
   const myColorLabel = isWhite ? "White" : "Black";
   const opponentColorLabel = isWhite ? "Black" : "White";
+  // PART D: Timer "active" indicator only shows when clockRunning is true
   const isMyTurnForTimer = !isPrivateGame && timerSnapshot
-    ? timerSnapshot.currentTurn === myColor
+    ? (timerSnapshot.clockRunning && timerSnapshot.currentTurn === myColor)
     : isMyTurn;
 
   // Get rank display names

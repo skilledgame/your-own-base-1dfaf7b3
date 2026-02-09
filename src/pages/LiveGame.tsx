@@ -15,8 +15,9 @@ import { useBalance } from '@/hooks/useBalance';
 import { WSMultiplayerGameView } from '@/components/WSMultiplayerGameView';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { GameResultModal } from '@/components/GameResultModal';
+import { MatchTransition } from '@/components/MatchTransition';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, WifiOff } from 'lucide-react';
+import { ArrowLeft, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePrivateGame } from '@/hooks/usePrivateGame';
@@ -24,6 +25,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
+import { perf } from '@/lib/perfLog';
 
 export default function LiveGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -148,6 +150,8 @@ export default function LiveGame() {
 
   // Ref to track if we've already sent join_game for this UUID
   const joinGameSentRef = useRef<string | null>(null);
+  // PART A: Perf ref for board_rendered (only mark once)
+  const boardRenderedRef = useRef(false);
   
   // Load game from database if gameId is in URL but no gameState
   // Also reload if URL gameId doesn't match store gameId (game changed)
@@ -401,17 +405,28 @@ export default function LiveGame() {
     return undefined;
   }, [playerRank, totalWageredSc]);
 
+  // PART A: Mark route_to_game when LiveGame first mounts
+  const routeMarkedRef = useRef(false);
+  useEffect(() => {
+    if (!routeMarkedRef.current) {
+      routeMarkedRef.current = true;
+      perf.mark('route_to_game');
+    }
+  }, []);
+
   // Loading state (connecting or loading game)
   // All games now use WebSocket, so check WS status
   const isLoading = loadingGame || status === "connecting" || status === "reconnecting";
   
   if (isLoading) {
+    // PART B: Use unified MatchTransition overlay instead of raw spinner
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">
-          {status === "connecting" ? "Connecting to game server..." : "Reconnecting..."}
-        </p>
+      <>
+        <MatchTransition
+          variant={status === "reconnecting" ? "reconnecting" : "connecting"}
+          gameCode={gameId?.slice(0, 8)}
+          wager={gameState?.wager}
+        />
         {showNetworkDebug && (
           <NetworkDebugPanel
             status={status}
@@ -423,7 +438,7 @@ export default function LiveGame() {
             onClearLogs={clearLogs}
           />
         )}
-      </div>
+      </>
     );
   }
 
@@ -517,20 +532,17 @@ export default function LiveGame() {
 
   // No game state - check phase to determine what to show
   if (!gameState) {
-    // For UUID private games in searching/waiting phase, show connecting/waiting UI
+    // For UUID private games in searching/waiting phase, show unified transition overlay
     const isPrivateUuidGame = gameId && !gameId.startsWith('g_');
     if (isPrivateUuidGame && (phase === "searching" || phase === "idle")) {
+      // PART B: Use MatchTransition instead of raw spinner
       return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">
-            {status === 'connected' ? 'Waiting for opponent to connect...' : 'Connecting to game server...'}
-          </p>
-          <p className="text-sm text-muted-foreground/60">Game code: {gameId.slice(0, 8)}…</p>
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Button>
+        <>
+          <MatchTransition
+            variant="private_waiting"
+            gameCode={gameId.slice(0, 8)}
+            onBack={handleBack}
+          />
           {showNetworkDebug && (
             <NetworkDebugPanel
               status={status}
@@ -542,7 +554,7 @@ export default function LiveGame() {
               onClearLogs={clearLogs}
             />
           )}
-        </div>
+        </>
       );
     }
 
@@ -568,15 +580,14 @@ export default function LiveGame() {
       );
     }
     
-    // In game phase but waiting for game state (shouldn't happen normally)
+    // In game phase but waiting for game state — show MatchTransition
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Loading game state...</p>
-        <Button variant="outline" onClick={handleBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Button>
+      <>
+        <MatchTransition
+          variant="connecting"
+          gameCode={gameId?.slice(0, 8)}
+          onBack={handleBack}
+        />
         {showNetworkDebug && (
           <NetworkDebugPanel
             status={status}
@@ -588,7 +599,7 @@ export default function LiveGame() {
             onClearLogs={clearLogs}
           />
         )}
-      </div>
+      </>
     );
   }
 
@@ -605,6 +616,13 @@ export default function LiveGame() {
         <Button onClick={handleBack}>Go Home</Button>
       </div>
     );
+  }
+
+  // PART A: Mark board_rendered when we reach the render point with gameState
+  if (!boardRenderedRef.current) {
+    boardRenderedRef.current = true;
+    perf.mark('board_rendered');
+    perf.summary();
   }
 
   // Convert color from "w"/"b" to "white"/"black"

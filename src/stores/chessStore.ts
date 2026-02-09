@@ -20,6 +20,11 @@ export interface TimerSnapshot {
    * system clock (Date.now()).
    */
   clientPerfNowMs: number;
+  /**
+   * PART D: Whether clocks are running. False until the first move is made.
+   * When false, the client timer should display full time without counting down.
+   */
+  clockRunning: boolean;
 }
 
 export type GamePhase = "idle" | "searching" | "in_game" | "game_over";

@@ -17,14 +17,14 @@ import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
+import { perf } from '@/lib/perfLog';
+import { MatchTransition } from '@/components/MatchTransition';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Loader2, 
   Play, 
-  X, 
-  Users, 
   Coins, 
   Trophy,
   Wifi,
@@ -138,6 +138,9 @@ export default function QuickPlay() {
       return;
     }
     
+    // PART A: Start perf measurement session
+    perf.start('click_matchmake');
+    
     findMatch(selectedWager, playerName);
   }, [isAuthenticated, selectedWager, displayBalance, findMatch, playerName, navigate]);
 
@@ -225,36 +228,13 @@ export default function QuickPlay() {
           </div>
         )}
 
-        {/* Searching State */}
+        {/* PART B: Searching State — unified MatchTransition overlay */}
         {isAuthenticated && isSearching && (
-          <div className="text-center space-y-6 py-12">
-            <div className="relative w-24 h-24 mx-auto">
-              <div className="absolute inset-0 rounded-full border-4 border-blue-500/30 animate-ping" />
-              <div className="absolute inset-2 rounded-full border-4 border-cyan-500/50 animate-pulse" />
-              <div className="absolute inset-4 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center">
-                <Users className="w-10 h-10 text-white animate-pulse" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">Finding Opponent</h2>
-              <p className="text-blue-200/60">Searching for a player with similar wager...</p>
-              <div className="flex items-center justify-center gap-2 mt-4">
-                <Coins className="w-5 h-5 text-yellow-500" />
-                <span className="text-xl font-bold text-yellow-400">{selectedWager} SC</span>
-              </div>
-              <p className="text-xs text-blue-300/40">You: {playerName}</p>
-            </div>
-
-            <Button
-              variant="outline"
-              className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-              onClick={handleCancelSearch}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancel Search
-            </Button>
-          </div>
+          <MatchTransition
+            variant="matchmaking"
+            wager={selectedWager}
+            onCancel={handleCancelSearch}
+          />
         )}
 
         {/* Idle State */}

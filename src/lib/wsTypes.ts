@@ -114,6 +114,7 @@ export interface MatchFoundMessage {
   whiteTime?: number;       // Initial white time in seconds
   blackTime?: number;       // Initial black time in seconds
   serverTimeMs?: number;    // Server timestamp
+  clockRunning?: boolean;   // PART D: false until first move is made
   opponent?: {
     name: string;
     playerId?: string;
@@ -138,6 +139,7 @@ export interface MoveAppliedMessage {
   whiteTime?: number;  // Server-authoritative time in seconds
   blackTime?: number;  // Server-authoritative time in seconds
   serverTimeMs?: number;  // Server timestamp when this state was calculated
+  clockRunning?: boolean;  // PART D: true after first move
 }
 
 /**
@@ -152,6 +154,7 @@ export interface GameSyncMessage {
   whiteTime: number;  // Remaining time in seconds
   blackTime: number;  // Remaining time in seconds
   serverTimeMs: number;  // Server timestamp (milliseconds since epoch)
+  clockRunning?: boolean;  // PART D: true after first move
   status: "active" | "ended";
   wager?: number;
 }

@@ -21,6 +21,7 @@ import { useBalanceStore } from '@/stores/balanceStore';
 import { useUserDataStore } from '@/stores/userDataStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { perf } from '@/lib/perfLog';
 import type { 
   WSConnectionStatus, 
   MatchFoundMessage,
@@ -70,6 +71,8 @@ let navigationCallback: ((path: string) => void) | null = null;
 let balanceRefreshCallback: (() => void) | null = null;
 let isAdminCallback: (() => boolean) | null = null;
 let lastTimerSnapshotUpdatePerfMs = 0;
+// PART B: Guard against duplicate navigation to game route
+let navigatedToGameId: string | null = null;
 const TIMER_SNAPSHOT_MIN_INTERVAL_MS = 250;
 
 const normalizeServerTimeMs = (serverTime: number): number =>
@@ -114,6 +117,8 @@ function initializeGlobalMessageHandler(): void {
       case "welcome": {
         const payload = msg as unknown as WelcomeMessage;
         console.log("[Chess WS]", clientId, "Welcome from server:", payload);
+        // PART A: Perf milestone - WS handshake done
+        perf.mark('ws_connected');
         // Only show connection alert for admin users
         if (isAdminCallback && isAdminCallback()) {
           toast.success("Connected to game server");
@@ -138,6 +143,9 @@ function initializeGlobalMessageHandler(): void {
       case "match_found": {
         const payload = msg as unknown as MatchFoundMessage;
         const store = useChessStore.getState();
+        
+        // PART A: Perf milestone
+        perf.mark('match_found');
         
         // Structured logging
         console.log("[Chess WS] MATCH_FOUND", {
@@ -192,6 +200,9 @@ function initializeGlobalMessageHandler(): void {
         // Get opponent name from payload (try new format first, then legacy)
         const opponentName = payload.opponent?.name || (payload as any).opponentName || "Opponent";
         
+        // PART D: Extract clockRunning from server (false until first move)
+        const matchClockRunning = payload.clockRunning === true;
+        
         // Initialize timer snapshot if server provided it (with validation)
         if (payload.whiteTime !== undefined && 
             payload.blackTime !== undefined && 
@@ -208,6 +219,7 @@ function initializeGlobalMessageHandler(): void {
             serverTimeMs: payload.serverTimeMs,
             currentTurn: 'w', // White moves first
             clientPerfNowMs: performance.now(),
+            clockRunning: matchClockRunning,
           });
           lastTimerSnapshotUpdatePerfMs = performance.now();
           console.log("[Chess WS] Timer snapshot updated (match_found)", {
@@ -215,6 +227,7 @@ function initializeGlobalMessageHandler(): void {
             whiteTime: payload.whiteTime,
             blackTime: payload.blackTime,
             serverTimeMs: payload.serverTimeMs,
+            clockRunning: matchClockRunning,
             timestamp: new Date().toISOString(),
           });
         } else {
@@ -231,6 +244,7 @@ function initializeGlobalMessageHandler(): void {
             serverTimeMs: Date.now(),
             currentTurn: 'w',
             clientPerfNowMs: performance.now(),
+            clockRunning: matchClockRunning,
           });
           lastTimerSnapshotUpdatePerfMs = performance.now();
         }
@@ -269,9 +283,15 @@ function initializeGlobalMessageHandler(): void {
             // Private game: user is already on /game/live/{UUID}, stay there
             console.log("[Chess WS] Private game match_found — NOT navigating (staying on UUID page). dbGameId:", dbMatchId);
           } else {
-            // Public matchmaking: navigate from queue/lobby page to the game page
-            console.log("[Chess WS] NAVIGATING to game:", `/game/live/${matchId}`);
-            navigationCallback(`/game/live/${matchId}`);
+            // PART B: Guard against duplicate navigation (navigatedToGameRef pattern)
+            if (navigatedToGameId === matchId) {
+              console.log("[Chess WS] Already navigated to game, skipping duplicate nav:", matchId);
+            } else {
+              navigatedToGameId = matchId;
+              // Public matchmaking: navigate from queue/lobby page to the game page
+              console.log("[Chess WS] NAVIGATING to game:", `/game/live/${matchId}`);
+              navigationCallback(`/game/live/${matchId}`);
+            }
           }
         }
         break;
@@ -293,6 +313,9 @@ function initializeGlobalMessageHandler(): void {
         // Update FEN from server (server is authoritative)
         store.updateFromServer(payload.fen, payload.turn);
         
+        // PART D: Extract clockRunning (true after first move)
+        const moveClockRunning = (payload as any).clockRunning === true;
+        
         // If server sent timer data, update it (server-authoritative) - with validation
         if (payload.whiteTime !== undefined && 
             payload.blackTime !== undefined && 
@@ -311,6 +334,7 @@ function initializeGlobalMessageHandler(): void {
               serverTimeMs: payload.serverTimeMs,
               currentTurn: payload.turn,
               clientPerfNowMs: performance.now(),
+              clockRunning: moveClockRunning,
             });
             lastTimerSnapshotUpdatePerfMs = performance.now();
             console.log("[Chess WS] Timer snapshot updated (move_applied)", {
@@ -319,6 +343,7 @@ function initializeGlobalMessageHandler(): void {
               blackTime: payload.blackTime,
               serverTimeMs: payload.serverTimeMs,
               currentTurn: payload.turn,
+              clockRunning: moveClockRunning,
               timestamp: new Date().toISOString(),
             });
           }
@@ -380,6 +405,9 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as GameSyncMessage;
         console.log("[Chess WS]", clientId, "Game sync received:", payload);
         
+        // PART D: Extract clockRunning from game_sync
+        const syncClockRunning = payload.clockRunning === true;
+        
           // Update game state from server sync
         if (store.gameState && store.gameState.gameId === payload.gameId) {
           store.updateFromServer(payload.fen, payload.turn);
@@ -398,6 +426,7 @@ function initializeGlobalMessageHandler(): void {
                 serverTimeMs: payload.serverTimeMs,
                 currentTurn: payload.turn,
                 clientPerfNowMs: performance.now(),
+                clockRunning: syncClockRunning,
               });
               lastTimerSnapshotUpdatePerfMs = performance.now();
             }
@@ -423,6 +452,9 @@ function initializeGlobalMessageHandler(): void {
       case "game_ended": {
         const payload = msg as unknown as GameEndedMessage;
         const currentState = useChessStore.getState();
+        
+        // PART B: Reset navigation guard so next game can navigate
+        navigatedToGameId = null;
         
         // Validate payload and extract gameId
         const gameId = payload.gameId || currentState.gameState?.gameId || null;
@@ -679,15 +711,22 @@ function initializeGlobalMessageHandler(): void {
         // Only apply if the local timer has drifted significantly (>2s) from the server,
         // to avoid small jumps that make the timer look glitchy.
         const payload = msg as any;
+        // PART D: Extract clockRunning from clock_update
+        const clockUpdateRunning = payload.clockRunning === true;
+        
         if (payload.whiteTime !== undefined && payload.blackTime !== undefined) {
           const currentSnapshot = store.timerSnapshot;
-          if (currentSnapshot && currentSnapshot.clientPerfNowMs > 0) {
+          
+          // PART D: If clockRunning just changed (e.g. first move made), always update
+          const clockStateChanged = currentSnapshot && currentSnapshot.clockRunning !== clockUpdateRunning;
+          
+          if (currentSnapshot && currentSnapshot.clientPerfNowMs > 0 && !clockStateChanged) {
             const elapsedMs = performance.now() - currentSnapshot.clientPerfNowMs;
             const elapsedSeconds = Math.floor(elapsedMs / 1000);
-            const localWhite = currentSnapshot.currentTurn === 'w'
+            const localWhite = (currentSnapshot.currentTurn === 'w' && currentSnapshot.clockRunning)
               ? currentSnapshot.whiteTimeSeconds - elapsedSeconds
               : currentSnapshot.whiteTimeSeconds;
-            const localBlack = currentSnapshot.currentTurn === 'b'
+            const localBlack = (currentSnapshot.currentTurn === 'b' && currentSnapshot.clockRunning)
               ? currentSnapshot.blackTimeSeconds - elapsedSeconds
               : currentSnapshot.blackTimeSeconds;
             const whiteOff = Math.abs(localWhite - payload.whiteTime);
@@ -700,16 +739,18 @@ function initializeGlobalMessageHandler(): void {
                 serverTimeMs: Date.now(),
                 currentTurn: payload.currentTurn || currentSnapshot.currentTurn || 'w',
                 clientPerfNowMs: performance.now(),
+                clockRunning: clockUpdateRunning,
               });
             }
           } else {
-            // No existing snapshot — apply directly
+            // No existing snapshot or clockRunning state changed — apply directly
             store.updateTimerSnapshot({
               whiteTimeSeconds: payload.whiteTime,
               blackTimeSeconds: payload.blackTime,
               serverTimeMs: Date.now(),
               currentTurn: payload.currentTurn || store.gameState?.fen?.split(' ')[1] || 'w',
               clientPerfNowMs: performance.now(),
+              clockRunning: clockUpdateRunning,
             });
           }
         }

@@ -65,7 +65,6 @@ export default function PrivateGameLobby() {
   const [toggling, setToggling] = useState(false);
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null); // 3, 2, 1, then navigate
 
   // Derived state
   const myReady = isCreator ? room?.creator_ready : room?.joiner_ready;
@@ -162,32 +161,15 @@ export default function PrivateGameLobby() {
     };
   }, [roomId, joiner, fetchRoom]);
 
-  // When room status becomes 'started' (via Realtime from other player), begin countdown
+  // PART B: When room status becomes 'started', navigate IMMEDIATELY (no countdown)
+  // The old 3-second countdown added unnecessary delay. Navigate directly to game.
   useEffect(() => {
-    if (room?.status === 'started' && room?.game_id && countdown === null && !starting) {
+    if (room?.status === 'started' && room?.game_id && !starting) {
       setStarting(true);
-      setCountdown(3);
+      console.log('[Lobby] Game started, navigating immediately to:', room.game_id);
+      navigate(`/game/live/${room.game_id}`);
     }
-  }, [room?.status, room?.game_id, countdown, starting]);
-
-  // Countdown timer: 3 → 2 → 1 → navigate
-  useEffect(() => {
-    if (countdown === null) return;
-
-    if (countdown <= 0) {
-      // Countdown finished — navigate to game
-      if (room?.game_id) {
-        navigate(`/game/live/${room.game_id}`);
-      }
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setCountdown((prev) => (prev !== null ? prev - 1 : null));
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [countdown, room?.game_id, navigate]);
+  }, [room?.status, room?.game_id, starting, navigate]);
 
   // Toggle ready state
   const handleToggleReady = async () => {
@@ -221,6 +203,7 @@ export default function PrivateGameLobby() {
   };
 
   // Start game — call RPC to set status='started', which triggers Realtime for BOTH players
+  // PART B: Navigate immediately after RPC returns, no countdown delay
   const handleStartGame = async () => {
     if (!room?.game_id || !bothReady || starting) return;
     setStarting(true);
@@ -240,9 +223,9 @@ export default function PrivateGameLobby() {
         return;
       }
 
-      // Begin countdown for the player who clicked Start
-      // (other player's countdown starts via Realtime → room.status watcher above)
-      setCountdown(3);
+      // Navigate immediately (other player's nav starts via Realtime → room.status watcher above)
+      console.log('[Lobby] Start game RPC succeeded, navigating to:', room.game_id);
+      navigate(`/game/live/${room.game_id}`);
     } catch (err) {
       console.error('[Lobby] Start game exception:', err);
       setStarting(false);
@@ -476,29 +459,7 @@ export default function PrivateGameLobby() {
         </main>
       </div>
 
-      {/* Countdown overlay */}
-      {countdown !== null && countdown > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-6">
-            <p className="text-white/60 text-lg font-semibold uppercase tracking-widest">Game Starting</p>
-            <div
-              key={countdown}
-              className="text-[120px] sm:text-[160px] font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-purple-300 leading-none animate-[scaleIn_0.4s_ease-out]"
-              style={{ animation: 'scaleIn 0.4s ease-out' }}
-            >
-              {countdown}
-            </div>
-            <p className="text-white/40 text-sm">Get ready!</p>
-          </div>
-          <style>{`
-            @keyframes scaleIn {
-              0% { transform: scale(2); opacity: 0; }
-              60% { transform: scale(0.9); opacity: 1; }
-              100% { transform: scale(1); opacity: 1; }
-            }
-          `}</style>
-        </div>
-      )}
+      {/* PART B: Countdown removed — navigate immediately to reduce time-to-board */}
     </div>
   );
 }
