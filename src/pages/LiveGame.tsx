@@ -456,6 +456,11 @@ export default function LiveGame() {
   useEffect(() => {
     if (isLoadingConnection) {
       showLoading();
+      // Reset gameReadyRef so the "game ready" effect can re-fire hideLoading()
+      // after the connection is restored. Without this, a reconnect after alt-tab
+      // leaves the overlay stuck because gameReadyRef.current is still true
+      // from the initial game setup.
+      gameReadyRef.current = false;
     }
   }, [isLoadingConnection, showLoading]);
 
