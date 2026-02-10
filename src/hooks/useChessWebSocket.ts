@@ -566,6 +566,16 @@ function initializeGlobalMessageHandler(): void {
         break;
       }
       
+      case "credits_settled": {
+        // Server finished DB settlement after game_ended was already sent.
+        // Trigger a balance refresh so the UI picks up the updated amount.
+        console.log("[Client] credits_settled — refreshing balance");
+        if (balanceRefreshCallback) {
+          balanceRefreshCallback();
+        }
+        break;
+      }
+      
       case "opponent_left": {
         const payload = msg as unknown as OpponentLeftMessage;
         console.log("[Chess WS]", clientId, "Opponent left:", payload);

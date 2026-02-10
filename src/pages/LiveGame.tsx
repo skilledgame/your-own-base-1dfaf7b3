@@ -139,10 +139,12 @@ export default function LiveGame() {
   };
 
   const handleTimeLoss = async (loserColor: 'w' | 'b') => {
-    // When time runs out, resign the game
-    console.log(`[LiveGame] Time loss for ${loserColor === 'w' ? 'white' : 'black'}`);
-    // All games now use WebSocket for time loss handling
-    resignGame();
+    // Server-authoritative: the server's 1 Hz clock tick detects time loss
+    // and calls endGame(), which broadcasts game_ended to both players.
+    // The client does NOT need to send resign — just log and wait.
+    // Sending resignGame() here would show a loading overlay for the opponent
+    // when their own clock expires, which is wrong.
+    console.log(`[LiveGame] Time loss detected for ${loserColor === 'w' ? 'white' : 'black'} — waiting for server game_ended`);
   };
 
   const handlePlayAgain = () => {
