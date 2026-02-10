@@ -97,8 +97,8 @@ const Index = () => {
   // Balance is already loaded via userDataStore in App.tsx
 
   const handleJoinGame = (playerName: string) => {
-    // Navigate to quick play for WebSocket matchmaking
-    navigate('/quick-play');
+    // Navigate to chess home for WebSocket matchmaking
+    navigate('/chess');
   };
 
   const handleGoHome = () => {

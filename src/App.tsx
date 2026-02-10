@@ -31,7 +31,6 @@ import Leaderboard from "./pages/Leaderboard";
 import GameHistory from "./pages/GameHistory";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
-import QuickPlay from "./pages/QuickPlay";
 import LiveGame from "./pages/LiveGame";
 import PrivateGameLobby from "./pages/PrivateGameLobby";
 import Affiliate from "./pages/Affiliate";
@@ -135,7 +134,6 @@ const App = () => (
                       <Route path="/leaderboard" element={<Leaderboard />} />
                       <Route path="/game-history" element={<GameHistory />} />
                       <Route path="/admin" element={<Admin />} />
-                      <Route path="/quick-play" element={<QuickPlay />} />
                       <Route path="/game/lobby/:roomId" element={<PrivateGameLobby />} />
                       <Route path="/game/live/:gameId" element={
                         <GameErrorBoundary>

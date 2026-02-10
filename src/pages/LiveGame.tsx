@@ -130,7 +130,7 @@ export default function LiveGame() {
       resignGame();
       return; // Don't navigate — overlay is shown, game_ended will handle it
     }
-    navigate('/quick-play');
+    navigate('/chess');
   };
 
   const handleSendMove = async (from: string, to: string, promotion?: string) => {
@@ -585,7 +585,7 @@ export default function LiveGame() {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
           </div>
           <div className="relative z-10 flex gap-3">
-            <Button size="sm" onClick={() => navigate('/quick-play')}>Find a Match</Button>
+            <Button size="sm" onClick={() => navigate('/chess')}>Find a Match</Button>
             <Button size="sm" variant="ghost" onClick={handleBack} className="text-blue-400">
               <ArrowLeft className="w-4 h-4 mr-1" /> Home
             </Button>

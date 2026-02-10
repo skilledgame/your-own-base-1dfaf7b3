@@ -2,7 +2,7 @@
  * Chess Game Zustand Store
  * 
  * GLOBAL state for chess multiplayer that persists across navigation.
- * This solves the state desync between QuickPlay and LiveGame pages.
+ * This solves the state desync between the matchmaking flow and LiveGame page.
  * 
  * Extended to support wager-based matchmaking and balance tracking.
  */
