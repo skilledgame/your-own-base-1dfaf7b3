@@ -292,6 +292,12 @@ export default function LiveGame() {
     const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
     setPlayerRank(playerRankInfo);
     
+    // Patch the versus screen (if still showing) with player rank + name
+    useUILoadingStore.getState().patchVersusData({
+      playerRank: playerRankInfo,
+      ...(playerDisplayName ? { playerName: playerDisplayName } : {}),
+    });
+    
     // Update player's own name from profile if available (no Supabase call)
     if (playerDisplayName && !isPrivateGame) {
       const storeState = useChessStore.getState();
@@ -364,6 +370,12 @@ export default function LiveGame() {
           if (opponentProfile) {
             const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
             setOpponentRank(opponentRankInfo);
+            
+            // Patch the versus screen (if still showing) with real opponent name + rank
+            useUILoadingStore.getState().patchVersusData({
+              opponentName: opponentProfile.display_name || undefined,
+              opponentRank: opponentRankInfo,
+            });
             
             const opponentDisplayName = opponentProfile.display_name || "Opponent";
             const storeState = useChessStore.getState();

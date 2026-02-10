@@ -173,7 +173,8 @@ function initializeGlobalMessageHandler(): void {
         const fen = payload?.fen ?? null;
         
         // Normalize opponent userId (profiles uses user_id, not id)
-        const opponentUserId = 
+        // Also check whiteId/blackId — the opponent is the one that's NOT our color
+        const opponentUserIdFromPayload = 
           (payload as any)?.opponentUserId ??
           (payload as any)?.opponent_user_id ??
           (payload?.opponent as any)?.user_id ??
@@ -182,6 +183,21 @@ function initializeGlobalMessageHandler(): void {
           (payload?.opponent as any)?.player_id ??
           (payload?.opponent as any)?.id ??
           null;
+        
+        // Derive from whiteId/blackId if not found directly
+        const opponentUserId = opponentUserIdFromPayload
+          || (color === 'w' ? (payload as any)?.blackId ?? (payload as any)?.black_id : null)
+          || (color === 'b' ? (payload as any)?.whiteId ?? (payload as any)?.white_id : null)
+          || null;
+        
+        console.log("[Chess WS] Opponent ID resolution:", {
+          opponentUserIdFromPayload,
+          whiteId: (payload as any)?.whiteId,
+          blackId: (payload as any)?.blackId,
+          resolvedOpponentUserId: opponentUserId,
+          opponentObj: payload?.opponent,
+          color,
+        });
         
         const wager = typeof payload?.wager === 'number' ? payload.wager : 0;
         
@@ -258,15 +274,17 @@ function initializeGlobalMessageHandler(): void {
           // Ranks will be patched in by LiveGame once fetched
         });
         
-        // If opponent name is generic and we have their userId, fetch real name
-        // and patch the versus screen (it's still animating for ~2.8s)
-        if (opponentUserId && (!opponentNameFromPayload || opponentNameFromPayload === "Opponent" || opponentNameFromPayload === "Player")) {
+        // Always try to fetch the real opponent display name from Supabase
+        // The WS server may not have it, or may send a generic/stale name
+        if (opponentUserId) {
+          console.log("[Chess WS] Fetching opponent display name for userId:", opponentUserId);
           supabase
             .from('profiles')
             .select('display_name')
             .eq('user_id', opponentUserId)
             .maybeSingle()
-            .then(({ data }) => {
+            .then(({ data, error }) => {
+              console.log("[Chess WS] Opponent profile lookup result:", { data, error, opponentUserId });
               if (data?.display_name) {
                 // Update the versus screen with the real opponent name
                 useUILoadingStore.getState().patchVersusData({ opponentName: data.display_name });
@@ -280,6 +298,8 @@ function initializeGlobalMessageHandler(): void {
                 }
               }
             });
+        } else {
+          console.warn("[Chess WS] No opponentUserId available — cannot fetch real opponent name. Full payload:", JSON.stringify(payload));
         }
         
         // Only show match found toast for admin users
