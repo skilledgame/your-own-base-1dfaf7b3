@@ -38,7 +38,7 @@ interface UILoadingState {
   hideLoading: () => void;
 }
 
-export const useUILoadingStore = create<UILoadingState>((set) => ({
+export const useUILoadingStore = create<UILoadingState>((set, get) => ({
   isLoading: false,
   mode: "spinner",
   reason: undefined,
