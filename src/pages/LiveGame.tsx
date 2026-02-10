@@ -342,11 +342,16 @@ export default function LiveGame() {
         }
 
         if (opponentUserId) {
-          // SINGLE combined query: profile + badges in parallel (2 calls instead of 4)
+          // Check if the WS handler already resolved the opponent name
+          const currentStoreName = useChessStore.getState().gameState?.opponentName;
+          const nameAlreadyResolved = currentStoreName && currentStoreName !== "Opponent";
+
+          // Fetch rank (total_wagered_sc) + badges in parallel.
+          // Only fetch display_name if the WS handler didn't already resolve it.
           const [profileResult, badgeResult] = await Promise.all([
             supabase
               .from('profiles')
-              .select('total_wagered_sc, display_name')
+              .select(nameAlreadyResolved ? 'total_wagered_sc' : 'total_wagered_sc, display_name')
               .eq('user_id', opponentUserId)
               .maybeSingle(),
             supabase
@@ -360,20 +365,24 @@ export default function LiveGame() {
             const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
             setOpponentRank(opponentRankInfo);
             
-            // Patch the versus screen (if still showing) with real opponent name + rank
-            useUILoadingStore.getState().patchVersusData({
-              ...(opponentProfile.display_name ? { opponentName: opponentProfile.display_name } : {}),
-              opponentRank: opponentRankInfo,
-            });
+            // Patch the versus screen (if still showing) with rank + name
+            const patchData: Record<string, any> = { opponentRank: opponentRankInfo };
+            const displayName = (opponentProfile as any).display_name;
+            if (displayName) {
+              patchData.opponentName = displayName;
+            }
+            useUILoadingStore.getState().patchVersusData(patchData);
             
-            const opponentDisplayName = opponentProfile.display_name || "Opponent";
-            const storeState = useChessStore.getState();
-            const currentGameState = storeState.gameState;
-            if (currentGameState && opponentDisplayName !== currentGameState.opponentName) {
-              setGameState({
-                ...currentGameState,
-                opponentName: opponentDisplayName,
-              });
+            // Update game state with display name if we fetched it
+            if (displayName) {
+              const storeState = useChessStore.getState();
+              const currentGameState = storeState.gameState;
+              if (currentGameState && displayName !== currentGameState.opponentName) {
+                setGameState({
+                  ...currentGameState,
+                  opponentName: displayName,
+                });
+              }
             }
           } else {
             setOpponentRank(getRankFromTotalWagered(0));

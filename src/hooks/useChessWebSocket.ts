@@ -273,12 +273,36 @@ function initializeGlobalMessageHandler(): void {
           // Ranks will be patched in by LiveGame once fetched
         });
         
-        // Opponent display name fetch REMOVED from here — LiveGame.tsx already
-        // does a consolidated fetch of opponent profile + badges in a single
-        // Promise.all() call when the game starts. This eliminates a duplicate
-        // Supabase query per match.
-        // The versus screen will use the name from the WS payload initially,
-        // then LiveGame patches it with the real display name once fetched.
+        // Fetch real opponent display name to patch both the versus screen AND
+        // the game state. The versus screen shows immediately, so this must
+        // happen here — LiveGame may not have mounted yet.
+        if (opponentUserId) {
+          console.log("[Chess WS] Fetching opponent display name for userId:", opponentUserId);
+          supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('user_id', opponentUserId)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data?.display_name) {
+                // Patch the versus screen overlay
+                useUILoadingStore.getState().patchVersusData({ opponentName: data.display_name });
+                // Also patch the game state so the board shows the real name
+                const currentGameState = useChessStore.getState().gameState;
+                if (currentGameState && currentGameState.gameId === matchId) {
+                  useChessStore.getState().setGameState({
+                    ...currentGameState,
+                    opponentName: data.display_name,
+                  });
+                }
+              }
+            })
+            .catch((err) => {
+              console.warn("[Chess WS] Error fetching opponent profile:", err);
+            });
+        } else {
+          console.warn("[Chess WS] No opponentUserId available — cannot fetch real opponent name");
+        }
         
         // Only show match found toast for admin users
         if (isAdminCallback && isAdminCallback()) {
