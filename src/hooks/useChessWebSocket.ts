@@ -17,7 +17,6 @@ import { toast } from 'sonner';
 import { Chess } from 'chess.js';
 import { wsClient } from '@/lib/wsClient';
 import { useChessStore } from '@/stores/chessStore';
-import { useBalanceStore } from '@/stores/balanceStore';
 import { useUserDataStore } from '@/stores/userDataStore';
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { supabase } from '@/integrations/supabase/client';
@@ -274,27 +273,12 @@ function initializeGlobalMessageHandler(): void {
           // Ranks will be patched in by LiveGame once fetched
         });
         
-        // Try to fetch real opponent display name to patch the versus screen
-        // LiveGame will also resolve the opponent name for the game view
-        if (opponentUserId) {
-          console.log("[Chess WS] Fetching opponent display name for userId:", opponentUserId);
-          supabase
-            .from('profiles')
-            .select('display_name')
-            .eq('user_id', opponentUserId)
-            .maybeSingle()
-            .then(({ data }) => {
-              if (data?.display_name) {
-                // Patch only the versus screen overlay (LiveGame handles game state)
-                useUILoadingStore.getState().patchVersusData({ opponentName: data.display_name });
-              }
-            })
-            .catch((err) => {
-              console.warn("[Chess WS] Error fetching opponent profile:", err);
-            });
-        } else {
-          console.warn("[Chess WS] No opponentUserId available — cannot fetch real opponent name");
-        }
+        // Opponent display name fetch REMOVED from here — LiveGame.tsx already
+        // does a consolidated fetch of opponent profile + badges in a single
+        // Promise.all() call when the game starts. This eliminates a duplicate
+        // Supabase query per match.
+        // The versus screen will use the name from the WS payload initially,
+        // then LiveGame patches it with the real display name once fetched.
         
         // Only show match found toast for admin users
         if (isAdminCallback && isAdminCallback()) {
@@ -613,11 +597,12 @@ function initializeGlobalMessageHandler(): void {
       
       case "credits_settled": {
         // Server finished DB settlement after game_ended was already sent.
-        // Trigger a balance refresh so the UI picks up the updated amount.
-        console.log("[Client] credits_settled — refreshing balance");
-        if (balanceRefreshCallback) {
-          balanceRefreshCallback();
-        }
+        // game_ended already triggers syncBalanceAfterGame() which does:
+        //   1. Optimistic balance update (instant UI)
+        //   2. Authoritative DB fetch after 500ms
+        // The Realtime subscription on profiles will also pick up the change.
+        // So we DON'T need another balance refresh here — it would be a duplicate.
+        console.log("[Client] credits_settled — no-op (syncBalanceAfterGame already handles this)");
         break;
       }
       
@@ -846,12 +831,13 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     resetAll 
   } = useChessStore();
   
-  const { fetchBalance } = useBalanceStore();
+  // fetchBalance no longer used here — refreshBalance delegates to userDataStore
   
-  // Throttled balance refresh - max once per 2 seconds
+  // Throttled balance refresh - max once per 5 seconds
+  // Uses userDataStore.refresh() instead of making a separate auth + balance call
   const refreshBalance = useCallback(async () => {
     const now = Date.now();
-    const MIN_INTERVAL = 2000;
+    const MIN_INTERVAL = 5000;
     
     // Clear any pending refresh
     if (balanceRefreshTimeout.current) {
@@ -870,20 +856,14 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     lastBalanceRefresh.current = now;
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !user.id) {
-        // Balance managed by balanceStore
-        return;
-      }
-      
-      // Use the balance store
-      fetchBalance(user.id);
-      
-      // Balance is managed by balanceStore via profiles.skilled_coins realtime subscription
+      // Use userDataStore refresh — it already knows the userId and is throttled internally.
+      // This avoids a redundant supabase.auth.getUser() call + duplicate balance fetch.
+      const userDataRefresh = useUserDataStore.getState().refresh;
+      await userDataRefresh();
     } catch (error) {
       console.error("[Chess WS] Failed to refresh balance:", error);
     }
-  }, [fetchBalance]);
+  }, []);
   
   // Set up navigation, balance refresh, and admin check callbacks for the global message handler
   useEffect(() => {
@@ -982,8 +962,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
           }
         }
         
-        // Refresh balance (throttled)
-        refreshBalance();
+        // Balance refresh handled by userDataStore (initialized in App.tsx on auth change)
       } else {
         console.log("[Chess WS] No session - clearing auth");
         wsClient.setAuthToken(null);
@@ -998,7 +977,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     refreshAuth().then(hasAuth => {
       if (hasAuth) {
         wsClient.connect();
-        refreshBalance();
+        // Balance initialization handled by userDataStore in App.tsx
       }
     });
 

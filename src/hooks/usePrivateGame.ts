@@ -47,8 +47,6 @@ export function usePrivateGame({
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastSyncTimeRef = useRef<number>(Date.now());
   const whiteTimeRef = useRef<number | null>(null); // null means not loaded yet
   const blackTimeRef = useRef<number | null>(null); // null means not loaded yet
   const currentTurnRef = useRef<'w' | 'b'>('w');
@@ -244,10 +242,6 @@ export function usePrivateGame({
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-      }
       isGameActiveRef.current = false;
       return;
     }
@@ -311,39 +305,13 @@ export function usePrivateGame({
       }
     }, 1000);
 
-    // Sync timer with database every 5 seconds
-    syncIntervalRef.current = setInterval(async () => {
-      if (!isGameActiveRef.current) {
-        return;
-      }
-
-      // Only sync if refs are initialized
-      if (whiteTimeRef.current === null || blackTimeRef.current === null) {
-        return;
-      }
-
-      try {
-        await supabase
-          .from('games')
-          .update({
-            white_time: whiteTimeRef.current,
-            black_time: blackTimeRef.current,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', gameId);
-      } catch (error) {
-        console.error('[usePrivateGame] Error syncing timer:', error);
-      }
-    }, 5000);
+    // Timer sync REMOVED — WS server is now authoritative for game clocks.
+    // The 5-second DB writes were causing 12 writes/min/game and are no longer needed.
 
     return () => {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
-      }
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
       }
     };
   }, [gameState?.status, gameId, handleTimeout]);

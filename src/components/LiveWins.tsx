@@ -158,42 +158,16 @@ export const LiveWins = () => {
     fetchRecentWins();
   }, [fetchRecentWins]);
 
-  // NO polling interval - rely on Realtime subscription only
-  // This eliminates the 10-second polling that was causing spam
-
-  // Subscribe to real-time updates for new finished games
-  // Debounced: only refetch once per update batch
+  // REPLACED Realtime subscription with a lightweight polling interval.
+  // The old approach subscribed to ALL games table updates (status=eq.finished)
+  // which fires for EVERY finished game by ANY user — creating massive Realtime
+  // overhead on the server. A simple 2-minute refresh is far cheaper.
   useEffect(() => {
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    
-    const channel = supabase
-      .channel('live-wins')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'games',
-          filter: 'status=eq.finished',
-        },
-        () => {
-          // Debounce updates - wait 2s after last update before refetching
-          if (debounceTimer) {
-            clearTimeout(debounceTimer);
-          }
-          debounceTimer = setTimeout(() => {
-            fetchRecentWins();
-          }, 2000);
-        }
-      )
-      .subscribe();
+    const interval = setInterval(() => {
+      fetchRecentWins();
+    }, 120_000); // Refresh every 2 minutes (the throttle inside fetchRecentWins is 60s)
 
-    return () => {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [fetchRecentWins]);
 
   // Auto-scroll animation with continuous loop

@@ -27,8 +27,7 @@ import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
 import { useChessSound } from '@/hooks/useChessSound';
-import { supabase } from '@/integrations/supabase/client';
-import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
+import { type RankInfo } from '@/lib/rankSystem';
 import { useChessStore } from '@/stores/chessStore';
 import { wsClient } from '@/lib/wsClient';
 

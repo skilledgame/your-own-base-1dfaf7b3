@@ -267,7 +267,9 @@ export const useMultiplayer = () => {
         gameChannelRef.current = null;
       }
     };
-  }, [currentGame?.id, loadPlayer, player?.id]);
+  // ONLY depend on currentGame.id — loadPlayer and player.id were causing
+  // unnecessary unsubscribe/resubscribe cycles on every auth state change.
+  }, [currentGame?.id]);
 
   // Load player on mount and auth changes
   useEffect(() => {

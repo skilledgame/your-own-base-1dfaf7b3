@@ -236,6 +236,9 @@ export default function LiveGame() {
   }, [gameId, gameState, loadingGame, navigate, setPhase, setGameState, setPlayerName, connect, status, joinGame]);
 
   // Update player name and rank immediately when they become available (for WebSocket games)
+  // Uses a ref to only fetch badges ONCE per session (not per game or re-render)
+  const playerBadgesFetchedRef = useRef(false);
+  
   useEffect(() => {
     if (!gameState || isPrivateGame) return;
     
@@ -255,15 +258,14 @@ export default function LiveGame() {
     // Update player rank if totalWageredSc is available (0 is valid, only skip if undefined/null)
     if (totalWageredSc !== undefined && totalWageredSc !== null) {
       const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
-      // Only update if we don't already have a rank, or if the rank would be different
-      // This prevents unnecessary updates but ensures it's set initially
       if (!playerRank || playerRank.displayName !== playerRankInfo.displayName) {
         setPlayerRank(playerRankInfo);
       }
     }
 
-    // Fetch player badges once
-    if (user?.id && playerBadges.length === 0) {
+    // Fetch player badges ONCE per session (not per game)
+    if (user?.id && !playerBadgesFetchedRef.current) {
+      playerBadgesFetchedRef.current = true;
       supabase
         .from('user_badges')
         .select('badge')
@@ -310,7 +312,7 @@ export default function LiveGame() {
       }
     }
 
-    // Fetch opponent info only ONCE
+    // Fetch opponent info only ONCE — consolidated into minimal Supabase calls
     const fetchOpponentInfo = async () => {
       // Mark as fetched BEFORE the async call to prevent duplicate fetches
       opponentFetchedRef.current = gameKey;
@@ -328,45 +330,32 @@ export default function LiveGame() {
         if (!opponentUserId && gameState?.dbGameId) {
           const { data: game } = await supabase
             .from('games')
-            .select(`
-              white_player_id,
-              black_player_id,
-              white_player:players!games_white_player_id_fkey(user_id),
-              black_player:players!games_black_player_id_fkey(user_id)
-            `)
+            .select('white_player_id, black_player_id, white_player:players!games_white_player_id_fkey(user_id), black_player:players!games_black_player_id_fkey(user_id)')
             .eq('id', gameState.dbGameId)
             .maybeSingle();
 
           if (game && user?.id) {
             const whitePlayerUserId = (game.white_player as any)?.user_id;
             const blackPlayerUserId = (game.black_player as any)?.user_id;
-            
             opponentUserId = gameState.color === 'w' ? blackPlayerUserId : whitePlayerUserId;
           }
         }
 
         if (opponentUserId) {
-          // ONE-TIME fetch of opponent profile
-          const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_opponent_profile', { p_user_id: opponentUserId });
-          
-          let opponentProfile: { display_name: string | null; total_wagered_sc: number | null } | null = null;
-          
-          if (!rpcError && rpcData && rpcData.length > 0) {
-            opponentProfile = rpcData[0];
-          } else {
-            // Fallback to direct query
-            const { data: profileData } = await supabase
+          // SINGLE combined query: profile + badges in parallel (2 calls instead of 4)
+          const [profileResult, badgeResult] = await Promise.all([
+            supabase
               .from('profiles')
               .select('total_wagered_sc, display_name')
               .eq('user_id', opponentUserId)
-              .maybeSingle();
-            
-            if (profileData) {
-              opponentProfile = profileData;
-            }
-          }
+              .maybeSingle(),
+            supabase
+              .from('user_badges')
+              .select('badge')
+              .eq('user_id', opponentUserId),
+          ]);
 
+          const opponentProfile = profileResult.data;
           if (opponentProfile) {
             const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
             setOpponentRank(opponentRankInfo);
@@ -390,15 +379,9 @@ export default function LiveGame() {
             setOpponentRank(getRankFromTotalWagered(0));
           }
 
-          // Fetch opponent badges
-          if (opponentUserId) {
-            const { data: badgeData } = await supabase
-              .from('user_badges')
-              .select('badge')
-              .eq('user_id', opponentUserId);
-            if (badgeData) {
-              setOpponentBadges(badgeData.map((b) => b.badge));
-            }
+          // Set badges from the parallel fetch
+          if (badgeResult.data) {
+            setOpponentBadges(badgeResult.data.map((b) => b.badge));
           }
         } else {
           setOpponentRank(getRankFromTotalWagered(0));
