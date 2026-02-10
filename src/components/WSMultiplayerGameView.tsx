@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, User, Loader2, LogOut, Crown, Coins, Wallet } from 'lucide-react';
+import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
@@ -52,6 +53,10 @@ interface WSMultiplayerGameViewProps {
   playerRank?: RankInfo;
   opponentRank?: RankInfo;
   
+  // Badges
+  playerBadges?: string[];
+  opponentBadges?: string[];
+  
   // Actions
   onSendMove: (from: string, to: string, promotion?: string) => void;
   onExit: () => void;
@@ -75,6 +80,8 @@ export const WSMultiplayerGameView = ({
   isPrivateGame = false,
   playerRank,
   opponentRank,
+  playerBadges = [],
+  opponentBadges = [],
   onSendMove,
   onExit,
   onBack,
@@ -439,11 +446,12 @@ export const WSMultiplayerGameView = ({
             <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
               <User className="w-5 h-5 text-muted-foreground" />
               <div className="flex flex-col">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold">{opponentName || "Opponent"}</span>
                   <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
                     {opponentRankDisplay}
                   </span>
+                  {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
                 </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Crown className="w-3 h-3" />
@@ -479,11 +487,12 @@ export const WSMultiplayerGameView = ({
             <div className="flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
               <User className="w-5 h-5 text-primary" />
               <div className="flex flex-col">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold">{playerName}</span>
                   <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
                     {playerRankDisplay}
                   </span>
+                  {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
                 </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Crown className="w-3 h-3" />

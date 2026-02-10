@@ -35,6 +35,8 @@ export default function LiveGame() {
   const [privateGamePlayerId, setPrivateGamePlayerId] = useState<string | null>(null);
   const [playerRank, setPlayerRank] = useState<RankInfo | undefined>(undefined);
   const [opponentRank, setOpponentRank] = useState<RankInfo | undefined>(undefined);
+  const [playerBadges, setPlayerBadges] = useState<string[]>([]);
+  const [opponentBadges, setOpponentBadges] = useState<string[]>([]);
   
   // Global state from Zustand store
   const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd, matchmaking } = useChessStore();
@@ -259,7 +261,18 @@ export default function LiveGame() {
         setPlayerRank(playerRankInfo);
       }
     }
-  }, [playerDisplayName, totalWageredSc, gameState, isPrivateGame, setGameState, setPlayerRank]);
+
+    // Fetch player badges once
+    if (user?.id && playerBadges.length === 0) {
+      supabase
+        .from('user_badges')
+        .select('badge')
+        .eq('user_id', user.id)
+        .then(({ data }) => {
+          if (data) setPlayerBadges(data.map((b) => b.badge));
+        });
+    }
+  }, [playerDisplayName, totalWageredSc, gameState, isPrivateGame, setGameState, setPlayerRank, user?.id]);
 
   // Fetch opponent info ONCE when game starts - NOT on every gameState change
   // This prevents Supabase calls during active games
@@ -363,6 +376,17 @@ export default function LiveGame() {
             }
           } else {
             setOpponentRank(getRankFromTotalWagered(0));
+          }
+
+          // Fetch opponent badges
+          if (opponentUserId) {
+            const { data: badgeData } = await supabase
+              .from('user_badges')
+              .select('badge')
+              .eq('user_id', opponentUserId);
+            if (badgeData) {
+              setOpponentBadges(badgeData.map((b) => b.badge));
+            }
           }
         } else {
           setOpponentRank(getRankFromTotalWagered(0));
@@ -657,6 +681,8 @@ export default function LiveGame() {
         isPrivateGame={isPrivateGame}
         playerRank={effectivePlayerRank}
         opponentRank={opponentRank}
+        playerBadges={playerBadges}
+        opponentBadges={opponentBadges}
         onSendMove={handleSendMove}
         onExit={handleExit}
         onBack={handleBack}

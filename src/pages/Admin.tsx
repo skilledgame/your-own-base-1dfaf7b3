@@ -45,7 +45,11 @@ import {
   Clock,
   Swords,
   Trophy,
+  FlaskConical,
+  Code,
 } from 'lucide-react';
+import { UserBadges, type BadgeType } from '@/components/UserBadge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface UserProfile {
   id: string;
@@ -55,6 +59,7 @@ interface UserProfile {
   skilled_coins: number;
   created_at: string;
   role: string;
+  badges: string[];
 }
 
 interface QueueEntry {
@@ -88,6 +93,7 @@ export default function Admin() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [newBalance, setNewBalance] = useState('');
   const [newRole, setNewRole] = useState('');
+  const [newBadges, setNewBadges] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
   const navigate = useNavigate();
@@ -250,6 +256,7 @@ export default function Admin() {
     setEditingUser(user);
     setNewBalance(user.skilled_coins.toString());
     setNewRole(user.role);
+    setNewBadges(user.badges || []);
   };
 
   const handleSaveUser = async () => {
@@ -262,6 +269,7 @@ export default function Admin() {
 
       const balanceChanged = parseInt(newBalance) !== editingUser.skilled_coins;
       const roleChanged = newRole !== editingUser.role;
+      const badgesChanged = JSON.stringify([...newBadges].sort()) !== JSON.stringify([...(editingUser.badges || [])].sort());
 
       if (balanceChanged) {
         const response = await fetch(
@@ -304,6 +312,28 @@ export default function Admin() {
         if (!response.ok) {
           const result = await response.json();
           throw new Error(result.error || 'Failed to update role');
+        }
+      }
+
+      if (badgesChanged && isAdmin) {
+        const response = await fetch(
+          `${CURRENT_SUPABASE_URL}/functions/v1/admin-users?action=update-badges`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: editingUser.user_id,
+              badges: newBadges,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.error || 'Failed to update badges');
         }
       }
 
@@ -503,9 +533,14 @@ export default function Admin() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-medium ${getRoleBadgeClass(user.role)}`}>
-                            {getRoleIcon(user.role)}
-                            {user.role}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-medium ${getRoleBadgeClass(user.role)}`}>
+                              {getRoleIcon(user.role)}
+                              {user.role}
+                            </div>
+                            {user.badges && user.badges.length > 0 && (
+                              <UserBadges badges={user.badges} size="sm" />
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -729,6 +764,45 @@ export default function Admin() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {isAdmin && (
+              <div>
+                <label className="text-sm text-purple-200/60 mb-2 block">
+                  Badges
+                </label>
+                <div className="space-y-3">
+                  {([
+                    { value: 'tester' as BadgeType, label: 'Tester', icon: FlaskConical, color: 'text-emerald-400' },
+                    { value: 'dev' as BadgeType, label: 'Developer', icon: Code, color: 'text-blue-400' },
+                    { value: 'admin' as BadgeType, label: 'Admin', icon: Shield, color: 'text-yellow-400' },
+                  ]).map(({ value, label, icon: BadgeIcon, color }) => (
+                    <label
+                      key={value}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-500/20 cursor-pointer hover:bg-purple-500/10 transition-colors"
+                    >
+                      <Checkbox
+                        checked={newBadges.includes(value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setNewBadges([...newBadges, value]);
+                          } else {
+                            setNewBadges(newBadges.filter((b) => b !== value));
+                          }
+                        }}
+                        className="border-purple-500/40 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                      />
+                      <BadgeIcon className={`w-4 h-4 ${color}`} />
+                      <span className="text-white text-sm">{label}</span>
+                    </label>
+                  ))}
+                </div>
+                {newBadges.length > 0 && (
+                  <div className="mt-2 flex gap-1 flex-wrap">
+                    <UserBadges badges={newBadges} size="md" />
+                  </div>
+                )}
               </div>
             )}
           </div>
