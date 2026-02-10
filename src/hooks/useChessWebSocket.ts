@@ -22,6 +22,7 @@ import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { perf } from '@/lib/perfLog';
+import { getRankFromTotalWagered } from '@/lib/rankSystem';
 import type { 
   WSConnectionStatus, 
   MatchFoundMessage,
@@ -273,26 +274,44 @@ function initializeGlobalMessageHandler(): void {
           // Ranks will be patched in by LiveGame once fetched
         });
         
-        // Fetch real opponent display name to patch both the versus screen AND
-        // the game state. The versus screen shows immediately, so this must
-        // happen here — LiveGame may not have mounted yet.
+        // Patch player rank immediately from the already-loaded profile store
+        // (no Supabase call — just reads from Zustand)
+        const playerProfile = useUserDataStore.getState().profile;
+        if (playerProfile) {
+          const playerRankInfo = getRankFromTotalWagered(playerProfile.total_wagered_sc ?? 0);
+          useUILoadingStore.getState().patchVersusData({ playerRank: playerRankInfo });
+        }
+
+        // Fetch opponent display_name + total_wagered_sc to patch both name AND rank
+        // on the versus screen. This must happen here — LiveGame may not have mounted yet.
         if (opponentUserId) {
-          console.log("[Chess WS] Fetching opponent display name for userId:", opponentUserId);
+          console.log("[Chess WS] Fetching opponent profile for userId:", opponentUserId);
           supabase
             .from('profiles')
-            .select('display_name')
+            .select('display_name, total_wagered_sc')
             .eq('user_id', opponentUserId)
             .maybeSingle()
             .then(({ data }) => {
-              if (data?.display_name) {
-                // Patch the versus screen overlay
-                useUILoadingStore.getState().patchVersusData({ opponentName: data.display_name });
+              if (data) {
+                const patch: Record<string, any> = {};
+
+                // Patch opponent name
+                if (data.display_name) {
+                  patch.opponentName = data.display_name;
+                }
+
+                // Patch opponent rank
+                const opponentRankInfo = getRankFromTotalWagered(data.total_wagered_sc ?? 0);
+                patch.opponentRank = opponentRankInfo;
+
+                useUILoadingStore.getState().patchVersusData(patch);
+
                 // Also patch the game state so the board shows the real name
                 const currentGameState = useChessStore.getState().gameState;
                 if (currentGameState && currentGameState.gameId === matchId) {
                   useChessStore.getState().setGameState({
                     ...currentGameState,
-                    opponentName: data.display_name,
+                    ...(data.display_name ? { opponentName: data.display_name } : {}),
                   });
                 }
               }

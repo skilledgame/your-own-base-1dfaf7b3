@@ -34,7 +34,10 @@ export default function LiveGame() {
   const [isPrivateGame, setIsPrivateGame] = useState(false);
   const [privateGamePlayerId, setPrivateGamePlayerId] = useState<string | null>(null);
   const [playerRank, setPlayerRank] = useState<RankInfo | undefined>(undefined);
-  const [opponentRank, setOpponentRank] = useState<RankInfo | undefined>(undefined);
+  // Initialize opponent rank from versus screen data if the WS handler already fetched it
+  const [opponentRank, setOpponentRank] = useState<RankInfo | undefined>(
+    () => useUILoadingStore.getState().versusData?.opponentRank
+  );
   const [playerBadges, setPlayerBadges] = useState<string[]>([]);
   const [opponentBadges, setOpponentBadges] = useState<string[]>([]);
   
@@ -260,6 +263,8 @@ export default function LiveGame() {
       const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
       if (!playerRank || playerRank.displayName !== playerRankInfo.displayName) {
         setPlayerRank(playerRankInfo);
+        // Also re-patch the versus screen in case it was set with stale data
+        useUILoadingStore.getState().patchVersusData({ playerRank: playerRankInfo });
       }
     }
 
