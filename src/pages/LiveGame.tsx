@@ -373,7 +373,7 @@ export default function LiveGame() {
             
             // Patch the versus screen (if still showing) with real opponent name + rank
             useUILoadingStore.getState().patchVersusData({
-              opponentName: opponentProfile.display_name || undefined,
+              ...(opponentProfile.display_name ? { opponentName: opponentProfile.display_name } : {}),
               opponentRank: opponentRankInfo,
             });
             

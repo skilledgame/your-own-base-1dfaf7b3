@@ -274,8 +274,8 @@ function initializeGlobalMessageHandler(): void {
           // Ranks will be patched in by LiveGame once fetched
         });
         
-        // Always try to fetch the real opponent display name from Supabase
-        // The WS server may not have it, or may send a generic/stale name
+        // Try to fetch real opponent display name to patch the versus screen
+        // LiveGame will also resolve the opponent name for the game view
         if (opponentUserId) {
           console.log("[Chess WS] Fetching opponent display name for userId:", opponentUserId);
           supabase
@@ -283,23 +283,17 @@ function initializeGlobalMessageHandler(): void {
             .select('display_name')
             .eq('user_id', opponentUserId)
             .maybeSingle()
-            .then(({ data, error }) => {
-              console.log("[Chess WS] Opponent profile lookup result:", { data, error, opponentUserId });
+            .then(({ data }) => {
               if (data?.display_name) {
-                // Update the versus screen with the real opponent name
+                // Patch only the versus screen overlay (LiveGame handles game state)
                 useUILoadingStore.getState().patchVersusData({ opponentName: data.display_name });
-                // Also update game state so the in-game display is correct
-                const currentGameState = useChessStore.getState().gameState;
-                if (currentGameState && currentGameState.gameId === matchId) {
-                  useChessStore.getState().setGameState({
-                    ...currentGameState,
-                    opponentName: data.display_name,
-                  });
-                }
               }
+            })
+            .catch((err) => {
+              console.warn("[Chess WS] Error fetching opponent profile:", err);
             });
         } else {
-          console.warn("[Chess WS] No opponentUserId available — cannot fetch real opponent name. Full payload:", JSON.stringify(payload));
+          console.warn("[Chess WS] No opponentUserId available — cannot fetch real opponent name");
         }
         
         // Only show match found toast for admin users
