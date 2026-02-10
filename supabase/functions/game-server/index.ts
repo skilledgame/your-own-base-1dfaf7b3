@@ -284,22 +284,34 @@ serve(async (req) => {
         
         console.log("get_player: sourceKey =", normalized.sourceKey, "playerId =", normalized.id);
         
-        const { data, error } = await supabase
-          .from("players")
-          .select("id, name, credits")
-          .eq("user_id", normalized.id)
-          .single();
+        // Fetch player row AND profiles.display_name in parallel
+        const [playerResult, profileResult] = await Promise.all([
+          supabase
+            .from("players")
+            .select("id, name, credits")
+            .eq("user_id", normalized.id)
+            .single(),
+          supabase
+            .from("profiles")
+            .select("display_name")
+            .eq("user_id", normalized.id)
+            .maybeSingle(),
+        ]);
           
-        if (error) {
-          console.error("get_player error:", error);
+        if (playerResult.error) {
+          console.error("get_player error:", playerResult.error);
           return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: playerResult.error.message }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         
+        // Return display_name at top level so the WS server can easily access it
         return new Response(
-          JSON.stringify({ player: data }),
+          JSON.stringify({
+            player: playerResult.data,
+            display_name: profileResult.data?.display_name || null,
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -824,7 +836,38 @@ serve(async (req) => {
           );
         }
         
-        console.log("get_game success:", game.id);
+        // Fetch display names from profiles for both players
+        const whiteUserId = (game.white_player as any)?.user_id;
+        const blackUserId = (game.black_player as any)?.user_id;
+        
+        let whiteDisplayName: string | null = null;
+        let blackDisplayName: string | null = null;
+        
+        if (whiteUserId || blackUserId) {
+          const profilePromises = [];
+          if (whiteUserId) {
+            profilePromises.push(
+              supabase.from("profiles").select("display_name, user_id").eq("user_id", whiteUserId).maybeSingle()
+            );
+          }
+          if (blackUserId) {
+            profilePromises.push(
+              supabase.from("profiles").select("display_name, user_id").eq("user_id", blackUserId).maybeSingle()
+            );
+          }
+          
+          const profileResults = await Promise.all(profilePromises);
+          let idx = 0;
+          if (whiteUserId) {
+            whiteDisplayName = profileResults[idx]?.data?.display_name || null;
+            idx++;
+          }
+          if (blackUserId) {
+            blackDisplayName = profileResults[idx]?.data?.display_name || null;
+          }
+        }
+        
+        console.log("get_game success:", game.id, { whiteDisplayName, blackDisplayName });
         return new Response(
           JSON.stringify({
             success: true,
@@ -832,10 +875,12 @@ serve(async (req) => {
               id: game.id,
               white_player_id: game.white_player_id,
               black_player_id: game.black_player_id,
-              white_user_id: (game.white_player as any)?.user_id,
-              black_user_id: (game.black_player as any)?.user_id,
-              white_name: (game.white_player as any)?.name,
-              black_name: (game.black_player as any)?.name,
+              white_user_id: whiteUserId,
+              black_user_id: blackUserId,
+              white_name: whiteDisplayName || (game.white_player as any)?.name,
+              black_name: blackDisplayName || (game.black_player as any)?.name,
+              white_display_name: whiteDisplayName,
+              black_display_name: blackDisplayName,
               wager: game.wager,
               fen: game.fen,
               status: game.status,
