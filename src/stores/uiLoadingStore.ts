@@ -34,6 +34,7 @@ interface UILoadingState {
 
   showLoading: (reason?: string) => void;
   showVersus: (data: VersusData) => void;
+  patchVersusData: (patch: Partial<VersusData>) => void;
   hideLoading: () => void;
 }
 
@@ -51,6 +52,13 @@ export const useUILoadingStore = create<UILoadingState>((set) => ({
   showVersus: (data: VersusData) => {
     console.log("[UILoadingStore] showVersus:", data.playerName, "vs", data.opponentName);
     set({ isLoading: true, mode: "versus", reason: undefined, versusData: data, shownAt: Date.now() });
+  },
+
+  patchVersusData: (patch: Partial<VersusData>) => {
+    const current = get().versusData;
+    if (current) {
+      set({ versusData: { ...current, ...patch } });
+    }
   },
 
   hideLoading: () => {

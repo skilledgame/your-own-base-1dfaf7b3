@@ -208,7 +208,14 @@ function initializeGlobalMessageHandler(): void {
         wsClient.setInGame(true);
         
         // Get opponent name from payload (try new format first, then legacy)
-        const opponentName = payload.opponent?.name || (payload as any).opponentName || "Opponent";
+        const opponentNameFromPayload = payload.opponent?.name || (payload as any).opponentName || "Opponent";
+        
+        // Get real display name from profile store (more reliable than chess store)
+        const profileDisplayName = useUserDataStore.getState().profile?.display_name;
+        const realPlayerName = profileDisplayName || store.playerName || "You";
+        
+        // Use payload opponent name — may be updated asynchronously below
+        let opponentName = opponentNameFromPayload;
         
         // Build timer snapshot from server payload (uses ms fields with seconds fallback)
         const snapshot = buildTimerSnapshot(payload, 'w');
@@ -236,7 +243,7 @@ function initializeGlobalMessageHandler(): void {
           dbGameId: dbMatchId || undefined,
           color,
           fen,
-          playerName: store.playerName,
+          playerName: realPlayerName,
           opponentName,
           wager,
         });
@@ -244,12 +251,36 @@ function initializeGlobalMessageHandler(): void {
         // Show "Versus" overlay — the VersusScreen animation plays inside
         // the global FullScreenLoaderOverlay until onComplete fires.
         useUILoadingStore.getState().showVersus({
-          playerName: store.playerName || "You",
+          playerName: realPlayerName,
           opponentName,
           playerColor: color === "w" ? "white" : "black",
           wager,
           // Ranks will be patched in by LiveGame once fetched
         });
+        
+        // If opponent name is generic and we have their userId, fetch real name
+        // and patch the versus screen (it's still animating for ~2.8s)
+        if (opponentUserId && (!opponentNameFromPayload || opponentNameFromPayload === "Opponent" || opponentNameFromPayload === "Player")) {
+          supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('user_id', opponentUserId)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data?.display_name) {
+                // Update the versus screen with the real opponent name
+                useUILoadingStore.getState().patchVersusData({ opponentName: data.display_name });
+                // Also update game state so the in-game display is correct
+                const currentGameState = useChessStore.getState().gameState;
+                if (currentGameState && currentGameState.gameId === matchId) {
+                  useChessStore.getState().setGameState({
+                    ...currentGameState,
+                    opponentName: data.display_name,
+                  });
+                }
+              }
+            });
+        }
         
         // Only show match found toast for admin users
         if (isAdminCallback && isAdminCallback()) {
@@ -751,12 +782,13 @@ function initializeGlobalMessageHandler(): void {
         if (store.gameState && store.gameState.gameId === reconnGameId) {
           store.updateFromServer(reconnFen, reconnTurn);
         } else if (reconnGameId && reconnColor && reconnFen) {
+          const reconnDisplayName = useUserDataStore.getState().profile?.display_name || store.playerName;
           store.handleMatchFound({
             gameId: reconnGameId,
             dbGameId: reconnDbGameId || undefined,
             color: reconnColor,
             fen: reconnFen,
-            playerName: store.playerName,
+            playerName: reconnDisplayName,
             opponentName: store.gameState?.opponentName || "Opponent",
             wager: reconnWager,
           });
