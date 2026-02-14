@@ -18,6 +18,8 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const nowPaymentsApiKey = Deno.env.get('NOWPAYMENTS_API_KEY') ?? '';
+    const nowPaymentsEmail = Deno.env.get('NOWPAYMENTS_EMAIL') ?? '';
+    const nowPaymentsPassword = Deno.env.get('NOWPAYMENTS_PASSWORD') ?? '';
 
     if (!serviceRoleKey) {
       return new Response(
@@ -207,13 +209,13 @@ Deno.serve(async (req) => {
         );
       }
 
-      // ---- Call NOWPayments Payout API ----
-      if (!nowPaymentsApiKey) {
-        console.error('[process-withdrawal] NOWPAYMENTS_API_KEY not configured');
+      // ---- Call NOWPayments Payout API (JWT auth flow) ----
+      if (!nowPaymentsApiKey || !nowPaymentsEmail || !nowPaymentsPassword) {
+        console.error('[process-withdrawal] Missing NOWPayments credentials (API key, email, or password)');
         return new Response(
           JSON.stringify({
             success: true,
-            message: 'Withdrawal approved but payout API key not configured. Please send crypto manually.',
+            message: 'Withdrawal approved but NOWPayments payout credentials not fully configured. Please send crypto manually.',
             withdrawal_id,
             status: 'approved',
           }),
@@ -224,7 +226,46 @@ Deno.serve(async (req) => {
       console.log(`[process-withdrawal] Sending payout: ${withdrawal.amount_usd} USD in ${withdrawal.crypto_currency} to ${withdrawal.wallet_address}`);
 
       try {
-        // First get the estimated amount in crypto
+        // Step 1: Authenticate with NOWPayments to get a JWT token
+        console.log('[process-withdrawal] Authenticating with NOWPayments...');
+        const authResponse = await fetch('https://api.nowpayments.io/v1/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: nowPaymentsEmail,
+            password: nowPaymentsPassword,
+          }),
+        });
+
+        const authData = await authResponse.json();
+        console.log('[process-withdrawal] Auth response status:', authResponse.status);
+
+        if (!authResponse.ok || !authData.token) {
+          console.error('[process-withdrawal] NOWPayments auth failed:', authData);
+          await adminClient
+            .from('withdrawals')
+            .update({
+              admin_note: `${admin_note || ''} [Auto: NOWPayments auth failed: ${authData.message || 'Invalid credentials'}. Manual payout required.]`.trim(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', withdrawal_id);
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: `Withdrawal approved. NOWPayments authentication failed: ${authData.message || 'Invalid credentials'}. Please send crypto manually or check NOWPAYMENTS_EMAIL / NOWPAYMENTS_PASSWORD secrets.`,
+              withdrawal_id,
+              status: 'approved',
+              payout_error: authData,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const jwtToken = authData.token;
+        console.log('[process-withdrawal] NOWPayments JWT obtained successfully');
+
+        // Step 2: Get the estimated amount in crypto
         const estimateResponse = await fetch(
           `https://api.nowpayments.io/v1/estimate?amount=${withdrawal.amount_usd}&currency_from=usd&currency_to=${withdrawal.crypto_currency}`,
           {
@@ -235,11 +276,9 @@ Deno.serve(async (req) => {
         console.log('[process-withdrawal] Estimate response:', JSON.stringify(estimateData));
 
         if (!estimateData.estimated_amount) {
-          // Mark as approved but note the issue
           await adminClient
             .from('withdrawals')
             .update({
-              status: 'approved',
               admin_note: `${admin_note || ''} [Auto: Could not estimate crypto amount. Manual payout required.]`.trim(),
               updated_at: new Date().toISOString(),
             })
@@ -256,7 +295,7 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Create the payout
+        // Step 3: Create the payout using JWT auth
         const payoutBody = {
           ipn_callback_url: `${supabaseUrl}/functions/v1/payment-webhook`,
           withdrawals: [
@@ -275,6 +314,7 @@ Deno.serve(async (req) => {
           method: 'POST',
           headers: {
             'x-api-key': nowPaymentsApiKey,
+            'Authorization': `Bearer ${jwtToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(payoutBody),
@@ -297,7 +337,7 @@ Deno.serve(async (req) => {
           return new Response(
             JSON.stringify({
               success: true,
-              message: 'Payout sent via NOWPayments! It will be processed shortly.',
+              message: 'Payout sent via NOWPayments! Crypto will arrive in the user\'s wallet shortly.',
               withdrawal_id,
               payout_id: payoutData.id,
               estimated_crypto_amount: estimateData.estimated_amount,
