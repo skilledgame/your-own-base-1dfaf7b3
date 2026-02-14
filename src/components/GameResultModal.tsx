@@ -1,7 +1,9 @@
-import { useEffect, useState, memo } from 'react';
+import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trophy, Skull, RotateCcw, Home, Coins, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
+import { Trophy, Skull, RotateCcw, Home, Coins, TrendingUp, TrendingDown, Sparkles, Timer } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const AUTO_REDIRECT_SECONDS = 30;
 
 interface GameResultModalProps {
   isWin: boolean;
@@ -177,6 +179,38 @@ export const GameResultModal = memo(({
   const isFreePlay = safeCoinsChange === 0;
   const formattedReason = formatReason(safeReason);
 
+  // Auto-redirect countdown
+  const [countdown, setCountdown] = useState(AUTO_REDIRECT_SECONDS);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasRedirected = useRef(false);
+
+  useEffect(() => {
+    // Reset on mount
+    setCountdown(AUTO_REDIRECT_SECONDS);
+    hasRedirected.current = false;
+
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          // Time's up — redirect home
+          if (!hasRedirected.current) {
+            hasRedirected.current = true;
+            // Clear interval before navigating
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            safeOnGoHome();
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       {safeIsWin && <Confetti />}
@@ -340,6 +374,29 @@ export const GameResultModal = memo(({
                 "w-4 h-4 ml-1",
                 safeIsWin ? "text-emerald-400" : "text-slate-400"
               )} />
+            </div>
+
+            {/* Auto-redirect countdown */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Timer className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                Returning home in <span className={cn(
+                  "font-bold tabular-nums",
+                  countdown <= 10 ? "text-amber-400" : safeIsWin ? "text-emerald-400" : "text-slate-300"
+                )}>{countdown}s</span>
+              </span>
+              {/* Progress bar */}
+              <div className="flex-1 max-w-[100px] h-1 rounded-full bg-slate-700/50 overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded-full transition-all duration-1000 ease-linear",
+                    countdown <= 10
+                      ? "bg-amber-400"
+                      : safeIsWin ? "bg-emerald-500" : "bg-slate-500"
+                  )}
+                  style={{ width: `${(countdown / AUTO_REDIRECT_SECONDS) * 100}%` }}
+                />
+              </div>
             </div>
 
             {/* Action buttons */}
