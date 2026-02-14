@@ -85,12 +85,30 @@ Deno.serve(async (req) => {
         console.error('Error fetching roles:', rolesError);
       }
 
-      // Merge roles into profiles
+      // Fetch badges for all users
+      const { data: badges, error: badgesError } = await adminClient
+        .from('user_badges')
+        .select('user_id, badge');
+
+      if (badgesError) {
+        console.error('Error fetching badges:', badgesError);
+      }
+
+      // Group badges by user_id
+      const badgesByUser = new Map<string, string[]>();
+      for (const b of (badges || [])) {
+        const existing = badgesByUser.get(b.user_id) || [];
+        existing.push(b.badge);
+        badgesByUser.set(b.user_id, existing);
+      }
+
+      // Merge roles and badges into profiles
       const usersWithRoles = profiles.map((profile: any) => {
         const userRole = roles?.find((r: any) => r.user_id === profile.user_id);
         return {
           ...profile,
           role: userRole?.role || 'user',
+          badges: badgesByUser.get(profile.user_id) || [],
         };
       });
 
@@ -167,6 +185,61 @@ Deno.serve(async (req) => {
         if (insertError) {
           console.error('Error inserting role:', insertError);
           return new Response(JSON.stringify({ error: 'Failed to update role' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (req.method === 'POST' && action === 'update-badges') {
+      const { userId, badges } = await req.json();
+
+      if (!userId || !Array.isArray(badges)) {
+        return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Validate badge values
+      const validBadges = ['tester', 'dev', 'admin'];
+      const filteredBadges = badges.filter((b: string) => validBadges.includes(b));
+
+      console.log(`Updating badges for ${userId} to [${filteredBadges.join(', ')}]`);
+
+      // Delete all existing badges for this user
+      const { error: deleteError } = await adminClient
+        .from('user_badges')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) {
+        console.error('Error deleting badges:', deleteError);
+        return new Response(JSON.stringify({ error: 'Failed to update badges' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Insert new badges
+      if (filteredBadges.length > 0) {
+        const badgeRows = filteredBadges.map((badge: string) => ({
+          user_id: userId,
+          badge,
+        }));
+
+        const { error: insertError } = await adminClient
+          .from('user_badges')
+          .insert(badgeRows);
+
+        if (insertError) {
+          console.error('Error inserting badges:', insertError);
+          return new Response(JSON.stringify({ error: 'Failed to update badges' }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });

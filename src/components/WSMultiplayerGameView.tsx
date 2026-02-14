@@ -22,13 +22,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, User, Loader2, LogOut, Crown, Coins, Wallet } from 'lucide-react';
+import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
 import { useChessSound } from '@/hooks/useChessSound';
-import { supabase } from '@/integrations/supabase/client';
-import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
+import { type RankInfo } from '@/lib/rankSystem';
 import { useChessStore } from '@/stores/chessStore';
+import { wsClient } from '@/lib/wsClient';
 
 interface WSMultiplayerGameViewProps {
   gameId: string;
@@ -50,6 +51,10 @@ interface WSMultiplayerGameViewProps {
   // Rank info
   playerRank?: RankInfo;
   opponentRank?: RankInfo;
+  
+  // Badges
+  playerBadges?: string[];
+  opponentBadges?: string[];
   
   // Actions
   onSendMove: (from: string, to: string, promotion?: string) => void;
@@ -74,6 +79,8 @@ export const WSMultiplayerGameView = ({
   isPrivateGame = false,
   playerRank,
   opponentRank,
+  playerBadges = [],
+  opponentBadges = [],
   onSendMove,
   onExit,
   onBack,
@@ -89,6 +96,14 @@ export const WSMultiplayerGameView = ({
   
   // Get timer snapshot from store (server-authoritative for WebSocket games)
   const timerSnapshot = useChessStore((state) => state.timerSnapshot);
+  // Read premove from store for the "Premove set" indicator
+  const premove = useChessStore((state) => state.premove);
+  
+  // Sound effects (must be declared before the display clock effect that uses playGameEnd)
+  const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
+  
+  const isWhite = playerColor === "white";
+  const myColor = isWhite ? 'w' : 'b';
   
   // Timers - use props for private games, calculate from snapshot for WebSocket games
   const [isGameOver, setIsGameOver] = useState(false);
@@ -96,48 +111,113 @@ export const WSMultiplayerGameView = ({
   // Track whose turn it was when they moved (for increment)
   const lastMoveByRef = useRef<'w' | 'b' | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [timerTick, setTimerTick] = useState(0);
   
-  // Calculate effective time from server snapshot (only for WebSocket games)
-  // Uses performance.now() (monotonic, client-local) to avoid clock drift between server and client
-  const { whiteTime, blackTime } = useMemo(() => {
-    if (isPrivateGame) {
-      return {
-        whiteTime: propWhiteTime ?? CHESS_TIME_CONTROL.BASE_TIME,
-        blackTime: propBlackTime ?? CHESS_TIME_CONTROL.BASE_TIME,
-      };
+  // --- Smooth display clock loop ---
+  // Keep the authoritative server snapshot in a ref for the display loop.
+  // The ref avoids re-creating the interval on every snapshot update.
+  const clockRef = useRef(timerSnapshot);
+  useEffect(() => { clockRef.current = timerSnapshot; }, [timerSnapshot]);
+  
+  // Display state (updated by the interval — only when the *seconds* value changes)
+  const [displayWhiteSec, setDisplayWhiteSec] = useState(CHESS_TIME_CONTROL.BASE_TIME);
+  const [displayBlackSec, setDisplayBlackSec] = useState(CHESS_TIME_CONTROL.BASE_TIME);
+  
+  // Display clock tick (runs every 200ms for responsive countdown + time-loss detection)
+  // IMPORTANT: Elapsed is computed in SERVER time (Date.now() + serverTimeOffsetMs)
+  // so the display stays correct even after alt-tab / background throttling.
+  useEffect(() => {
+    if (isPrivateGame || isGameOver) {
+      // For private games, derive from props
+      setDisplayWhiteSec(propWhiteTime ?? CHESS_TIME_CONTROL.BASE_TIME);
+      setDisplayBlackSec(propBlackTime ?? CHESS_TIME_CONTROL.BASE_TIME);
+      return;
     }
     
-    // For WebSocket games, calculate from server snapshot
-    if (!timerSnapshot || isGameOver) {
-      return {
-        whiteTime: CHESS_TIME_CONTROL.BASE_TIME,
-        blackTime: CHESS_TIME_CONTROL.BASE_TIME,
-      };
-    }
+    const tick = () => {
+      const snap = clockRef.current;
+      if (!snap) {
+        setDisplayWhiteSec(CHESS_TIME_CONTROL.BASE_TIME);
+        setDisplayBlackSec(CHESS_TIME_CONTROL.BASE_TIME);
+        return;
+      }
+      
+      let wMs = snap.wMs;
+      let bMs = snap.bMs;
+      
+      if (snap.clockRunning) {
+        // Compute elapsed in SERVER time since this snapshot was created
+        // serverNowEstimate = Date.now() + serverTimeOffsetMs ≈ current server time
+        const serverNowEstimate = Date.now() + snap.serverTimeOffsetMs;
+        const elapsed = Math.max(0, serverNowEstimate - snap.serverNow);
+        if (snap.turn === 'w') {
+          wMs = Math.max(0, wMs - elapsed);
+        } else {
+          bMs = Math.max(0, bMs - elapsed);
+        }
+      }
+      
+      const wSec = Math.ceil(wMs / 1000);
+      const bSec = Math.ceil(bMs / 1000);
+      
+      // Only set state when displayed seconds change (avoids unnecessary re-renders)
+      setDisplayWhiteSec(prev => prev !== wSec ? wSec : prev);
+      setDisplayBlackSec(prev => prev !== bSec ? bSec : prev);
+      
+      // Time-loss detection
+      if (snap.clockRunning) {
+        if (snap.turn === 'w' && wMs <= 0 && !isGameOver) {
+          setIsGameOver(true);
+          playGameEnd();
+          onTimeLoss?.('w');
+        } else if (snap.turn === 'b' && bMs <= 0 && !isGameOver) {
+          setIsGameOver(true);
+          playGameEnd();
+          onTimeLoss?.('b');
+        }
+      }
+    };
     
-    // Use performance.now() for smooth, drift-free countdown
-    const elapsedMs = performance.now() - timerSnapshot.clientPerfNowMs;
-    const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-    
-    let whiteTime = timerSnapshot.whiteTimeSeconds;
-    let blackTime = timerSnapshot.blackTimeSeconds;
-    
-    // Only count down for the side whose turn it is
-    if (timerSnapshot.currentTurn === 'w') {
-      whiteTime = Math.max(0, whiteTime - elapsedSeconds);
-    } else {
-      blackTime = Math.max(0, blackTime - elapsedSeconds);
-    }
-    
-    return { whiteTime, blackTime };
-  }, [isPrivateGame, propWhiteTime, propBlackTime, timerSnapshot, isGameOver, timerTick]);
+    tick(); // Run immediately
+    timerIntervalRef.current = setInterval(tick, 200);
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [isPrivateGame, isGameOver, propWhiteTime, propBlackTime, playGameEnd, onTimeLoss]);
   
-  // Sound effects
-  const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
+  // Alt-tab / focus resync: request fresh clock snapshot from server
+  // when the tab becomes visible or window regains focus.
+  useEffect(() => {
+    if (isPrivateGame || isGameOver) return;
+    
+    const requestSync = () => {
+      const state = useChessStore.getState();
+      const currentGameId = state.gameState?.gameId;
+      if (currentGameId && wsClient.getStatus() === 'connected') {
+        wsClient.send({ type: "clock_sync_request", gameId: currentGameId });
+      }
+    };
+    
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        requestSync();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', requestSync);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', requestSync);
+    };
+  }, [isPrivateGame, isGameOver]);
   
-  const isWhite = playerColor === "white";
-  const myColor = isWhite ? 'w' : 'b';
+  // Final displayed times (seconds)
+  const whiteTime = displayWhiteSec;
+  const blackTime = displayBlackSec;
 
   // Calculate captured pieces and material (memoized to prevent recalculation)
   const capturedPieces = useMemo(() => calculateCapturedPieces(chess), [chess.fen()]);
@@ -206,54 +286,7 @@ export const WSMultiplayerGameView = ({
     }
   }, [currentFen, chess, localFen, myColor, isPrivateGame]);
 
-  // Timer tick + time loss check (server-authoritative calculation, 4x/sec)
-  useEffect(() => {
-    if (isPrivateGame || isGameOver) {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-      return;
-    }
-
-    timerIntervalRef.current = setInterval(() => {
-      setTimerTick((tick) => tick + 1);
-
-      // Check for time loss (calculated from snapshot using performance.now for consistency)
-      if (timerSnapshot && timerSnapshot.clientPerfNowMs > 0) {
-        const elapsedMs = performance.now() - timerSnapshot.clientPerfNowMs;
-        const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-        
-        if (timerSnapshot.currentTurn === 'w') {
-          const remaining = timerSnapshot.whiteTimeSeconds - elapsedSeconds;
-          if (remaining <= 0 && !isGameOver) {
-            setIsGameOver(true);
-            playGameEnd();
-            onTimeLoss?.('w');
-            return;
-          }
-        } else {
-          const remaining = timerSnapshot.blackTimeSeconds - elapsedSeconds;
-          if (remaining <= 0 && !isGameOver) {
-            setIsGameOver(true);
-            playGameEnd();
-            onTimeLoss?.('b');
-            return;
-          }
-        }
-      }
-    }, 250);
-
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    };
-  }, [timerSnapshot, isGameOver, isPrivateGame, onTimeLoss, playGameEnd]);
-
-  // Timer display is now server-authoritative - no local countdown needed
-  // The render loop above handles time loss detection based on server snapshot
+  // (Timer display loop + time loss detection is handled by the display clock effect above)
 
   // Note: Premove execution is handled in useChessWebSocket when move_applied message is received
   // This ensures premove executes synchronously when the turn switches, not via React effects
@@ -324,9 +357,14 @@ export const WSMultiplayerGameView = ({
   const opponentTime = isWhite ? blackTime : whiteTime;
   const myColorLabel = isWhite ? "White" : "Black";
   const opponentColorLabel = isWhite ? "Black" : "White";
+  // Active clock indicator: the running clock is ALWAYS the side whose turn it is.
+  // BOTH are false when clockRunning=false (before first move), so neither clock appears active.
   const isMyTurnForTimer = !isPrivateGame && timerSnapshot
-    ? timerSnapshot.currentTurn === myColor
+    ? (timerSnapshot.clockRunning && timerSnapshot.turn === myColor)
     : isMyTurn;
+  const isOpponentTurnForTimer = !isPrivateGame && timerSnapshot
+    ? (timerSnapshot.clockRunning && timerSnapshot.turn !== myColor)
+    : !isMyTurn;
 
   // Get rank display names
   const playerRankDisplay = playerRank?.displayName || 'Unranked';
@@ -407,11 +445,12 @@ export const WSMultiplayerGameView = ({
             <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
               <User className="w-5 h-5 text-muted-foreground" />
               <div className="flex flex-col">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold">{opponentName || "Opponent"}</span>
                   <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
                     {opponentRankDisplay}
                   </span>
+                  {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
                 </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Crown className="w-3 h-3" />
@@ -425,7 +464,7 @@ export const WSMultiplayerGameView = ({
                 />
               </div>
             </div>
-            <GameTimer timeLeft={opponentTime} isActive={!isMyTurnForTimer && !isGameOver} />
+            <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
           </div>
 
           {/* Chess Board with sound callbacks - only show opponent's last move */}
@@ -447,11 +486,12 @@ export const WSMultiplayerGameView = ({
             <div className="flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
               <User className="w-5 h-5 text-primary" />
               <div className="flex flex-col">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold">{playerName}</span>
                   <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
                     {playerRankDisplay}
                   </span>
+                  {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
                 </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Crown className="w-3 h-3" />
@@ -491,10 +531,18 @@ export const WSMultiplayerGameView = ({
                 ♟ Your Move
               </span>
             ) : (
-              <span className="text-muted-foreground flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Waiting for {opponentName}...
-              </span>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-muted-foreground flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Waiting for {opponentName}...
+                </span>
+                {/* Premove set indicator */}
+                {premove && (
+                  <span className="text-xs font-medium text-red-400 animate-pulse">
+                    Premove set · click piece to cancel
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

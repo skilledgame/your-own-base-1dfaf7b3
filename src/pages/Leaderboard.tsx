@@ -4,12 +4,15 @@ import { Trophy, Medal, Crown, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LogoLink } from '@/components/LogoLink';
 import { supabase } from '@/integrations/supabase/client';
+import { UserBadges } from '@/components/UserBadge';
 
 interface LeaderboardEntry {
   rank: number;
   playerName: string;
   totalWon: number;
   gamesWon: number;
+  userId: string;
+  badges: string[];
 }
 
 const getRankIcon = (rank: number) => {
@@ -69,16 +72,38 @@ const Leaderboard = () => {
           return;
         }
 
-        const entries: LeaderboardEntry[] = (data || []).map((row: {
+        const rows = data || [];
+        const userIds = rows.map((r: { user_id: string }) => r.user_id).filter(Boolean);
+
+        // Fetch badges for all leaderboard users
+        let badgesByUser: Record<string, string[]> = {};
+        if (userIds.length > 0) {
+          const { data: badgeData } = await supabase
+            .from('user_badges')
+            .select('user_id, badge')
+            .in('user_id', userIds);
+
+          if (badgeData) {
+            for (const b of badgeData) {
+              if (!badgesByUser[b.user_id]) badgesByUser[b.user_id] = [];
+              badgesByUser[b.user_id].push(b.badge);
+            }
+          }
+        }
+
+        const entries: LeaderboardEntry[] = rows.map((row: {
           rank: number;
           player_name: string;
           total_won: number;
           games_won: number;
+          user_id: string;
         }) => ({
           rank: Number(row.rank),
           playerName: row.player_name || 'Anonymous',
           totalWon: Number(row.total_won),
           gamesWon: Number(row.games_won),
+          userId: row.user_id,
+          badges: badgesByUser[row.user_id] || [],
         }));
 
         setLeaderboard(entries);
@@ -160,10 +185,13 @@ const Leaderboard = () => {
                       {getRankIcon(entry.rank)}
                     </div>
                     <div className="col-span-5 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0">
                         {entry.playerName[0]?.toUpperCase() || '?'}
                       </div>
-                      <span className="font-medium text-foreground truncate">{entry.playerName}</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-medium text-foreground truncate">{entry.playerName}</span>
+                        {entry.badges.length > 0 && <UserBadges badges={entry.badges} size="sm" />}
+                      </div>
                     </div>
                     <div className="col-span-3 text-right font-bold text-accent">
                       {entry.totalWon.toLocaleString()} SC

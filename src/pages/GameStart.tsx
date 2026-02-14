@@ -7,6 +7,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
+import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { LogoLink } from '@/components/LogoLink';
 import { MultiplayerGameView } from '@/components/MultiplayerGameView';
 import { GameResultModal } from '@/components/GameResultModal';
@@ -177,6 +178,9 @@ export default function GameStart() {
   
   // Get global state from store
   const { phase, gameState, matchmaking } = useChessStore();
+  
+  // Global loading overlay
+  const { showLoading: globalShowLoading } = useUILoadingStore();
   
   // STEP 4: Ensure matchmaking state has safe defaults (never undefined)
   const safeMatchmaking = matchmaking || {
@@ -396,6 +400,7 @@ export default function GameStart() {
     if (currentPlayer && currentPlayer.id) {
       // Use WebSocket matchmaking with wager
       const wager = selectedStake || 50;  // Default to 50 if not selected
+      globalShowLoading();
       findMatch(wager, currentPlayer.name);
     } else {
       toast({
@@ -470,122 +475,16 @@ export default function GameStart() {
     );
   }
 
-  // Show searching screen while in queue
-  if (isSearching && !currentGame) {
-    // Guard: ensure user is loaded before showing search screen
-    if (!user || !user.id) {
-      return (
-        <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
-            <p className="text-blue-200/60">Loading...</p>
-          </div>
-        </div>
-      );
+  // Show global loading overlay while searching — no fake "searching screen"
+  useEffect(() => {
+    if (isSearching && !currentGame) {
+      globalShowLoading();
     }
-    
-    // Use the real queueStatus and multiplayerError from useMultiplayer hook
-    
-    return (
-      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] animate-pulse" />
-          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[80px] animate-pulse delay-1000" />
-        </div>
-
-        <div className="relative z-10 text-center space-y-8 p-6 max-w-md mx-auto">
-          {/* Animated searching icon */}
-          <div className="relative w-32 h-32 mx-auto">
-            <div className="absolute inset-0 rounded-full border-4 border-blue-500/30 animate-ping" />
-            <div className="absolute inset-2 rounded-full border-4 border-cyan-500/50 animate-pulse" />
-            <div className="absolute inset-4 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center">
-              <Users className="w-12 h-12 text-white animate-pulse" />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-3xl font-bold text-white">Finding Opponent</h2>
-            <p className="text-blue-200/60">
-              Searching for a player with matching wager...
-            </p>
-          </div>
-
-          {/* Error display - use normalized matchmaking error */}
-          {(multiplayerError || safeMatchmaking.error) && (
-            <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 text-red-300 text-sm space-y-2">
-              {multiplayerError && <p>{multiplayerError}</p>}
-              {safeMatchmaking.error && <p>{safeMatchmaking.error}</p>}
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2 border-red-500/50 text-red-300 hover:bg-red-500/10"
-                onClick={() => {
-                  cancelSearch();
-                  useChessStore.getState().resetMatchmaking();
-                }}
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-
-          {/* Wager info */}
-          <div className="bg-blue-950/50 border border-blue-500/30 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-blue-200/60">Your Wager</span>
-              <span className="font-bold text-white flex items-center gap-1">
-                <Coins className="w-4 h-4 text-yellow-500" />
-                {selectedStake?.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-blue-200/60">Potential Win</span>
-              <span className="font-bold text-green-400 flex items-center gap-1">
-                <Trophy className="w-4 h-4" />
-                {selectedStake ? Math.floor(selectedStake * 1.9).toLocaleString() : 0} SC
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-blue-200/60">Game Type</span>
-              <span className="font-medium text-white">{game?.name || 'Chess'} • 1min + 3s</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-blue-200/60">Queue Status</span>
-              <span className="font-medium text-green-400">
-                Connected via WebSocket
-              </span>
-            </div>
-          </div>
-
-          {/* Live status indicator */}
-          <div className="flex items-center justify-center gap-2 text-blue-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm">
-              Waiting for opponent with {selectedStake} coin wager...
-            </span>
-          </div>
-
-          {/* Time waiting indicator */}
-          <div className="text-xs text-blue-200/40">
-            You'll be matched with the next player who enters with the same wager amount
-          </div>
-
-          {/* Cancel button */}
-          <Button
-            variant="outline"
-            className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-            onClick={() => {
-              cancelSearch();
-              setSelectedStake(null);
-            }}
-          >
-            <X className="w-4 h-4 mr-2" />
-            Cancel Search
-          </Button>
-        </div>
-      </div>
-    );
+  }, [isSearching, currentGame, globalShowLoading]);
+  
+  // If searching, the global overlay is active — render nothing extra
+  if (isSearching && !currentGame) {
+    return null;
   }
 
   // Show multiplayer game when matched

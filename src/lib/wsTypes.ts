@@ -72,6 +72,16 @@ export interface SyncGameMessage {
   gameId: string;
 }
 
+/**
+ * Request a fresh clock snapshot from the server.
+ * Sent on tab focus / visibility change for alt-tab correctness.
+ * Server responds with ClockSnapshotMessage (no DB calls needed).
+ */
+export interface ClockSyncRequestMessage {
+  type: "clock_sync_request";
+  gameId: string;
+}
+
 // All outbound message types
 export type OutboundMessage =
   | FindMatchMessage
@@ -79,7 +89,8 @@ export type OutboundMessage =
   | MoveMessage
   | ResignMessage
   | LeaveGameMessage
-  | SyncGameMessage;
+  | SyncGameMessage
+  | ClockSyncRequestMessage;
 
 // ============ Inbound Messages ============
 
@@ -111,9 +122,18 @@ export interface MatchFoundMessage {
   color: "w" | "b";         // "w" for white, "b" for black
   fen: string;
   wager: number;            // Wager amount for this game
+  // New ms-precision clock snapshot
+  wMs?: number;             // White remaining ms
+  bMs?: number;             // Black remaining ms
+  clockRunning?: boolean;   // false until first move is made
+  serverNow?: number;       // Server Date.now() at send time
+  lastMoveAt?: number | null; // Server timestamp when current turn started
+  whiteId?: string;         // White player user ID
+  blackId?: string;         // Black player user ID
+  // Legacy seconds fields
   whiteTime?: number;       // Initial white time in seconds
   blackTime?: number;       // Initial black time in seconds
-  serverTimeMs?: number;    // Server timestamp
+  serverTimeMs?: number;    // Server timestamp (legacy)
   opponent?: {
     name: string;
     playerId?: string;
@@ -127,17 +147,27 @@ export interface MatchFoundMessage {
  */
 export interface MoveAppliedMessage {
   type: "move_applied";
-  gameId?: string;  // Optional game ID for logging
+  gameId?: string;
+  dbGameId?: string;
   fen: string;
   move: {
     from: string;
     to: string;
     promotion?: string;
-  } | string;  // Can be object or UCI string
+  } | string;
   turn: "w" | "b";
-  whiteTime?: number;  // Server-authoritative time in seconds
-  blackTime?: number;  // Server-authoritative time in seconds
-  serverTimeMs?: number;  // Server timestamp when this state was calculated
+  // New ms-precision clock snapshot
+  wMs?: number;
+  bMs?: number;
+  clockRunning?: boolean;
+  serverNow?: number;
+  lastMoveAt?: number | null;
+  whiteId?: string;
+  blackId?: string;
+  // Legacy seconds fields
+  whiteTime?: number;
+  blackTime?: number;
+  serverTimeMs?: number;
 }
 
 /**
@@ -147,13 +177,24 @@ export interface MoveAppliedMessage {
 export interface GameSyncMessage {
   type: "game_sync";
   gameId: string;
+  dbGameId?: string;
   fen: string;
   turn: "w" | "b";
-  whiteTime: number;  // Remaining time in seconds
-  blackTime: number;  // Remaining time in seconds
-  serverTimeMs: number;  // Server timestamp (milliseconds since epoch)
   status: "active" | "ended";
   wager?: number;
+  color?: "w" | "b";
+  // New ms-precision clock snapshot
+  wMs?: number;
+  bMs?: number;
+  clockRunning?: boolean;
+  serverNow?: number;
+  lastMoveAt?: number | null;
+  whiteId?: string;
+  blackId?: string;
+  // Legacy seconds fields
+  whiteTime: number;
+  blackTime: number;
+  serverTimeMs: number;
 }
 
 /**
@@ -178,6 +219,22 @@ export interface OpponentLeftMessage {
 }
 
 /**
+ * Clock snapshot - server-authoritative clock state.
+ * Sent on join, move, 1Hz sync, and in response to clock_sync_request.
+ * Client uses serverNow + offset to derive display clock locally.
+ */
+export interface ClockSnapshotMessage {
+  type: "clock_snapshot";
+  gameId: string;
+  wMs: number;
+  bMs: number;
+  turn: "w" | "b";
+  clockRunning: boolean;
+  serverNow: number;
+  lastMoveAt: number | null;
+}
+
+/**
  * Error - something went wrong
  */
 export interface ErrorMessage {
@@ -193,6 +250,7 @@ export type InboundMessage =
   | MatchFoundMessage
   | MoveAppliedMessage
   | GameSyncMessage
+  | ClockSnapshotMessage
   | GameEndedMessage
   | OpponentLeftMessage
   | ErrorMessage

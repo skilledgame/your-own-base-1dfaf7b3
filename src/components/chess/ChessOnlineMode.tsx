@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
+import { useProfile } from '@/hooks/useProfile';
 import { LogoLink } from '@/components/LogoLink';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -75,7 +76,8 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
   const navigate = useNavigate();
   const { isAuthenticated, isAuthReady, isPrivileged, user } = useAuth();
   const { balance } = useBalance();
-  const { phase, playerName, setSelectedWager, selectedWager } = useChessStore();
+  const { phase, setSelectedWager, selectedWager } = useChessStore();
+  const { displayName } = useProfile();
   const { status, findMatch, cancelSearch, isAuthenticated: wsAuth } = useChessWebSocket();
   const { openWallet } = useWalletModal();
   
@@ -127,8 +129,8 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
     if (balance < selectedOption) return;
 
     setIsStarting(true);
-    findMatch(selectedOption, playerName);
-  }, [isAuthenticated, selectedOption, balance, findMatch, playerName, navigate]);
+    findMatch(selectedOption, displayName || 'Player');
+  }, [isAuthenticated, selectedOption, balance, findMatch, displayName, navigate]);
 
   const handleCancelSearch = useCallback(() => {
     cancelSearch();

@@ -16,7 +16,8 @@ import { WSMultiplayerGameView } from '@/components/WSMultiplayerGameView';
 import { NetworkDebugPanel } from '@/components/NetworkDebugPanel';
 import { GameResultModal } from '@/components/GameResultModal';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, WifiOff } from 'lucide-react';
+import { ArrowLeft, WifiOff } from 'lucide-react';
+import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePrivateGame } from '@/hooks/usePrivateGame';
@@ -24,6 +25,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
+import { perf } from '@/lib/perfLog';
 
 export default function LiveGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -32,7 +34,12 @@ export default function LiveGame() {
   const [isPrivateGame, setIsPrivateGame] = useState(false);
   const [privateGamePlayerId, setPrivateGamePlayerId] = useState<string | null>(null);
   const [playerRank, setPlayerRank] = useState<RankInfo | undefined>(undefined);
-  const [opponentRank, setOpponentRank] = useState<RankInfo | undefined>(undefined);
+  // Initialize opponent rank from versus screen data if the WS handler already fetched it
+  const [opponentRank, setOpponentRank] = useState<RankInfo | undefined>(
+    () => useUILoadingStore.getState().versusData?.opponentRank
+  );
+  const [playerBadges, setPlayerBadges] = useState<string[]>([]);
+  const [opponentBadges, setOpponentBadges] = useState<string[]>([]);
   
   // Global state from Zustand store
   const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd, matchmaking } = useChessStore();
@@ -109,17 +116,26 @@ export default function LiveGame() {
   });
 
   const handleBack = () => {
-    // If in game, resign first
+    // If in game, resign first — DO NOT navigate immediately.
+    // The resign sends WS, shows overlay, and game_ended will trigger the result modal.
+    // Navigating here would cause route flicker.
     if (phase === "in_game") {
+      console.log("[resign] handleBack: resigning (no navigate, wait for game_end)");
       resignGame();
+      return; // Don't navigate — overlay is shown, game_ended will handle it
     }
     navigate('/');
   };
 
   const handleExit = () => {
-    // Resign and go back to matchmaking
-    resignGame();
-    navigate('/quick-play');
+    // Resign — DO NOT navigate immediately.
+    // The overlay is shown by resignGame(). game_ended → result modal.
+    if (phase === "in_game") {
+      console.log("[resign] handleExit: resigning (no navigate, wait for game_end)");
+      resignGame();
+      return; // Don't navigate — overlay is shown, game_ended will handle it
+    }
+    navigate('/chess');
   };
 
   const handleSendMove = async (from: string, to: string, promotion?: string) => {
@@ -128,10 +144,12 @@ export default function LiveGame() {
   };
 
   const handleTimeLoss = async (loserColor: 'w' | 'b') => {
-    // When time runs out, resign the game
-    console.log(`[LiveGame] Time loss for ${loserColor === 'w' ? 'white' : 'black'}`);
-    // All games now use WebSocket for time loss handling
-    resignGame();
+    // Server-authoritative: the server's 1 Hz clock tick detects time loss
+    // and calls endGame(), which broadcasts game_ended to both players.
+    // The client does NOT need to send resign — just log and wait.
+    // Sending resignGame() here would show a loading overlay for the opponent
+    // when their own clock expires, which is wrong.
+    console.log(`[LiveGame] Time loss detected for ${loserColor === 'w' ? 'white' : 'black'} — waiting for server game_ended`);
   };
 
   const handlePlayAgain = () => {
@@ -148,6 +166,12 @@ export default function LiveGame() {
 
   // Ref to track if we've already sent join_game for this UUID
   const joinGameSentRef = useRef<string | null>(null);
+  // PART A: Perf ref for board_rendered (only mark once)
+  const boardRenderedRef = useRef(false);
+  
+  // Global loading overlay
+  const hideLoading = useUILoadingStore((s) => s.hideLoading);
+  const showLoading = useUILoadingStore((s) => s.showLoading);
   
   // Load game from database if gameId is in URL but no gameState
   // Also reload if URL gameId doesn't match store gameId (game changed)
@@ -215,6 +239,9 @@ export default function LiveGame() {
   }, [gameId, gameState, loadingGame, navigate, setPhase, setGameState, setPlayerName, connect, status, joinGame]);
 
   // Update player name and rank immediately when they become available (for WebSocket games)
+  // Uses a ref to only fetch badges ONCE per session (not per game or re-render)
+  const playerBadgesFetchedRef = useRef(false);
+  
   useEffect(() => {
     if (!gameState || isPrivateGame) return;
     
@@ -234,13 +261,25 @@ export default function LiveGame() {
     // Update player rank if totalWageredSc is available (0 is valid, only skip if undefined/null)
     if (totalWageredSc !== undefined && totalWageredSc !== null) {
       const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
-      // Only update if we don't already have a rank, or if the rank would be different
-      // This prevents unnecessary updates but ensures it's set initially
       if (!playerRank || playerRank.displayName !== playerRankInfo.displayName) {
         setPlayerRank(playerRankInfo);
+        // Also re-patch the versus screen in case it was set with stale data
+        useUILoadingStore.getState().patchVersusData({ playerRank: playerRankInfo });
       }
     }
-  }, [playerDisplayName, totalWageredSc, gameState, isPrivateGame, setGameState, setPlayerRank]);
+
+    // Fetch player badges ONCE per session (not per game)
+    if (user?.id && !playerBadgesFetchedRef.current) {
+      playerBadgesFetchedRef.current = true;
+      supabase
+        .from('user_badges')
+        .select('badge')
+        .eq('user_id', user.id)
+        .then(({ data }) => {
+          if (data) setPlayerBadges(data.map((b) => b.badge));
+        });
+    }
+  }, [playerDisplayName, totalWageredSc, gameState, isPrivateGame, setGameState, setPlayerRank, user?.id]);
 
   // Fetch opponent info ONCE when game starts - NOT on every gameState change
   // This prevents Supabase calls during active games
@@ -260,6 +299,12 @@ export default function LiveGame() {
     const playerRankInfo = getRankFromTotalWagered(totalWageredSc);
     setPlayerRank(playerRankInfo);
     
+    // Patch the versus screen (if still showing) with player rank + name
+    useUILoadingStore.getState().patchVersusData({
+      playerRank: playerRankInfo,
+      ...(playerDisplayName ? { playerName: playerDisplayName } : {}),
+    });
+    
     // Update player's own name from profile if available (no Supabase call)
     if (playerDisplayName && !isPrivateGame) {
       const storeState = useChessStore.getState();
@@ -272,81 +317,122 @@ export default function LiveGame() {
       }
     }
 
-    // Fetch opponent info only ONCE
+    // Fetch opponent info only ONCE — consolidated into minimal Supabase calls
     const fetchOpponentInfo = async () => {
-      // Mark as fetched BEFORE the async call to prevent duplicate fetches
-      opponentFetchedRef.current = gameKey;
-      
       try {
+        // Get opponent user ID from matchmaking state (set by WS handler)
         let opponentUserId: string | null = null;
-
-        // For WebSocket games, try matchmaking state first (no Supabase call)
         if (!isPrivateGame) {
           opponentUserId = matchmaking.opponentUserId || null;
         }
-        
-        // Only query Supabase if we don't have opponent info and have dbGameId
-        // This is a ONE-TIME query at game start
-        if (!opponentUserId && gameState?.dbGameId) {
-          const { data: game } = await supabase
-            .from('games')
-            .select(`
-              white_player_id,
-              black_player_id,
-              white_player:players!games_white_player_id_fkey(user_id),
-              black_player:players!games_black_player_id_fkey(user_id)
-            `)
-            .eq('id', gameState.dbGameId)
-            .maybeSingle();
 
-          if (game && user?.id) {
-            const whitePlayerUserId = (game.white_player as any)?.user_id;
-            const blackPlayerUserId = (game.black_player as any)?.user_id;
-            
-            opponentUserId = gameState.color === 'w' ? blackPlayerUserId : whitePlayerUserId;
+        // Strategy: Try multiple approaches to find opponent's profile
+        // 1) Direct profile lookup using opponentUserId (works if it's an auth user_id)
+        // 2) resolve_player_user_id RPC (handles players.id → auth user_id, bypasses RLS)
+        // 3) get_opponent_profile RPC (full game→player→profile join, bypasses all RLS)
+
+        let opponentProfile: { display_name?: string | null; total_wagered_sc: number | null } | null = null;
+        let resolvedAuthUserId: string | null = null;
+
+        // Strategy 1: Direct profile lookup
+        if (opponentUserId) {
+          const { data: directProfile } = await supabase
+            .from('profiles')
+            .select('total_wagered_sc, display_name')
+            .eq('user_id', opponentUserId)
+            .maybeSingle();
+          if (directProfile) {
+            opponentProfile = directProfile;
+            resolvedAuthUserId = opponentUserId;
           }
         }
 
-        if (opponentUserId) {
-          // ONE-TIME fetch of opponent profile
-          const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_opponent_profile', { p_user_id: opponentUserId });
-          
-          let opponentProfile: { display_name: string | null; total_wagered_sc: number | null } | null = null;
-          
-          if (!rpcError && rpcData && rpcData.length > 0) {
-            opponentProfile = rpcData[0];
-          } else {
-            // Fallback to direct query
-            const { data: profileData } = await supabase
+        // Strategy 2: resolve_player_user_id RPC (players.id → auth user_id)
+        if (!opponentProfile && opponentUserId) {
+          console.log('[LiveGame] Profile not found, trying resolve_player_user_id RPC:', opponentUserId);
+          const { data: resolvedId } = await supabase.rpc('resolve_player_user_id', {
+            p_player_id: opponentUserId,
+          });
+          if (resolvedId) {
+            console.log('[LiveGame] Resolved players.id → auth user_id:', resolvedId);
+            resolvedAuthUserId = resolvedId;
+            const { data: retryProfile } = await supabase
               .from('profiles')
               .select('total_wagered_sc, display_name')
-              .eq('user_id', opponentUserId)
+              .eq('user_id', resolvedId)
               .maybeSingle();
-            
-            if (profileData) {
-              opponentProfile = profileData;
+            if (retryProfile) opponentProfile = retryProfile;
+          }
+        }
+
+        // Strategy 3: get_opponent_profile RPC (full server-side join, no RLS issues)
+        // Works even without opponentUserId — only needs dbGameId
+        if (!opponentProfile && gameState?.dbGameId) {
+          console.log('[LiveGame] Using get_opponent_profile RPC for dbGameId:', gameState.dbGameId);
+          const { data: rpcData } = await supabase.rpc('get_opponent_profile', {
+            p_game_id: gameState.dbGameId,
+          });
+          if (rpcData && rpcData.length > 0) {
+            const row = rpcData[0];
+            opponentProfile = { display_name: row.display_name, total_wagered_sc: row.total_wagered_sc };
+            resolvedAuthUserId = row.opponent_user_id;
+          }
+        }
+
+        if (opponentProfile) {
+          const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
+          setOpponentRank(opponentRankInfo);
+          
+          // Mark as successfully fetched — prevents re-runs for this game
+          opponentFetchedRef.current = gameKey;
+          
+          // Patch the versus screen (if still showing) with rank + name
+          const patchData: Record<string, any> = { opponentRank: opponentRankInfo };
+          const displayName = opponentProfile.display_name;
+          if (displayName) {
+            patchData.opponentName = displayName;
+          }
+          useUILoadingStore.getState().patchVersusData(patchData);
+          
+          // Update game state with display name if we fetched it
+          if (displayName) {
+            const storeState = useChessStore.getState();
+            const currentGameState = storeState.gameState;
+            if (currentGameState && displayName !== currentGameState.opponentName) {
+              setGameState({
+                ...currentGameState,
+                opponentName: displayName,
+              });
             }
           }
 
-          if (opponentProfile) {
-            const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
-            setOpponentRank(opponentRankInfo);
-            
-            const opponentDisplayName = opponentProfile.display_name || "Opponent";
-            const storeState = useChessStore.getState();
-            const currentGameState = storeState.gameState;
-            if (currentGameState && opponentDisplayName !== currentGameState.opponentName) {
-              setGameState({
-                ...currentGameState,
-                opponentName: opponentDisplayName,
-              });
+          // Fetch badges using the resolved auth user_id
+          if (resolvedAuthUserId) {
+            const { data: badgeData } = await supabase
+              .from('user_badges')
+              .select('badge')
+              .eq('user_id', resolvedAuthUserId);
+            if (badgeData && badgeData.length > 0) {
+              setOpponentBadges(badgeData.map((b) => b.badge));
             }
-          } else {
-            setOpponentRank(getRankFromTotalWagered(0));
           }
+
+          console.log('[LiveGame] Opponent profile resolved:', {
+            resolvedAuthUserId,
+            displayName: opponentProfile.display_name,
+            totalWagered: opponentProfile.total_wagered_sc,
+            rank: opponentRankInfo.displayName,
+          });
+        } else if (!opponentUserId && !gameState?.dbGameId) {
+          // No opponent user ID AND no dbGameId — DON'T mark as fetched so
+          // the effect can retry when matchmaking.opponentUserId or dbGameId
+          // becomes available.
+          console.log('[LiveGame] No opponentUserId or dbGameId available yet, will retry when available');
         } else {
+          // We tried all strategies and couldn't find the profile
+          opponentFetchedRef.current = gameKey;
           setOpponentRank(getRankFromTotalWagered(0));
+          console.warn('[LiveGame] Could not find opponent profile via any strategy');
         }
       } catch (error) {
         console.error('[LiveGame] Error fetching opponent info:', error);
@@ -401,44 +487,85 @@ export default function LiveGame() {
     return undefined;
   }, [playerRank, totalWageredSc]);
 
-  // Loading state (connecting or loading game)
-  // All games now use WebSocket, so check WS status
-  const isLoading = loadingGame || status === "connecting" || status === "reconnecting";
+  // PART A: Mark route_to_game when LiveGame first mounts
+  const routeMarkedRef = useRef(false);
+  useEffect(() => {
+    if (!routeMarkedRef.current) {
+      routeMarkedRef.current = true;
+      perf.mark('route_to_game');
+    }
+  }, []);
+
+  // Hide the global loading overlay once the game is ready to render
+  // This covers: matchmaking flow, reconnect flow, private game join
+  // NOTE: If the overlay is in "versus" mode, do NOT auto-hide — VersusScreen's
+  // onComplete callback will call hideLoading() when its animation finishes.
+  const gameReadyRef = useRef(false);
+  useEffect(() => {
+    if (gameState && phase === 'in_game' && !gameReadyRef.current) {
+      gameReadyRef.current = true;
+      const uiState = useUILoadingStore.getState();
+      if (uiState.mode !== "versus") {
+        // Spinner mode: hide immediately once board is ready
+        hideLoading();
+      }
+      // Versus mode: VersusScreen.onComplete() will handle hideLoading
+    }
+    // Reset if game ends or state clears, so next game can show/hide properly
+    if (!gameState || phase !== 'in_game') {
+      gameReadyRef.current = false;
+    }
+  }, [gameState, phase, hideLoading]);
+
+  // Loading state (connecting or loading game) — show global overlay
+  const isLoadingConnection = loadingGame || status === "connecting" || status === "reconnecting";
   
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">
-          {status === "connecting" ? "Connecting to game server..." : "Reconnecting..."}
-        </p>
-        {showNetworkDebug && (
-          <NetworkDebugPanel
-            status={status}
-            logs={logs}
-            reconnectAttempts={reconnectAttempts}
-            onConnect={connect}
-            onDisconnect={disconnect}
-            onSendRaw={sendRaw}
-            onClearLogs={clearLogs}
-          />
-        )}
-      </div>
-    );
+  useEffect(() => {
+    if (isLoadingConnection) {
+      showLoading();
+      // Reset gameReadyRef so the "game ready" effect can re-fire hideLoading()
+      // after the connection is restored. Without this, a reconnect after alt-tab
+      // leaves the overlay stuck because gameReadyRef.current is still true
+      // from the initial game setup.
+      gameReadyRef.current = false;
+    }
+  }, [isLoadingConnection, showLoading]);
+
+  // No game state yet — show global overlay while waiting for game data
+  useEffect(() => {
+    if (!isLoadingConnection && !gameState) {
+      showLoading();
+    }
+  }, [isLoadingConnection, gameState, showLoading]);
+  
+  if (isLoadingConnection) {
+    // Global overlay is shown — render nothing else
+    return showNetworkDebug ? (
+      <NetworkDebugPanel
+        status={status}
+        logs={logs}
+        reconnectAttempts={reconnectAttempts}
+        onConnect={connect}
+        onDisconnect={disconnect}
+        onSendRaw={sendRaw}
+        onClearLogs={clearLogs}
+      />
+    ) : null;
   }
 
-  // Disconnected state (only for WebSocket games, not private games)
+  // Disconnected state — show overlay + minimal reconnect action
   if (!isPrivateGame && status === "disconnected") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <WifiOff className="w-12 h-12 text-destructive" />
-        <p className="text-lg font-semibold">Disconnected from server</p>
-        <p className="text-sm text-muted-foreground">The game may have ended due to connection loss.</p>
-        <div className="flex gap-4">
-          <Button onClick={connect}>Reconnect</Button>
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
+      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#0a0f1a] gap-4">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
+        </div>
+        <WifiOff className="relative z-10 w-10 h-10 text-red-400/70" />
+        <div className="relative z-10 flex gap-3">
+          <Button size="sm" onClick={connect}>Reconnect</Button>
+          <Button size="sm" variant="ghost" onClick={handleBack} className="text-blue-400">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Home
           </Button>
         </div>
         {showNetworkDebug && (
@@ -515,81 +642,37 @@ export default function LiveGame() {
     }
   }
 
-  // No game state - check phase to determine what to show
+  // No game state yet — global overlay is shown via useEffect above
   if (!gameState) {
-    // For UUID private games in searching/waiting phase, show connecting/waiting UI
-    const isPrivateUuidGame = gameId && !gameId.startsWith('g_');
-    if (isPrivateUuidGame && (phase === "searching" || phase === "idle")) {
+    // If phase is not in_game and not searching, offer escape
+    if (phase !== "in_game" && phase !== "searching" && phase !== "idle") {
       return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">
-            {status === 'connected' ? 'Waiting for opponent to connect...' : 'Connecting to game server...'}
-          </p>
-          <p className="text-sm text-muted-foreground/60">Game code: {gameId.slice(0, 8)}…</p>
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Button>
-          {showNetworkDebug && (
-            <NetworkDebugPanel
-              status={status}
-              logs={logs}
-              reconnectAttempts={reconnectAttempts}
-              onConnect={connect}
-              onDisconnect={disconnect}
-              onSendRaw={sendRaw}
-              onClearLogs={clearLogs}
-            />
-          )}
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#0a0f1a] gap-4">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
+          </div>
+          <div className="relative z-10 flex gap-3">
+            <Button size="sm" onClick={() => navigate('/chess')}>Find a Match</Button>
+            <Button size="sm" variant="ghost" onClick={handleBack} className="text-blue-400">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Home
+            </Button>
+          </div>
         </div>
       );
     }
 
-    // If phase is not in_game, show "no active game"
-    if (phase !== "in_game") {
-      return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-          <p className="text-muted-foreground">No active game found</p>
-          <p className="text-sm text-muted-foreground/60">Phase: {phase}</p>
-          <Button onClick={() => navigate('/quick-play')}>
-            Find a Match
-          </Button>
-          <NetworkDebugPanel
-            status={status}
-            logs={logs}
-            reconnectAttempts={reconnectAttempts}
-            onConnect={connect}
-            onDisconnect={disconnect}
-            onSendRaw={sendRaw}
-            onClearLogs={clearLogs}
-          />
-        </div>
-      );
-    }
-    
-    // In game phase but waiting for game state (shouldn't happen normally)
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Loading game state...</p>
-        <Button variant="outline" onClick={handleBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Button>
-        {showNetworkDebug && (
-          <NetworkDebugPanel
-            status={status}
-            logs={logs}
-            reconnectAttempts={reconnectAttempts}
-            onConnect={connect}
-            onDisconnect={disconnect}
-            onSendRaw={sendRaw}
-            onClearLogs={clearLogs}
-          />
-        )}
-      </div>
-    );
+    // Overlay is already shown globally — render nothing else
+    return showNetworkDebug ? (
+      <NetworkDebugPanel
+        status={status}
+        logs={logs}
+        reconnectAttempts={reconnectAttempts}
+        onConnect={connect}
+        onDisconnect={disconnect}
+        onSendRaw={sendRaw}
+        onClearLogs={clearLogs}
+      />
+    ) : null;
   }
 
   // Verify this is the correct game (for UUID private games, dbGameId matches the URL)
@@ -605,6 +688,13 @@ export default function LiveGame() {
         <Button onClick={handleBack}>Go Home</Button>
       </div>
     );
+  }
+
+  // PART A: Mark board_rendered when we reach the render point with gameState
+  if (!boardRenderedRef.current) {
+    boardRenderedRef.current = true;
+    perf.mark('board_rendered');
+    perf.summary();
   }
 
   // Convert color from "w"/"b" to "white"/"black"
@@ -634,11 +724,14 @@ export default function LiveGame() {
         isPrivateGame={isPrivateGame}
         playerRank={effectivePlayerRank}
         opponentRank={opponentRank}
+        playerBadges={playerBadges}
+        opponentBadges={opponentBadges}
         onSendMove={handleSendMove}
         onExit={handleExit}
         onBack={handleBack}
         onTimeLoss={handleTimeLoss}
       />
+
       {showNetworkDebug && (!isPrivateGame || isWebSocketGameId) && (
         <NetworkDebugPanel
           status={status}

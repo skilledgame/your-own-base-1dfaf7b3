@@ -376,6 +376,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          id: string
+          user_id: string
+          badge: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          badge: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          badge?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -495,6 +516,7 @@ export type Database = {
         }[]
       }
       get_player_id_for_user: { Args: { _user_id: string }; Returns: string }
+      get_user_badges: { Args: { p_user_id: string }; Returns: string[] }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       get_weekly_leaderboard: {
         Args: never

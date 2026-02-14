@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Chess, Square as ChessSquare, Move } from 'chess.js';
 import { cn } from '@/lib/utils';
 import { PIECE_SYMBOLS, FILES, RANKS } from '@/lib/chessConstants';
@@ -45,6 +45,9 @@ const ChessBoardComponent = ({
   // Local state for premove piece selection (which piece is selected for premove)
   const [premoveSelectedSquare, setPremoveSelectedSquare] = useState<string | null>(null);
 
+  // Drag-and-drop state
+  const [dragFrom, setDragFrom] = useState<string | null>(null);
+
   const displayFiles = flipped ? [...FILES].reverse() : FILES;
   const displayRanks = flipped ? [...RANKS].reverse() : RANKS;
 
@@ -59,6 +62,34 @@ const ChessBoardComponent = ({
 
   const playerColor = flipped ? 'b' : 'w';
 
+  // ─── PREMOVE TARGET VALIDATION ──────────────────────────────────────
+  // Compute legal squares for the premove-selected piece by temporarily
+  // flipping the side-to-move in the FEN.  This ensures the user can only
+  // queue premoves to squares the piece can actually reach.
+  const currentFen = game.fen();
+
+  const premoveTargets = useMemo<string[]>(() => {
+    if (!premoveSelectedSquare) return [];
+    try {
+      const fenParts = currentFen.split(' ');
+      fenParts[1] = playerColor; // force player's turn
+      const tempChess = new Chess(fenParts.join(' '));
+      const moves = tempChess.moves({ square: premoveSelectedSquare as ChessSquare, verbose: true });
+      return moves.map(m => m.to);
+    } catch {
+      return [];
+    }
+  }, [premoveSelectedSquare, currentFen, playerColor]);
+
+  // Subset of premoveTargets that are captures (opponent piece sits there now)
+  const premoveCaptureTargets = useMemo<string[]>(() => {
+    if (!premoveSelectedSquare || premoveTargets.length === 0) return [];
+    return premoveTargets.filter(sq => {
+      const p = game.get(sq as ChessSquare);
+      return p && p.color !== playerColor;
+    });
+  }, [premoveTargets, premoveSelectedSquare, game, playerColor]);
+
   // Clear selection when game ends
   useEffect(() => {
     if (isGameOver) {
@@ -66,6 +97,7 @@ const ChessBoardComponent = ({
       setValidMoves([]);
       clearPremove();
       setPremoveSelectedSquare(null);
+      setDragFrom(null);
     }
   }, [isGameOver, clearPremove]);
 
@@ -87,13 +119,117 @@ const ChessBoardComponent = ({
 
   const captureMoves = getCaptureMoves();
 
-  // Handle square click for moves and premoves
+  // ─── DRAG HANDLERS ─────────────────────────────────────────────────
+
+  const handleDragStart = useCallback((e: React.DragEvent, square: string) => {
+    if (isGameOver) {
+      e.preventDefault();
+      return;
+    }
+    const piece = game.get(square as ChessSquare);
+    if (!piece || piece.color !== playerColor) {
+      e.preventDefault();
+      return;
+    }
+
+    setDragFrom(square);
+
+    // If it's our turn, show valid moves like click-select
+    if (isPlayerTurn) {
+      setSelectedSquare(square);
+      const moves = game.moves({ square: square as ChessSquare, verbose: true });
+      setValidMoves(moves);
+    } else if (enablePremove) {
+      // Opponent's turn – start premove selection via drag
+      setPremoveSelectedSquare(square);
+      clearPremove();
+    }
+
+    e.dataTransfer.effectAllowed = 'move';
+    // Use transparent 1×1 gif so the browser doesn't show a default drag ghost
+    const img = new Image();
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    e.dataTransfer.setDragImage(img, 0, 0);
+  }, [game, playerColor, isPlayerTurn, isGameOver, enablePremove, clearPremove]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, row: number, col: number) => {
+    e.preventDefault();
+    if (!dragFrom) return;
+
+    const toSquare = getSquareNotation(row, col);
+
+    // Dropping on the same square → cancel (no move, no premove)
+    if (dragFrom === toSquare) {
+      setDragFrom(null);
+      setSelectedSquare(null);
+      setValidMoves([]);
+      setPremoveSelectedSquare(null);
+      return;
+    }
+
+    // Determine promotion
+    const movingPiece = game.get(dragFrom as ChessSquare);
+    let promotion: string | undefined;
+    const promotionRank = flipped ? 7 : 0;
+    if (movingPiece?.type === 'p' && row === promotionRank) {
+      promotion = 'q'; // Default queen (chess.com behavior)
+    }
+
+    if (isPlayerTurn) {
+      // ── Normal move via drag ──
+      const success = onMove(dragFrom, toSquare, promotion);
+      if (success) {
+        clearPremove();
+        setPremoveSelectedSquare(null);
+        // Play sound
+        const now = Date.now();
+        if (now - lastSoundRef.current > 50) {
+          lastSoundRef.current = now;
+          const targetPiece = game.get(toSquare as ChessSquare);
+          if (targetPiece && targetPiece.color !== playerColor) {
+            onCaptureSound?.();
+          } else {
+            onMoveSound?.();
+          }
+        }
+      }
+    } else if (enablePremove) {
+      // ── Premove via drag — only if target is a valid premove square ──
+      if (premoveTargets.includes(toSquare)) {
+        setPremove({ from: dragFrom, to: toSquare, promotion });
+      }
+      setPremoveSelectedSquare(null);
+    }
+
+    setDragFrom(null);
+    setSelectedSquare(null);
+    setValidMoves([]);
+  }, [dragFrom, isPlayerTurn, game, flipped, onMove, enablePremove, getSquareNotation, playerColor, clearPremove, setPremove, onMoveSound, onCaptureSound, premoveTargets]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragFrom(null);
+  }, []);
+
+  // ─── CLICK HANDLER ─────────────────────────────────────────────────
+
   const handleSquareClick = (row: number, col: number) => {
     // Block all interaction if game is over
     if (isGameOver) return;
 
     const square = getSquareNotation(row, col);
     const piece = game.get(square);
+
+    // ── CASE 0: Cancel existing premove by clicking its from-square ──
+    // Chess.com behavior: clicking the premoved piece (= from-square) cancels the premove.
+    if (premove && enablePremove && !isPlayerTurn && square === premove.from && !premoveSelectedSquare) {
+      clearPremove();
+      return;
+    }
 
     // CASE 1: Handle completing a premove when we had selected a piece earlier
     // This handles the case where you select a piece during opponent's turn,
@@ -112,8 +248,14 @@ const ChessBoardComponent = ({
         clearPremove();
         return;
       }
+
+      // ── Only allow premove to a valid target square ──
+      if (!premoveTargets.includes(square)) {
+        // Clicked an unreachable square → ignore (keep selection)
+        return;
+      }
       
-      // Clicking on empty square or opponent's piece - complete the premove
+      // Clicking on valid target – complete the premove
       const movingPiece = game.get(premoveSelectedSquare as ChessSquare);
       
       // Check for pawn promotion
@@ -235,6 +377,8 @@ const ChessBoardComponent = ({
     }
   };
 
+  // ─── HELPERS ───────────────────────────────────────────────────────
+
   const isLightSquare = (row: number, col: number) => {
     const actualRow = flipped ? 7 - row : row;
     const actualCol = flipped ? 7 - col : col;
@@ -283,44 +427,53 @@ const ChessBoardComponent = ({
             const isKingInCheck = kingInCheckSquare === square;
             const isCapturing = captureAnimation === square;
             
-            // Premove highlighting
+            // Premove highlighting – RED chess.com style
             const isPremoveSquare = isPremoveFrom === square || isPremoveTo === square;
             const isPremoveSelecting = isPremoveSelected === square;
+            // Valid premove target dots (shown while selecting premove piece)
+            const isPremoveTarget = premoveSelectedSquare !== null && premoveTargets.includes(square);
+            const isPremoveCaptureTarget = premoveSelectedSquare !== null && premoveCaptureTargets.includes(square);
 
             return (
               <div
                 key={square}
                 onClick={() => handleSquareClick(row, col)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, row, col)}
                 className={cn(
                   "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center cursor-pointer relative transition-all duration-150",
+                  // Base square color
                   isLightSquare(row, col) ? "chess-square-light" : "chess-square-dark",
-                  isSelected && "ring-4 ring-primary ring-inset",
-                  // Gray highlight for opponent's last move
+                  // --- Highlight priority (lowest → highest): ---
+                  // 1. Last move (gray) – skip if premove occupies the square
                   isLastMoveSquare && !isPremoveSquare && "!bg-muted-foreground/30",
-                  // Red highlight for king in check (either player's)
+                  // 2. Selected piece ring (normal turn)
+                  isSelected && "ring-4 ring-primary ring-inset",
+                  // 3. King in check (red tint)
                   isKingInCheck && "!bg-destructive/40",
-                  // Capture highlighting - red tint for capturable squares
+                  // 4. Capture-move indicator (red overlay for valid targets)
                   isCaptureMove && "!bg-red-500/30",
-                  // Premove highlighting - cyan/blue color (! forces override of chess-square bg)
-                  isPremoveSquare && "!bg-cyan-400/50 border-2 border-dashed border-cyan-300",
-                  // Premove piece selection - cyan ring around selected piece
-                  isPremoveSelecting && "ring-4 ring-cyan-400 ring-inset !bg-cyan-400/30",
-                  // Only show not-allowed cursor if premove is disabled
+                  // 5. PREMOVE highlights (RED, highest visual priority) ──────────
+                  //    Solid red tint on both from & to squares (chess.com style)
+                  isPremoveSquare && "!bg-red-500/40",
+                  //    Premove piece selection ring (before destination chosen)
+                  isPremoveSelecting && "ring-4 ring-red-500 ring-inset !bg-red-500/30",
+                  // Cursor feedback
                   !isPlayerTurn && !enablePremove && "cursor-not-allowed",
                   isGameOver && "cursor-not-allowed opacity-90"
                 )}
               >
-                {/* Valid move indicator (non-capture) */}
+                {/* ── Normal turn: valid move indicator (non-capture dot) ── */}
                 {isValidMove && !piece && !isCaptureMove && (
                   <div className="absolute w-4 h-4 rounded-full bg-primary/40 animate-pulse" />
                 )}
                 
-                {/* Valid move indicator for non-capture squares with pieces */}
+                {/* Normal turn: valid move indicator for squares with pieces */}
                 {isValidMove && piece && !isCaptureMove && (
                   <div className="absolute inset-1 rounded-full border-4 border-primary/50 animate-pulse" />
                 )}
                 
-                {/* Capture indicator - Red X overlay */}
+                {/* Normal turn: capture indicator - Red X overlay */}
                 {isCaptureMove && (
                   <>
                     <div className="absolute inset-0 bg-red-500/20 z-10" />
@@ -330,13 +483,27 @@ const ChessBoardComponent = ({
                   </>
                 )}
 
-                {/* Piece - explicit colors for white and black pieces */}
+                {/* ── Premove: valid target dots (shown while selecting piece) ── */}
+                {isPremoveTarget && !isPremoveCaptureTarget && !piece && (
+                  <div className="absolute w-4 h-4 rounded-full bg-red-500/50" />
+                )}
+                {/* Premove: capture ring around opponent pieces */}
+                {isPremoveCaptureTarget && (
+                  <div className="absolute inset-1 rounded-full border-4 border-red-500/50" />
+                )}
+
+                {/* Piece – supports drag for both normal moves and premoves */}
                 {piece && (
                   <span
+                    draggable={piece.color === playerColor && !isGameOver}
+                    onDragStart={(e) => handleDragStart(e, square)}
+                    onDragEnd={handleDragEnd}
                     className={cn(
                       "text-4xl sm:text-5xl md:text-6xl select-none transition-transform duration-200 z-30 drop-shadow-lg",
                       isSelected && "scale-110",
-                      isCapturing && "animate-bounce-in"
+                      isCapturing && "animate-bounce-in",
+                      // While being dragged, fade the source piece
+                      dragFrom === square && "opacity-40"
                     )}
                     style={{
                       color: piece.color === 'w' ? '#FFFFFF' : '#1a1a1a',
@@ -347,13 +514,6 @@ const ChessBoardComponent = ({
                   >
                     {PIECE_SYMBOLS[`${piece.color}${piece.type}`]}
                   </span>
-                )}
-
-                {/* Premove indicator dot/arrow for queued premove */}
-                {isPremoveSquare && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                    <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-lg shadow-cyan-400/50" />
-                  </div>
                 )}
 
                 {/* Coordinate labels */}

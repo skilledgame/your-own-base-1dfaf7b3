@@ -2,7 +2,7 @@
  * Chess Game Zustand Store
  * 
  * GLOBAL state for chess multiplayer that persists across navigation.
- * This solves the state desync between QuickPlay and LiveGame pages.
+ * This solves the state desync between the matchmaking flow and LiveGame page.
  * 
  * Extended to support wager-based matchmaking and balance tracking.
  */
@@ -10,16 +10,25 @@
 import { create } from 'zustand';
 
 export interface TimerSnapshot {
-  whiteTimeSeconds: number;
-  blackTimeSeconds: number;
-  serverTimeMs: number;
-  currentTurn: 'w' | 'b';
+  /** White remaining time in milliseconds (server-authoritative at snapshot time) */
+  wMs: number;
+  /** Black remaining time in milliseconds */
+  bMs: number;
+  /** Whose turn to move — the running clock side */
+  turn: 'w' | 'b';
+  /** False until the first move is made; when false, clocks are frozen */
+  clockRunning: boolean;
+  /** Server's Date.now() when this snapshot was created */
+  serverNow: number;
+  /** Server timestamp when current turn began (null before first move) */
+  lastTurnStartedAt: number | null;
   /**
-   * Monotonic timestamp (performance.now()) captured when this snapshot was
-   * received by the client. Used to make the timer independent from the user's
-   * system clock (Date.now()).
+   * Estimated offset between server and client clocks:
+   *   serverTimeOffsetMs = serverNow - clientDateNowAtReceipt
+   * Use: serverNowEstimate = Date.now() + serverTimeOffsetMs
+   * This keeps the display tied to SERVER time, not client time.
    */
-  clientPerfNowMs: number;
+  serverTimeOffsetMs: number;
 }
 
 export type GamePhase = "idle" | "searching" | "in_game" | "game_over";
@@ -78,6 +87,7 @@ interface ChessStore {
   matchmaking: MatchmakingState;  // Normalized matchmaking state
   timerSnapshot: TimerSnapshot | null;  // Server-authoritative timer snapshot
   premove: PremoveState | null;  // Queued premove (only one at a time)
+  versusScreenPending: boolean;  // True when match_found fires — consumed once by LiveGame
   
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -128,6 +138,9 @@ interface ChessStore {
   // Premove management
   setPremove: (premove: PremoveState | null) => void;
   clearPremove: () => void;
+  
+  // Versus screen
+  consumeVersusScreen: () => void;
 }
 
 export const useChessStore = create<ChessStore>((set, get) => ({
@@ -149,6 +162,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   },
   timerSnapshot: null,
   premove: null,
+  versusScreenPending: false,
   
   // Actions
   setPhase: (phase) => {
@@ -207,6 +221,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       gameEndResult: null,
       timerSnapshot: null,
       premove: null,  // Clear premove on reset
+      versusScreenPending: false,
       matchmaking: {
         status: "idle",
         wager: null,
@@ -282,6 +297,10 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   clearPremove: () => {
     console.log("[ChessStore] clearPremove");
     set({ premove: null });
+  },
+  
+  consumeVersusScreen: () => {
+    set({ versusScreenPending: false });
   },
   
   clearGameEnd: () => {
@@ -393,6 +412,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       },
       timerSnapshot: null, // Clear timer snapshot on game end
       premove: null,  // Clear premove on game end
+      versusScreenPending: false,  // Never show VS screen on game end
       // Keep gameState so we can still render the final board position
     });
   },

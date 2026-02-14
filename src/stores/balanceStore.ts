@@ -156,65 +156,16 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
   },
   
   subscribeToBalance: (userId: string) => {
-    const currentState = get();
-    
-    // Already subscribed for this user
-    if (currentState.subscription && currentState.userId === userId) {
-      console.log('[Balance] Already subscribed');
-      return;
-    }
-    
-    // Cleanup existing subscription
-    if (currentState.subscription) {
-      currentState.subscription.unsubscribe();
-    }
-    
-    console.log('[Balance] Setting up realtime subscription for user:', userId);
-    
-    // Subscribe to changes on this user's profile row
-    const channel = supabase
-      .channel(`profile-balance-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          console.log('[Balance] Realtime update:', payload.new);
-          const newCoins = (payload.new as { skilled_coins: number }).skilled_coins;
-          
-          // Guard: only update if value actually changed
-          const currentCoins = get().skilledCoins;
-          if (currentCoins === newCoins) {
-            console.log('[Balance] Value unchanged, skipping update');
-            return;
-          }
-          
-          saveLastKnownBalance(newCoins);
-          set({
-            skilledCoins: newCoins,
-            lastKnownSkilledCoins: newCoins,
-            lastUpdated: Date.now(),
-          });
-        }
-      )
-      .subscribe((status) => {
-        console.log('[Balance] Subscription status:', status);
-      });
-    
-    set({ subscription: channel, userId });
+    // DISABLED: userDataStore already has a Realtime subscription on profiles.
+    // Having two subscriptions on the same table doubles Realtime load.
+    // userDataStore.syncBalanceAfterGame() cross-syncs to this store via setBalance().
+    console.log('[Balance] subscribeToBalance is a no-op — userDataStore handles Realtime');
+    set({ userId });
   },
   
   unsubscribe: () => {
-    const { subscription } = get();
-    if (subscription) {
-      console.log('[Balance] Unsubscribing from realtime');
-      subscription.unsubscribe();
-      set({ subscription: null });
-    }
+    // No-op — subscription was removed (handled by userDataStore)
+    console.log('[Balance] unsubscribe is a no-op');
   },
   
   reset: () => {
