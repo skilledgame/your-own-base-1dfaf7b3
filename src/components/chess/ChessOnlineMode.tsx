@@ -153,6 +153,7 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
         onToggle={() => setSideMenuOpen(!sideMenuOpen)}
         isCollapsed={sidebarCollapsed}
         onCollapseToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        variant="dark"
       />
 
       {/* Overlay for mobile only */}

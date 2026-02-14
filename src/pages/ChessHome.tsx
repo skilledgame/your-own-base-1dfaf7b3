@@ -110,6 +110,7 @@ export default function ChessHome() {
         onToggle={() => setSideMenuOpen(!sideMenuOpen)}
         isCollapsed={sidebarCollapsed}
         onCollapseToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        variant="dark"
       />
 
       {/* Overlay for mobile only */}

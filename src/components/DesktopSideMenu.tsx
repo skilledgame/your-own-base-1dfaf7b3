@@ -16,6 +16,7 @@ interface DesktopSideMenuProps {
   onToggle: () => void;
   isCollapsed?: boolean;
   onCollapseToggle?: () => void;
+  variant?: 'default' | 'dark';
 }
 
 const menuItems = [
@@ -33,7 +34,7 @@ const legalItems = [
   { icon: Mail, label: 'Contact Us', path: '/contact' },
 ];
 
-export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onCollapseToggle }: DesktopSideMenuProps) => {
+export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onCollapseToggle, variant = 'default' }: DesktopSideMenuProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -116,7 +117,9 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
       <div
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
-          bg-card border-r border-border
+          ${variant === 'dark' 
+            ? 'bg-[#0a0f1a]/80 backdrop-blur-xl border-r border-white/5' 
+            : 'bg-card border-r border-border'}
           transition-all duration-300 ease-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           ${collapsed ? 'w-16' : 'w-72'}
@@ -127,7 +130,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
       >
         <div className={`flex flex-col h-full transition-all duration-300 ease-out ${collapsed ? 'w-16' : 'w-72'} overflow-hidden`}>
             {/* Header */}
-            <div className="flex items-center justify-start p-4 border-b border-border">
+            <div className={`flex items-center justify-start p-4 border-b ${variant === 'dark' ? 'border-white/5' : 'border-border'}`}>
               {/* Desktop: Hamburger menu to toggle collapsed state - stays fixed position */}
               <Button 
                 variant="ghost" 
@@ -343,7 +346,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-border">
+            <div className={`p-4 border-t ${variant === 'dark' ? 'border-white/5' : 'border-border'}`}>
               {isAuthenticated ? (
                 collapsed ? (
                   <Tooltip>
