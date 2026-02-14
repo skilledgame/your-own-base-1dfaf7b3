@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { User, Loader2, LogOut, Crown, Coins, Shield, Search } from 'lucide-react';
+import { User, LogOut, Crown, Shield, Search } from 'lucide-react';
 import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -123,8 +123,8 @@ export const WSMultiplayerGameView = ({
   
   // Get timer snapshot from store (server-authoritative for WebSocket games)
   const timerSnapshot = useChessStore((state) => state.timerSnapshot);
-  // Read premove from store for the "Premove set" indicator
-  const premove = useChessStore((state) => state.premove);
+  // Premove from store (used for execution logic in useChessWebSocket)
+  // const premove = useChessStore((state) => state.premove);
   
   // Sound effects (must be declared before the display clock effect that uses playGameEnd)
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
@@ -508,148 +508,92 @@ export const WSMultiplayerGameView = ({
         {/* Game Content */}
         <div className="pt-16 p-4 sm:p-8 sm:pt-20">
           <div className="max-w-4xl mx-auto">
-            {/* Game Controls Bar */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                {/* Wager Display */}
-                {wager > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-950/50 border border-yellow-500/30">
-                    <Coins className="w-4 h-4 text-yellow-400" />
-                    <span className="text-sm font-bold text-yellow-200">{wager} SC</span>
-                  </div>
-                )}
-                
-                {/* Game ID */}
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  Game: {gameId.slice(0, 8)}...
-                  {dbGameId && ` | DB: ${dbGameId.slice(0, 8)}...`}
-                </span>
-              </div>
-              
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  if (isGameOver) {
-                    onBack();
-                  } else {
-                    setShowResignDialog(true);
-                  }
-                }} 
-                className={`gap-2 ${isGameOver ? '' : 'text-destructive hover:text-destructive'}`}
-                disabled={false}
-              >
-                <LogOut className="w-4 h-4" />
-                {isGameOver ? 'Leave' : 'Resign'}
-              </Button>
-            </div>
-
             {/* Game Area */}
             <div className="flex flex-col items-center gap-4">
-          {/* Opponent Info with Timer and Captured Pieces */}
-          <div className="flex items-center justify-between w-full max-w-md">
-            <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
-              <User className="w-5 h-5 text-muted-foreground" />
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold">{opponentName || "Opponent"}</span>
-                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
-                    {opponentRankDisplay}
-                  </span>
-                  {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
+              {/* Opponent Info with Timer and Captured Pieces */}
+              <div className="flex items-center justify-between w-full max-w-md">
+                <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold">{opponentName || "Opponent"}</span>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
+                        {opponentRankDisplay}
+                      </span>
+                      {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
+                    </div>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Crown className="w-3 h-3" />
+                      {opponentColorLabel}
+                    </span>
+                    {/* Opponent's captured pieces (pieces they captured = my missing pieces) */}
+                    <CapturedPieces 
+                      pieces={opponentCaptured} 
+                      color={isWhite ? "black" : "white"}
+                      materialAdvantage={opponentMaterialAdvantage > 0 ? opponentMaterialAdvantage : undefined}
+                    />
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Crown className="w-3 h-3" />
-                  {opponentColorLabel}
-                </span>
-                {/* Opponent's captured pieces (pieces they captured = my missing pieces) */}
-                <CapturedPieces 
-                  pieces={opponentCaptured} 
-                  color={isWhite ? "black" : "white"}
-                  materialAdvantage={opponentMaterialAdvantage > 0 ? opponentMaterialAdvantage : undefined}
-                />
+                <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
               </div>
-            </div>
-            <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
-          </div>
 
-          {/* Chess Board with sound callbacks - only show opponent's last move */}
-          <ChessBoard
-            game={chess}
-            onMove={handleMove}
-            isPlayerTurn={isMyTurn && !isGameOver}
-            lastMove={opponentLastMove}
-            isCheck={chess.isCheck()}
-            flipped={!isWhite}
-            isGameOver={isGameOver}
-            onMoveSound={playMove}
-            onCaptureSound={playCapture}
-            onCheckSound={playCheck}
-          />
+              {/* Chess Board with sound callbacks - only show opponent's last move */}
+              <ChessBoard
+                game={chess}
+                onMove={handleMove}
+                isPlayerTurn={isMyTurn && !isGameOver}
+                lastMove={opponentLastMove}
+                isCheck={chess.isCheck()}
+                flipped={!isWhite}
+                isGameOver={isGameOver}
+                onMoveSound={playMove}
+                onCaptureSound={playCapture}
+                onCheckSound={playCheck}
+              />
 
-          {/* Player Info with Timer and Captured Pieces */}
-          <div className="flex items-center justify-between w-full max-w-md">
-            <div className="flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
-              <User className="w-5 h-5 text-primary" />
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold">{playerName}</span>
-                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
-                    {playerRankDisplay}
-                  </span>
-                  {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
+              {/* Player Info with Timer and Resign */}
+              <div className="flex items-center justify-between w-full max-w-md">
+                <div className="flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
+                  <User className="w-5 h-5 text-primary" />
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold">{playerName}</span>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
+                        {playerRankDisplay}
+                      </span>
+                      {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
+                    </div>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Crown className="w-3 h-3" />
+                      {myColorLabel} (You)
+                    </span>
+                    {/* My captured pieces (pieces I captured = opponent's missing pieces) */}
+                    <CapturedPieces 
+                      pieces={myCaptured} 
+                      color={isWhite ? "white" : "black"}
+                      materialAdvantage={myMaterialAdvantage > 0 ? myMaterialAdvantage : undefined}
+                    />
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Crown className="w-3 h-3" />
-                  {myColorLabel} (You)
-                </span>
-                {/* My captured pieces (pieces I captured = opponent's missing pieces) */}
-                <CapturedPieces 
-                  pieces={myCaptured} 
-                  color={isWhite ? "white" : "black"}
-                  materialAdvantage={myMaterialAdvantage > 0 ? myMaterialAdvantage : undefined}
-                />
+                <div className="flex items-center gap-3">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      if (isGameOver) {
+                        onBack();
+                      } else {
+                        setShowResignDialog(true);
+                      }
+                    }} 
+                    className={`gap-1.5 ${isGameOver ? '' : 'text-destructive hover:text-destructive border-destructive/30'}`}
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    {isGameOver ? 'Leave' : 'Resign'}
+                  </Button>
+                  <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} />
+                </div>
               </div>
-            </div>
-            <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} />
-          </div>
-
-          {/* Wager Stakes Display */}
-          {wager > 0 && (
-            <div className="text-center mt-4 p-4 bg-gradient-to-r from-yellow-950/50 to-amber-950/50 border border-yellow-500/30 rounded-xl w-full max-w-md">
-              <p className="text-sm text-yellow-200/60">Stakes</p>
-              <div className="flex items-center justify-center gap-2 mt-1">
-                <Coins className="w-6 h-6 text-yellow-400" />
-                <span className="text-2xl font-bold text-yellow-400">{wager} SC</span>
-              </div>
-              <p className="text-xs text-yellow-200/40 mt-1">Winner takes all</p>
-            </div>
-          )}
-
-          {/* Turn Indicator / Game Over */}
-          <div className="text-center mt-4 p-4 rounded-xl bg-secondary/30 w-full max-w-md">
-            {isGameOver ? (
-              <span className="text-lg font-semibold text-destructive">
-                ⏱ Game Over
-              </span>
-            ) : isMyTurn ? (
-              <span className="text-lg font-semibold text-primary animate-pulse">
-                ♟ Your Move
-              </span>
-            ) : (
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-muted-foreground flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Waiting for {opponentName}...
-                </span>
-                {/* Premove set indicator */}
-                {premove && (
-                  <span className="text-xs font-medium text-red-400 animate-pulse">
-                    Premove set · click piece to cancel
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
             </div>
           </div>
         </div>
