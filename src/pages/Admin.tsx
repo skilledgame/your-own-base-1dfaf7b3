@@ -59,11 +59,14 @@ import {
   Gem,
   Sparkles,
   X,
+  Mail,
+  Download,
+  Calendar,
+  CheckCircle2,
   Wallet,
   Check,
   XCircle,
   ArrowDownRight,
-  CheckCircle2,
   Copy,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -186,6 +189,17 @@ export default function Admin() {
   const [editingRank, setEditingRank] = useState<RankTierRow | null>(null);
   const [rankForm, setRankForm] = useState({ display_name: '', threshold: '', perks: '', rakeback_percentage: '', sort_order: '' });
   const [rankSaving, setRankSaving] = useState(false);
+  // Waitlist state
+  interface WaitlistEntry {
+    id: string;
+    email: string;
+    source: string;
+    verified: boolean;
+    created_at: string;
+  }
+  const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistSearch, setWaitlistSearch] = useState('');
   // Withdrawals state
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
@@ -268,12 +282,57 @@ export default function Admin() {
     }
   }, [activeTab, isAdmin]);
 
+  // Fetch waitlist when waitlist tab is active
+  useEffect(() => {
+    if (activeTab === 'waitlist' && isAdmin) {
+      fetchWaitlist();
+    }
+  }, [activeTab, isAdmin]);
+
   // Fetch withdrawals when withdrawals tab is active
   useEffect(() => {
     if (activeTab === 'withdrawals' && isAdmin) {
       fetchWithdrawals();
     }
   }, [activeTab, isAdmin, withdrawalFilter]);
+
+  const fetchWaitlist = async () => {
+    setWaitlistLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('waitlist')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching waitlist:', error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch waitlist entries' });
+      } else {
+        setWaitlistEntries(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching waitlist:', error);
+    } finally {
+      setWaitlistLoading(false);
+    }
+  };
+
+  const handleExportWaitlistCSV = () => {
+    const verified = waitlistEntries.filter(e => e.verified);
+    const csv = [
+      'Email,Source,Date',
+      ...verified.map(e =>
+        `${e.email},${e.source},${new Date(e.created_at).toISOString()}`
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `waitlist-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -1047,6 +1106,12 @@ export default function Admin() {
               </TabsTrigger>
             )}
             {isAdmin && (
+              <TabsTrigger value="waitlist" className="data-[state=active]:bg-purple-500/20">
+                <Mail className="w-4 h-4 mr-2" />
+                Waitlist
+              </TabsTrigger>
+            )}
+            {isAdmin && (
               <TabsTrigger value="withdrawals" className="data-[state=active]:bg-purple-500/20">
                 <Wallet className="w-4 h-4 mr-2" />
                 Withdrawals
@@ -1693,6 +1758,154 @@ export default function Admin() {
                   <strong className="text-blue-300">How it works:</strong> Rank tiers are determined by total Skilled Coins wagered (lifetime). 
                   Changes here take effect immediately across the website — the VIP page, progress cards, and rakeback calculations all use these values.
                 </p>
+              </div>
+            </TabsContent>
+          )}
+
+          {/* Waitlist Tab */}
+          {isAdmin && (
+            <TabsContent value="waitlist" className="space-y-6">
+              {/* Title */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <Mail className="w-8 h-8 text-purple-400" />
+                    Waitlist
+                  </h1>
+                  <p className="text-purple-200/60 mt-1">
+                    Pre-launch email signups from the marketing site
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleExportWaitlistCSV}
+                    variant="outline"
+                    className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                    disabled={waitlistEntries.filter(e => e.verified).length === 0}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <Button
+                    onClick={fetchWaitlist}
+                    variant="outline"
+                    className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${waitlistLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-purple-950/30 border border-purple-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <p className="text-purple-200/60 text-sm">Verified Signups</p>
+                  </div>
+                  <p className="text-2xl font-bold text-emerald-400">
+                    {waitlistEntries.filter(e => e.verified).length}
+                  </p>
+                </div>
+                <div className="bg-purple-950/30 border border-purple-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                    <p className="text-purple-200/60 text-sm">Today</p>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-400">
+                    {waitlistEntries.filter(e => {
+                      const todayStart = new Date();
+                      todayStart.setHours(0, 0, 0, 0);
+                      return new Date(e.created_at) >= todayStart && e.verified;
+                    }).length}
+                  </p>
+                </div>
+                <div className="bg-purple-950/30 border border-purple-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-yellow-400" />
+                    <p className="text-purple-200/60 text-sm">Pending (Unverified)</p>
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-400">
+                    {waitlistEntries.filter(e => !e.verified).length}
+                  </p>
+                </div>
+                <div className="bg-purple-950/30 border border-purple-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="w-3.5 h-3.5 text-purple-400" />
+                    <p className="text-purple-200/60 text-sm">Total Entries</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white">{waitlistEntries.length}</p>
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-200/40" />
+                <Input
+                  placeholder="Search emails..."
+                  value={waitlistSearch}
+                  onChange={(e) => setWaitlistSearch(e.target.value)}
+                  className="pl-10 bg-purple-950/30 border-purple-500/20 text-white placeholder:text-purple-200/40"
+                />
+              </div>
+
+              {/* Emails Table */}
+              <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl overflow-hidden">
+                {waitlistLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-purple-500/20 hover:bg-transparent">
+                        <TableHead className="text-purple-200/60">Email</TableHead>
+                        <TableHead className="text-purple-200/60">Status</TableHead>
+                        <TableHead className="text-purple-200/60">Source</TableHead>
+                        <TableHead className="text-purple-200/60">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {waitlistEntries
+                        .filter(e => !waitlistSearch || e.email.toLowerCase().includes(waitlistSearch.toLowerCase()))
+                        .map((entry) => (
+                        <TableRow key={entry.id} className="border-purple-500/10 hover:bg-purple-500/5">
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-purple-400" />
+                              <span className="text-white font-medium">{entry.email}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-medium ${
+                              entry.verified
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${entry.verified ? 'bg-emerald-400' : 'bg-yellow-400'}`} />
+                              {entry.verified ? 'Verified' : 'Pending'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-purple-200/60">{entry.source}</TableCell>
+                          <TableCell className="text-purple-200/60">
+                            {new Date(entry.created_at).toLocaleDateString('en-US', {
+                              month: 'short', day: 'numeric', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit',
+                            })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {waitlistEntries.filter(e => !waitlistSearch || e.email.toLowerCase().includes(waitlistSearch.toLowerCase())).length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-10 text-purple-200/50">
+                            {waitlistSearch ? 'No matching emails' : 'No waitlist signups yet'}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             </TabsContent>
           )}
