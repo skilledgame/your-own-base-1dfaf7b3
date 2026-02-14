@@ -36,6 +36,7 @@ import PrivateGameLobby from "./pages/PrivateGameLobby";
 import Affiliate from "./pages/Affiliate";
 import VIP from "./pages/VIP";
 import { useEnsureUser } from "./hooks/useEnsureUser";
+import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { useEffect } from "react";
 import { useUserDataStore } from "./stores/userDataStore";
 // Note: balanceStore and profileStore are still available for legacy compatibility
@@ -64,6 +65,9 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
   
   // Run ensure-user after auth is ready
   useEnsureUser();
+
+  // Track page views and active visitors for admin analytics
+  usePageAnalytics();
 
   // Ensure theme is initialized globally (default to dark)
   useEffect(() => {
