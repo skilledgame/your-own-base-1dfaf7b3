@@ -66,10 +66,6 @@ export function DepositTab() {
 
     setLoading(true);
     try {
-      // #region agent log
-      const reqBody = { amount_usd: finalAmount, crypto_currency: selectedCrypto };
-      fetch('http://127.0.0.1:7242/ingest/62efb36a-e139-4cdd-9b3d-6dd0e80529db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DepositTab.tsx:handleContinueToPayment',message:'Request body sent to create-payment (post-fix)',data:{reqBody,userId:user?.id},timestamp:Date.now(),hypothesisId:'H1-field-mismatch',runId:'post-fix'})}).catch(()=>{});
-      // #endregion
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
           amount_usd: finalAmount,
@@ -77,12 +73,6 @@ export function DepositTab() {
         },
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/62efb36a-e139-4cdd-9b3d-6dd0e80529db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DepositTab.tsx:handleContinueToPayment',message:'Response from create-payment',data:{data,error:error?.message||error,hasData:!!data},timestamp:Date.now(),hypothesisId:'H1-field-mismatch'})}).catch(()=>{});
-      // #endregion
-
-      // #region agent log
-      // Extract detailed error from edge function response
       if (error) {
         let serverMsg = error.message || 'Unknown error';
         try {
@@ -91,17 +81,11 @@ export function DepositTab() {
             serverMsg = errBody?.error || errBody?.message || JSON.stringify(errBody);
           }
         } catch (_) { /* context not readable */ }
-        console.error('[DepositTab] Server error detail:', serverMsg);
         throw new Error(serverMsg);
       }
-      // #endregion
-
-      // #region agent log
-      console.log('[DepositTab] create-payment response data:', JSON.stringify(data));
-      // #endregion
 
       if (data?.invoice_url) {
-        // Invoice flow: redirect to NOWPayments hosted page
+        // Invoice flow: open NOWPayments hosted payment page
         window.open(data.invoice_url, '_blank');
         toast({
           title: 'Payment Created',
@@ -118,7 +102,7 @@ export function DepositTab() {
         });
         setStep('payment');
       } else {
-        throw new Error('Invalid payment response: ' + JSON.stringify(data));
+        throw new Error('Invalid payment response');
       }
     } catch (error: any) {
       console.error('[DepositTab] Payment creation error:', error);
