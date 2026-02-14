@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { ChessBoard } from './ChessBoard';
 import { GameTimer } from './GameTimer';
 import { CapturedPieces } from './CapturedPieces';
@@ -21,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, User, Loader2, LogOut, Crown, Coins, Wallet } from 'lucide-react';
+import { User, Loader2, LogOut, Crown, Coins, Shield, Search } from 'lucide-react';
 import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -30,6 +31,15 @@ import { useChessSound } from '@/hooks/useChessSound';
 import { type RankInfo } from '@/lib/rankSystem';
 import { useChessStore } from '@/stores/chessStore';
 import { wsClient } from '@/lib/wsClient';
+import { DesktopSideMenu } from '@/components/DesktopSideMenu';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { LogoLink } from '@/components/LogoLink';
+import { UserDropdown } from '@/components/UserDropdown';
+import { BalanceDepositPill } from '@/components/BalanceDepositPill';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
+import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWalletModal } from '@/contexts/WalletModalContext';
 
 interface WSMultiplayerGameViewProps {
   gameId: string;
@@ -86,6 +96,23 @@ export const WSMultiplayerGameView = ({
   onBack,
   onTimeLoss,
 }: WSMultiplayerGameViewProps) => {
+  // Layout state
+  const [sideMenuOpen, setSideMenuOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768;
+    }
+    return false;
+  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sidebarCollapsed');
+      return stored !== null ? stored === 'true' : true;
+    }
+    return true;
+  });
+  const { isAuthenticated, isPrivileged } = useAuth();
+  const { openWallet } = useWalletModal();
+
   // Local chess instance for move validation
   const [chess] = useState(() => new Chess(currentFen || initialFen));
   const [localFen, setLocalFen] = useState(currentFen || initialFen);
@@ -384,62 +411,140 @@ export const WSMultiplayerGameView = ({
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-background overflow-x-hidden pb-16 md:pb-0">
+      {/* Desktop Side Menu */}
+      <DesktopSideMenu 
+        isOpen={sideMenuOpen} 
+        onToggle={() => setSideMenuOpen(!sideMenuOpen)}
+        isCollapsed={sidebarCollapsed}
+        onCollapseToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        variant="dark"
+      />
+
+      {/* Overlay for mobile only */}
+      {sideMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSideMenuOpen(false)}
+        />
+      )}
+
+      {/* Main content wrapper */}
+      <div 
+        className={`
+          transition-all duration-300 ease-out
+          ${sideMenuOpen ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-72') : 'md:ml-0'}
+        `}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => {
-              if (isGameOver) {
-                onBack();
-              } else {
-                setShowResignDialog(true);
-              }
-            }} 
-            className="gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {isGameOver ? 'Home' : 'Leave'}
-          </Button>
-          
-          <div className="flex items-center gap-4">
-            {/* Wager Display */}
-            {wager > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-950/50 border border-yellow-500/30">
-                <Coins className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm font-bold text-yellow-200">{wager} SC</span>
+        <header 
+          className={`
+            fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl border-b border-white/5
+            transition-all duration-300 ease-out
+            ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
+          `}
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
+            {/* Left: Logo */}
+            <div className="flex items-center">
+              <LogoLink className="h-12 sm:h-14" />
+            </div>
+
+            {/* Center: Balance + Deposit (only when authenticated) */}
+            {isAuthenticated && (
+              <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2">
+                <BalanceDepositPill isPrivileged={isPrivileged} />
               </div>
             )}
-            
-            {/* Balance Display */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-border">
-              <Wallet className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{playerSkilledCoins} SC</span>
+
+            {/* Right: Auth/User controls */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {isAuthenticated ? (
+                <>
+                  {isPrivileged && (
+                    <Button variant="ghost" size="sm" asChild className="hidden sm:flex text-purple-400 hover:text-purple-300 hover:bg-purple-500/10">
+                      <Link to="/admin">
+                        <Shield className="w-4 h-4 mr-1" />
+                        Admin
+                      </Link>
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
+                    <Link to="/search">
+                      <Search className="w-5 h-5" />
+                    </Link>
+                  </Button>
+                  <div className="hidden sm:flex">
+                    <NotificationDropdown />
+                  </div>
+                  <div className="hidden sm:flex items-center">
+                    <UserDropdown />
+                  </div>
+                  <div className="sm:hidden">
+                    <button onClick={() => openWallet('deposit')}>
+                      <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
+                    <Link to="/search">
+                      <Search className="w-5 h-5" />
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
+                    <Link to="/auth">Sign In</Link>
+                  </Button>
+                  <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
+                    <Link to="/auth">Get Started</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
-          
-          <Button 
-            variant="outline" 
-            onClick={onExit} 
-            className="gap-2 text-destructive hover:text-destructive"
-            disabled={isGameOver}
-          >
-            <LogOut className="w-4 h-4" />
-            Resign
-          </Button>
-        </div>
+        </header>
 
-        {/* Game ID Display */}
-        <div className="text-center mb-4">
-          <span className="text-xs text-muted-foreground">
-            Game: {gameId.slice(0, 8)}...
-            {dbGameId && ` | DB: ${dbGameId.slice(0, 8)}...`}
-          </span>
-        </div>
+        {/* Game Content */}
+        <div className="pt-16 p-4 sm:p-8 sm:pt-20">
+          <div className="max-w-4xl mx-auto">
+            {/* Game Controls Bar */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                {/* Wager Display */}
+                {wager > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-950/50 border border-yellow-500/30">
+                    <Coins className="w-4 h-4 text-yellow-400" />
+                    <span className="text-sm font-bold text-yellow-200">{wager} SC</span>
+                  </div>
+                )}
+                
+                {/* Game ID */}
+                <span className="text-xs text-muted-foreground hidden sm:inline">
+                  Game: {gameId.slice(0, 8)}...
+                  {dbGameId && ` | DB: ${dbGameId.slice(0, 8)}...`}
+                </span>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (isGameOver) {
+                    onBack();
+                  } else {
+                    setShowResignDialog(true);
+                  }
+                }} 
+                className={`gap-2 ${isGameOver ? '' : 'text-destructive hover:text-destructive'}`}
+                disabled={false}
+              >
+                <LogOut className="w-4 h-4" />
+                {isGameOver ? 'Leave' : 'Resign'}
+              </Button>
+            </div>
 
-        {/* Game Area */}
-        <div className="flex flex-col items-center gap-4">
+            {/* Game Area */}
+            <div className="flex flex-col items-center gap-4">
           {/* Opponent Info with Timer and Captured Pieces */}
           <div className="flex items-center justify-between w-full max-w-md">
             <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
@@ -545,6 +650,8 @@ export const WSMultiplayerGameView = ({
               </div>
             )}
           </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -572,6 +679,9 @@ export const WSMultiplayerGameView = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav onMenuClick={() => setSideMenuOpen(true)} />
     </div>
   );
 };
