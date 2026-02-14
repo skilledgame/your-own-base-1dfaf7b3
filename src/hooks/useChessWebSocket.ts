@@ -292,44 +292,110 @@ function initializeGlobalMessageHandler(): void {
 
         // Fetch opponent display_name + total_wagered_sc to patch both name AND rank
         // on the versus screen. This must happen here — LiveGame may not have mounted yet.
-        if (opponentUserId) {
-          console.log("[Chess WS] Fetching opponent profile for userId:", opponentUserId);
-          supabase
-            .from('profiles')
-            .select('display_name, total_wagered_sc')
-            .eq('user_id', opponentUserId)
-            .maybeSingle()
-            .then(({ data }) => {
+        //
+        // Strategy:
+        // 1) If opponentUserId is available, try direct profile lookup
+        // 2) If that fails, use resolve_player_user_id RPC (handles players.id → auth user_id)
+        // 3) If dbGameId is available, use get_opponent_profile RPC (bypasses RLS completely)
+        (async () => {
+          try {
+            let profileData: { display_name: string | null; total_wagered_sc: number | null } | null = null;
+            let resolvedOpponentAuthId: string | null = null;
+
+            // Strategy 1: Direct profile lookup with the opponentUserId we have
+            if (opponentUserId) {
+              console.log("[Chess WS] Fetching opponent profile for userId:", opponentUserId);
+              const { data } = await supabase
+                .from('profiles')
+                .select('display_name, total_wagered_sc')
+                .eq('user_id', opponentUserId)
+                .maybeSingle();
               if (data) {
-                const patch: Record<string, any> = {};
-
-                // Patch opponent name
-                if (data.display_name) {
-                  patch.opponentName = data.display_name;
-                }
-
-                // Patch opponent rank
-                const opponentRankInfo = getRankFromTotalWagered(data.total_wagered_sc ?? 0);
-                patch.opponentRank = opponentRankInfo;
-
-                useUILoadingStore.getState().patchVersusData(patch);
-
-                // Also patch the game state so the board shows the real name
-                const currentGameState = useChessStore.getState().gameState;
-                if (currentGameState && currentGameState.gameId === matchId) {
-                  useChessStore.getState().setGameState({
-                    ...currentGameState,
-                    ...(data.display_name ? { opponentName: data.display_name } : {}),
-                  });
-                }
+                profileData = data;
+                resolvedOpponentAuthId = opponentUserId;
               }
-            })
-            .catch((err) => {
-              console.warn("[Chess WS] Error fetching opponent profile:", err);
-            });
-        } else {
-          console.warn("[Chess WS] No opponentUserId available — cannot fetch real opponent name");
-        }
+            }
+
+            // Strategy 2: If profile not found and opponentUserId might be a players.id,
+            // use the resolve_player_user_id RPC to get the auth user_id (bypasses RLS)
+            if (!profileData && opponentUserId) {
+              console.log("[Chess WS] Profile not found, trying resolve_player_user_id RPC:", opponentUserId);
+              const { data: resolvedId } = await supabase.rpc('resolve_player_user_id', {
+                p_player_id: opponentUserId,
+              });
+              if (resolvedId) {
+                console.log("[Chess WS] Resolved players.id → auth user_id:", resolvedId);
+                resolvedOpponentAuthId = resolvedId;
+                // Update the matchmaking store with the correct auth user_id
+                useChessStore.getState().setMatchmakingMatch({
+                  matchId: matchId,
+                  opponentUserId: resolvedId,
+                });
+                const { data: retryProfile } = await supabase
+                  .from('profiles')
+                  .select('display_name, total_wagered_sc')
+                  .eq('user_id', resolvedId)
+                  .maybeSingle();
+                if (retryProfile) profileData = retryProfile;
+              }
+            }
+
+            // Strategy 3: If still no profile and we have a dbGameId, use the
+            // get_opponent_profile RPC which does the full games→players→profiles
+            // join server-side (SECURITY DEFINER, bypasses all RLS)
+            if (!profileData && dbMatchId) {
+              console.log("[Chess WS] Using get_opponent_profile RPC for dbGameId:", dbMatchId);
+              const { data: rpcData } = await supabase.rpc('get_opponent_profile', {
+                p_game_id: dbMatchId,
+              });
+              if (rpcData && rpcData.length > 0) {
+                const row = rpcData[0];
+                profileData = { display_name: row.display_name, total_wagered_sc: row.total_wagered_sc };
+                resolvedOpponentAuthId = row.opponent_user_id;
+                // Update matchmaking store with the correct auth user_id
+                useChessStore.getState().setMatchmakingMatch({
+                  matchId: matchId,
+                  opponentUserId: row.opponent_user_id,
+                });
+              }
+            }
+
+            if (profileData) {
+              const patch: Record<string, any> = {};
+
+              // Patch opponent name
+              if (profileData.display_name) {
+                patch.opponentName = profileData.display_name;
+              }
+
+              // Patch opponent rank
+              const opponentRankInfo = getRankFromTotalWagered(profileData.total_wagered_sc ?? 0);
+              patch.opponentRank = opponentRankInfo;
+
+              useUILoadingStore.getState().patchVersusData(patch);
+
+              // Also patch the game state so the board shows the real name
+              const currentGameState = useChessStore.getState().gameState;
+              if (currentGameState && currentGameState.gameId === matchId) {
+                useChessStore.getState().setGameState({
+                  ...currentGameState,
+                  ...(profileData.display_name ? { opponentName: profileData.display_name } : {}),
+                });
+              }
+
+              console.log("[Chess WS] Opponent profile resolved:", {
+                resolvedOpponentAuthId,
+                displayName: profileData.display_name,
+                totalWagered: profileData.total_wagered_sc,
+                rank: opponentRankInfo.displayName,
+              });
+            } else {
+              console.warn("[Chess WS] Could not find opponent profile via any strategy");
+            }
+          } catch (err) {
+            console.warn("[Chess WS] Error fetching opponent profile:", err);
+          }
+        })();
         
         // Only show match found toast for admin users
         if (isAdminCallback && isAdminCallback()) {
