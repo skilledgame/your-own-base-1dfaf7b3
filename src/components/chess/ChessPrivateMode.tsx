@@ -22,7 +22,6 @@ import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
 import { useWalletModal } from '@/contexts/WalletModalContext';
 import {
-  ArrowLeft,
   Copy,
   Users,
   Loader2,
@@ -355,7 +354,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         {/* Header */}
         <header 
           className={`
-            fixed top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/50
+            fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl border-b border-white/5
             transition-all duration-300 ease-out
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
@@ -437,17 +436,6 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
 
           {/* Content */}
           <div className="relative z-10 min-h-screen flex flex-col pt-16">
-            {/* Back button */}
-            <div className="p-4">
-              <button 
-                onClick={mode === 'select' ? onBack : handleBackFromMode}
-                className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span className="hidden sm:inline">Back{mode !== 'select' ? '' : ' to Modes'}</span>
-              </button>
-            </div>
-
             <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
               {/* Not authenticated */}
               {!isAuthenticated && (
