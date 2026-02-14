@@ -171,7 +171,7 @@ export const LandingPage = ({
         onToggle={() => setSideMenuOpen(!sideMenuOpen)}
         isCollapsed={sidebarCollapsed}
         onCollapseToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        variant="dark"
+        variant="black"
       />
 
       {/* Overlay for mobile only */}
