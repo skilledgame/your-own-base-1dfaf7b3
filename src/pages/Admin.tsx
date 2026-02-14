@@ -55,8 +55,13 @@ import {
   Plus,
   Save,
   Trash2,
+  Award,
+  Gem,
+  Sparkles,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Textarea } from '@/components/ui/textarea';
 import { UserBadges, type BadgeType } from '@/components/UserBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -141,6 +146,22 @@ export default function Admin() {
   const [newSlug, setNewSlug] = useState('');
   const [newTitle, setNewTitle] = useState('');
   const [showAddContent, setShowAddContent] = useState(false);
+  // Rank config state
+  interface RankTierRow {
+    id: string;
+    tier_name: string;
+    display_name: string;
+    threshold: number;
+    perks: string[];
+    rakeback_percentage: number;
+    sort_order: number;
+    updated_at: string | null;
+  }
+  const [rankTiers, setRankTiers] = useState<RankTierRow[]>([]);
+  const [rankLoading, setRankLoading] = useState(false);
+  const [editingRank, setEditingRank] = useState<RankTierRow | null>(null);
+  const [rankForm, setRankForm] = useState({ display_name: '', threshold: '', perks: '', rakeback_percentage: '', sort_order: '' });
+  const [rankSaving, setRankSaving] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -204,6 +225,13 @@ export default function Admin() {
   useEffect(() => {
     if (activeTab === 'content' && isAdmin) {
       fetchContentPages();
+    }
+  }, [activeTab, isAdmin]);
+
+  // Fetch rank config when ranks tab is active
+  useEffect(() => {
+    if (activeTab === 'ranks' && isAdmin) {
+      fetchRankTiers();
     }
   }, [activeTab, isAdmin]);
 
@@ -396,6 +424,96 @@ export default function Admin() {
       }
     } catch (error) {
       console.error('Error fetching today views:', error);
+    }
+  };
+
+  // ---- Rank Config Management ----
+  const fetchRankTiers = async () => {
+    setRankLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('rank_config')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching rank tiers:', error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch rank tiers' });
+      } else {
+        setRankTiers(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching rank tiers:', error);
+    } finally {
+      setRankLoading(false);
+    }
+  };
+
+  const openRankEditor = (tier: RankTierRow) => {
+    setEditingRank(tier);
+    setRankForm({
+      display_name: tier.display_name,
+      threshold: tier.threshold.toString(),
+      perks: tier.perks.join('\n'),
+      rakeback_percentage: tier.rakeback_percentage.toString(),
+      sort_order: tier.sort_order.toString(),
+    });
+  };
+
+  const handleSaveRank = async () => {
+    if (!editingRank) return;
+    setRankSaving(true);
+    try {
+      const perksArray = rankForm.perks
+        .split('\n')
+        .map(p => p.trim())
+        .filter(p => p.length > 0);
+
+      const { error } = await supabase
+        .from('rank_config')
+        .update({
+          display_name: rankForm.display_name.trim(),
+          threshold: parseInt(rankForm.threshold) || 0,
+          perks: perksArray,
+          rakeback_percentage: parseFloat(rankForm.rakeback_percentage) || 0,
+          sort_order: parseInt(rankForm.sort_order) || 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingRank.id);
+
+      if (error) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
+      } else {
+        toast({ title: 'Rank updated', description: `"${rankForm.display_name}" saved successfully` });
+        setEditingRank(null);
+        fetchRankTiers();
+      }
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save rank' });
+    } finally {
+      setRankSaving(false);
+    }
+  };
+
+  const getRankTierColor = (tier: string) => {
+    switch (tier) {
+      case 'diamond': return 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10';
+      case 'platinum': return 'text-slate-300 border-slate-400/30 bg-slate-400/10';
+      case 'gold': return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
+      case 'silver': return 'text-gray-300 border-gray-400/30 bg-gray-400/10';
+      case 'bronze': return 'text-orange-400 border-orange-500/30 bg-orange-500/10';
+      default: return 'text-gray-400 border-gray-500/30 bg-gray-500/10';
+    }
+  };
+
+  const getRankTierIcon = (tier: string) => {
+    switch (tier) {
+      case 'diamond': return <Trophy className="w-5 h-5" />;
+      case 'platinum': return <Sparkles className="w-5 h-5" />;
+      case 'gold': return <Crown className="w-5 h-5" />;
+      case 'silver': return <Gem className="w-5 h-5" />;
+      case 'bronze': return <Award className="w-5 h-5" />;
+      default: return <UserIcon className="w-5 h-5" />;
     }
   };
 
@@ -694,6 +812,12 @@ export default function Admin() {
               <TabsTrigger value="content" className="data-[state=active]:bg-purple-500/20">
                 <FileText className="w-4 h-4 mr-2" />
                 Content
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="ranks" className="data-[state=active]:bg-purple-500/20">
+                <Crown className="w-4 h-4 mr-2" />
+                Ranks
               </TabsTrigger>
             )}
           </TabsList>
@@ -1242,8 +1366,215 @@ export default function Admin() {
               </div>
             </TabsContent>
           )}
+
+          {/* Rank Config Tab */}
+          {isAdmin && (
+            <TabsContent value="ranks" className="space-y-6">
+              {/* Title */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <Crown className="w-8 h-8 text-yellow-400" />
+                    Rank Configuration
+                  </h1>
+                  <p className="text-purple-200/60 mt-1">
+                    Edit VIP rank tiers, thresholds, perks, and rakeback percentages
+                  </p>
+                </div>
+                <Button
+                  onClick={fetchRankTiers}
+                  variant="outline"
+                  className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${rankLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              {/* Rank Tiers List */}
+              {rankLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                </div>
+              ) : rankTiers.length > 0 ? (
+                <div className="space-y-3">
+                  {rankTiers.map((tier) => (
+                    <div
+                      key={tier.id}
+                      className={`rounded-xl p-5 border-2 transition-all hover:scale-[1.01] ${getRankTierColor(tier.tier_name)}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className="flex-shrink-0">
+                            {getRankTierIcon(tier.tier_name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-1">
+                              <h3 className="text-white font-bold text-lg">{tier.display_name}</h3>
+                              <span className="text-xs font-mono opacity-60">({tier.tier_name})</span>
+                            </div>
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <span className="text-sm opacity-80">
+                                <Coins className="w-3.5 h-3.5 inline mr-1" />
+                                {tier.threshold === 0 ? 'Starting rank' : `${tier.threshold.toLocaleString()} SC needed`}
+                              </span>
+                              <span className="text-sm opacity-80">
+                                Rakeback: <strong>{tier.rakeback_percentage}%</strong>
+                              </span>
+                              <span className="text-sm opacity-60">
+                                {tier.perks.length} perk{tier.perks.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            {tier.perks.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {tier.perks.map((perk, i) => (
+                                  <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+                                    {perk}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => openRankEditor(tier)}
+                          className="bg-white/10 hover:bg-white/20 text-white ml-4"
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-12 text-center">
+                  <Crown className="w-12 h-12 text-purple-200/30 mx-auto mb-4" />
+                  <p className="text-purple-200/50 text-lg">No rank tiers configured</p>
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="bg-blue-950/20 border border-blue-500/20 rounded-xl p-4">
+                <p className="text-blue-200/70 text-sm">
+                  <strong className="text-blue-300">How it works:</strong> Rank tiers are determined by total Skilled Coins wagered (lifetime). 
+                  Changes here take effect immediately across the website — the VIP page, progress cards, and rakeback calculations all use these values.
+                </p>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
+
+      {/* Edit Rank Dialog */}
+      <Dialog open={!!editingRank} onOpenChange={() => setEditingRank(null)}>
+        <DialogContent className="bg-[#0a0f1a] border-purple-500/30 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {editingRank && getRankTierIcon(editingRank.tier_name)}
+              Edit Rank: {editingRank?.display_name}
+            </DialogTitle>
+            <DialogDescription className="text-purple-200/60">
+              Configure this rank tier's threshold, perks, and rakeback
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm text-purple-200/60 mb-2 block">Display Name</label>
+              <Input
+                value={rankForm.display_name}
+                onChange={(e) => setRankForm({ ...rankForm, display_name: e.target.value })}
+                className="bg-purple-950/30 border-purple-500/30 text-white"
+                placeholder="e.g. Diamond"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-purple-200/60 mb-2 block">
+                  Threshold (SC wagered)
+                </label>
+                <div className="relative">
+                  <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-500" />
+                  <Input
+                    type="number"
+                    value={rankForm.threshold}
+                    onChange={(e) => setRankForm({ ...rankForm, threshold: e.target.value })}
+                    className="pl-10 bg-purple-950/30 border-purple-500/30 text-white"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm text-purple-200/60 mb-2 block">
+                  Rakeback %
+                </label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={rankForm.rakeback_percentage}
+                  onChange={(e) => setRankForm({ ...rankForm, rakeback_percentage: e.target.value })}
+                  className="bg-purple-950/30 border-purple-500/30 text-white"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-purple-200/60 mb-2 block">
+                Sort Order
+              </label>
+              <Input
+                type="number"
+                value={rankForm.sort_order}
+                onChange={(e) => setRankForm({ ...rankForm, sort_order: e.target.value })}
+                className="bg-purple-950/30 border-purple-500/30 text-white"
+                placeholder="0"
+              />
+              <p className="text-purple-200/40 text-xs mt-1">Lower number = lower rank. E.g. Unranked=0, Bronze=1, etc.</p>
+            </div>
+            <div>
+              <label className="text-sm text-purple-200/60 mb-2 block">
+                Perks (one per line)
+              </label>
+              <textarea
+                value={rankForm.perks}
+                onChange={(e) => setRankForm({ ...rankForm, perks: e.target.value })}
+                className="w-full h-32 p-3 bg-purple-950/30 border border-purple-500/30 rounded-lg text-white text-sm placeholder:text-purple-200/30 resize-y focus:outline-none focus:border-purple-400/50"
+                placeholder={"Exclusive badge\nBasic leaderboard access\nPriority matchmaking"}
+              />
+              <p className="text-purple-200/40 text-xs mt-1">
+                {rankForm.perks.split('\n').filter(p => p.trim()).length} perk(s)
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingRank(null)}
+              className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveRank}
+              disabled={rankSaving}
+              className="bg-purple-600 hover:bg-purple-500 text-white"
+            >
+              {rankSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Rank
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Content Page Dialog */}
       <Dialog open={showAddContent} onOpenChange={setShowAddContent}>

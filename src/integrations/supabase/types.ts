@@ -376,6 +376,39 @@ export type Database = {
         }
         Relationships: []
       }
+      rank_config: {
+        Row: {
+          display_name: string
+          id: string
+          perks: string[]
+          rakeback_percentage: number
+          sort_order: number
+          threshold: number
+          tier_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          display_name: string
+          id?: string
+          perks?: string[]
+          rakeback_percentage?: number
+          sort_order?: number
+          threshold?: number
+          tier_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          display_name?: string
+          id?: string
+          perks?: string[]
+          rakeback_percentage?: number
+          sort_order?: number
+          threshold?: number
+          tier_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       site_content: {
         Row: {
           content: string

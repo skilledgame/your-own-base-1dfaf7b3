@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Crown, Trophy, Sparkles, ArrowLeft, Check, Gift, Lock, 
@@ -9,23 +9,22 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useProfile } from '@/hooks/useProfile';
-import { getRankFromTotalWagered, formatSkilledCoins, RANK_THRESHOLDS, RANK_PERKS } from '@/lib/rankSystem';
+import { getRankFromDynamicConfig, formatSkilledCoins } from '@/lib/rankSystem';
+import { useRankConfig } from '@/hooks/useRankConfig';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import type { LucideIcon } from 'lucide-react';
 
-// Rank ladder data
-const RANK_LADDER = [
-  { tier: 'unranked', name: 'Unranked', threshold: RANK_THRESHOLDS.unranked, icon: Star },
-  { tier: 'bronze', name: 'Bronze', threshold: RANK_THRESHOLDS.bronze, icon: Award },
-  { tier: 'silver', name: 'Silver', threshold: RANK_THRESHOLDS.silver, icon: Gem },
-  { tier: 'gold', name: 'Gold', threshold: RANK_THRESHOLDS.gold, icon: Crown },
-  { tier: 'platinum', name: 'Platinum', threshold: RANK_THRESHOLDS.platinum, icon: Sparkles },
-  { tier: 'diamond', name: 'Diamond', threshold: RANK_THRESHOLDS.diamond, icon: Trophy },
-] as const;
-
-const RANK_ORDER = ['unranked', 'bronze', 'silver', 'gold', 'platinum', 'diamond'];
+const TIER_ICON_MAP: Record<string, LucideIcon> = {
+  unranked: Star,
+  bronze: Award,
+  silver: Gem,
+  gold: Crown,
+  platinum: Sparkles,
+  diamond: Trophy,
+};
 
 // VIP Reward tiers with cooldowns
 const VIP_REWARDS = [
@@ -75,16 +74,6 @@ const VIP_REWARDS = [
   },
 ];
 
-// Rakeback tiers
-const RAKEBACK_TIERS = [
-  { rank: 'unranked', percentage: 0 },
-  { rank: 'bronze', percentage: 2 },
-  { rank: 'silver', percentage: 5 },
-  { rank: 'gold', percentage: 8 },
-  { rank: 'platinum', percentage: 12 },
-  { rank: 'diamond', percentage: 15 },
-];
-
 const getRankColor = (tier: string) => {
   switch (tier) {
     case 'diamond': return 'from-cyan-400 to-blue-500';
@@ -111,8 +100,19 @@ export default function VIP() {
   const navigate = useNavigate();
   const { totalWageredSc, displayName, isLoading } = useProfile();
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const { tiers, rakebackTiers, perks: rankPerks, loading: rankConfigLoading } = useRankConfig();
 
-  const rankInfo = getRankFromTotalWagered(totalWageredSc);
+  // Build dynamic rank ladder & order from DB config
+  const RANK_LADDER = useMemo(() => tiers.map(t => ({
+    tier: t.tier_name,
+    name: t.display_name,
+    threshold: t.threshold,
+    icon: TIER_ICON_MAP[t.tier_name] || Star,
+  })), [tiers]);
+
+  const RANK_ORDER = useMemo(() => tiers.map(t => t.tier_name), [tiers]);
+
+  const rankInfo = getRankFromDynamicConfig(totalWageredSc, tiers);
   const currentRankIndex = RANK_ORDER.indexOf(rankInfo.tierName);
   const progress = rankInfo.nextMin
     ? ((totalWageredSc - rankInfo.currentMin) / (rankInfo.nextMin - rankInfo.currentMin)) * 100
@@ -124,14 +124,14 @@ export default function VIP() {
     return currentRankIndex >= requiredIndex;
   };
 
-  const currentRakeback = RAKEBACK_TIERS.find(r => r.rank === rankInfo.tierName)?.percentage || 0;
+  const currentRakeback = rakebackTiers.find(r => r.rank === rankInfo.tierName)?.percentage || 0;
 
   const handleClaimReward = (rewardId: string) => {
     console.log('Claiming reward:', rewardId);
     // TODO: Implement reward claiming logic
   };
 
-  if (isLoading) {
+  if (isLoading || rankConfigLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-4xl mx-auto px-4 py-8">
@@ -332,7 +332,7 @@ export default function VIP() {
 
             {/* Rakeback tiers */}
             <div className="grid grid-cols-6 gap-2">
-              {RAKEBACK_TIERS.map((tier, idx) => {
+              {rakebackTiers.map((tier, idx) => {
                 const isActive = tier.rank === rankInfo.tierName;
                 const isUnlocked = idx <= currentRankIndex;
                 
@@ -443,7 +443,7 @@ export default function VIP() {
                           Your Perks
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {(RANK_PERKS[rank.tier] || []).slice(0, 3).map((perk, perkIndex) => (
+                          {(rankPerks[rank.tier] || []).slice(0, 3).map((perk, perkIndex) => (
                             <Badge 
                               key={perkIndex} 
                               variant="secondary" 

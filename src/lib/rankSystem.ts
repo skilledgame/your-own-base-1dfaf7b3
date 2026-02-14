@@ -99,6 +99,51 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
 }
 
 /**
+ * Get rank information from total wagered amount using dynamic tier config.
+ * Tiers should be sorted by threshold descending for lookup.
+ */
+export function getRankFromDynamicConfig(
+  totalWageredSc: number | null | undefined,
+  tiers: { tier_name: string; display_name: string; threshold: number; perks: string[]; sort_order: number }[]
+): RankInfo {
+  const wagered = totalWageredSc ?? 0;
+
+  // Sort by threshold descending for lookup
+  const sorted = [...tiers].sort((a, b) => b.threshold - a.threshold);
+
+  for (let i = 0; i < sorted.length; i++) {
+    const tier = sorted[i];
+    if (wagered >= tier.threshold) {
+      // Find next tier (one with higher threshold)
+      const nextTier = i > 0 ? sorted[i - 1] : null;
+      return {
+        tierName: tier.tier_name,
+        displayName: tier.display_name,
+        currentMin: tier.threshold,
+        nextMin: nextTier ? nextTier.threshold : null,
+        perks: tier.perks,
+      };
+    }
+  }
+
+  // Fallback to lowest tier
+  const lowest = sorted[sorted.length - 1];
+  if (lowest) {
+    const nextTier = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+    return {
+      tierName: lowest.tier_name,
+      displayName: lowest.display_name,
+      currentMin: lowest.threshold,
+      nextMin: nextTier ? nextTier.threshold : null,
+      perks: lowest.perks,
+    };
+  }
+
+  // Ultimate fallback
+  return getRankFromTotalWagered(totalWageredSc);
+}
+
+/**
  * Format Skilled Coins amount for display
  */
 export function formatSkilledCoins(amount: number | null | undefined): string {

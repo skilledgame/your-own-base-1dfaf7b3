@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { Crown, Trophy, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
-import { getRankFromTotalWagered, formatSkilledCoins } from '@/lib/rankSystem';
+import { getRankFromDynamicConfig, formatSkilledCoins } from '@/lib/rankSystem';
+import { useRankConfig } from '@/hooks/useRankConfig';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export const VIPProgressCard = () => {
   const { user } = useAuth();
   const { totalWageredSc, displayName, isLoading } = useProfile();
+  const { tiers } = useRankConfig();
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -25,7 +27,7 @@ export const VIPProgressCard = () => {
     );
   }
 
-  const rankInfo = getRankFromTotalWagered(totalWageredSc);
+  const rankInfo = getRankFromDynamicConfig(totalWageredSc, tiers);
   const progress = rankInfo.nextMin
     ? (totalWageredSc - rankInfo.currentMin) / (rankInfo.nextMin - rankInfo.currentMin)
     : 1;

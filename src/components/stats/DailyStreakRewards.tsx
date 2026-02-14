@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Flame, Gift, Lock, Check, Coins, Crown, 
   ChevronLeft, ChevronRight, Zap, Sparkles, Calendar
@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { formatSkilledCoins, getRankFromTotalWagered } from '@/lib/rankSystem';
+import { formatSkilledCoins, getRankFromDynamicConfig } from '@/lib/rankSystem';
+import { useRankConfig } from '@/hooks/useRankConfig';
 
 interface DailyStreakRewardsProps {
   currentStreak: number;
@@ -106,12 +107,12 @@ const getRankColor = (tier: string) => {
   }
 };
 
-const RANK_ORDER = ['unranked', 'bronze', 'silver', 'gold', 'platinum', 'diamond'];
-
 export function DailyStreakRewards({ currentStreak, totalWageredSc, onClaimReward }: DailyStreakRewardsProps) {
   const [scrollOffset, setScrollOffset] = useState(0);
   const days = generateWeekDays(currentStreak);
-  const currentRank = getRankFromTotalWagered(totalWageredSc);
+  const { tiers, rakebackTiers } = useRankConfig();
+  const RANK_ORDER = useMemo(() => tiers.map(t => t.tier_name), [tiers]);
+  const currentRank = getRankFromDynamicConfig(totalWageredSc, tiers);
   
   const currentRankIndex = RANK_ORDER.indexOf(currentRank.tierName);
   
