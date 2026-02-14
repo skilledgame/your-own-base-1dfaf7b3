@@ -120,7 +120,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
           ${variant === 'dark' 
             ? 'bg-[#0a0f1a]/80 backdrop-blur-xl border-r border-white/5' 
             : variant === 'black'
-              ? 'bg-black border-r border-white/5'
+              ? 'bg-background border-r border-white/5'
               : 'bg-card border-r border-border'}
           transition-all duration-300 ease-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
