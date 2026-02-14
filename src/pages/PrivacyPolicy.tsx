@@ -1,9 +1,12 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import skilledLogo from "@/assets/skilled-logo.png";
+import { useSiteContent } from "@/hooks/useSiteContent";
 
 const PrivacyPolicy = () => {
+  const { data, loading, hasContent } = useSiteContent('privacy-policy');
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -24,8 +27,22 @@ const PrivacyPolicy = () => {
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-12">
         <h1 className="text-4xl font-bold mb-2">Privacy Policy</h1>
-        <p className="text-muted-foreground mb-8">Last updated: January 5, 2025</p>
+        <p className="text-muted-foreground mb-8">
+          Last updated: {hasContent && data?.updated_at
+            ? new Date(data.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+            : 'January 5, 2025'}
+        </p>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : hasContent ? (
+          <div
+            className="prose prose-neutral dark:prose-invert max-w-none"
+            dangerouslySetInnerHTML={{ __html: data!.content }}
+          />
+        ) : (
         <div className="prose prose-neutral dark:prose-invert max-w-none space-y-8">
           {/* Introduction */}
           <section>
@@ -249,6 +266,7 @@ const PrivacyPolicy = () => {
             </div>
           </section>
         </div>
+        )}
       </main>
 
       {/* Footer */}
