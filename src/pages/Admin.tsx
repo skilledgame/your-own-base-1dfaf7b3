@@ -59,6 +59,12 @@ import {
   Gem,
   Sparkles,
   X,
+  Wallet,
+  Check,
+  XCircle,
+  ArrowDownRight,
+  CheckCircle2,
+  Copy,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Textarea } from '@/components/ui/textarea';
@@ -119,6 +125,24 @@ interface ActiveVisitor {
   last_seen_at: string;
 }
 
+interface Withdrawal {
+  id: string;
+  user_id: string;
+  amount_sc: number;
+  amount_usd: number;
+  crypto_currency: string;
+  wallet_address: string;
+  status: string;
+  admin_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  payout_id: string | null;
+  payout_hash: string | null;
+  created_at: string;
+  updated_at: string;
+  user_display_name: string;
+}
+
 export default function Admin() {
   const { isAdmin, isModerator, isPrivileged, loading: roleLoading } = useUserRole();
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -162,6 +186,15 @@ export default function Admin() {
   const [editingRank, setEditingRank] = useState<RankTierRow | null>(null);
   const [rankForm, setRankForm] = useState({ display_name: '', threshold: '', perks: '', rakeback_percentage: '', sort_order: '' });
   const [rankSaving, setRankSaving] = useState(false);
+  // Withdrawals state
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+  const [withdrawalFilter, setWithdrawalFilter] = useState<'pending' | 'all'>('pending');
+  const [processingWithdrawalId, setProcessingWithdrawalId] = useState<string | null>(null);
+  const [rejectNoteId, setRejectNoteId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
+  const [completeDialogId, setCompleteDialogId] = useState<string | null>(null);
+  const [completeTxHash, setCompleteTxHash] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -234,6 +267,13 @@ export default function Admin() {
       fetchRankTiers();
     }
   }, [activeTab, isAdmin]);
+
+  // Fetch withdrawals when withdrawals tab is active
+  useEffect(() => {
+    if (activeTab === 'withdrawals' && isAdmin) {
+      fetchWithdrawals();
+    }
+  }, [activeTab, isAdmin, withdrawalFilter]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -493,6 +533,192 @@ export default function Admin() {
     } finally {
       setRankSaving(false);
     }
+  };
+
+  // ---- Withdrawal Management ----
+  const fetchWithdrawals = async () => {
+    setWithdrawalsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const action = withdrawalFilter === 'all' ? 'list-all' : 'list';
+      const statusParam = withdrawalFilter === 'pending' ? '&status=pending' : '';
+      const response = await fetch(
+        `${CURRENT_SUPABASE_URL}/functions/v1/process-withdrawal?action=${action}${statusParam}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch withdrawals');
+      }
+
+      setWithdrawals(result.withdrawals || []);
+    } catch (error) {
+      console.error('Error fetching withdrawals:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to fetch withdrawals',
+      });
+    } finally {
+      setWithdrawalsLoading(false);
+    }
+  };
+
+  const handleApproveWithdrawal = async (withdrawalId: string) => {
+    setProcessingWithdrawalId(withdrawalId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `${CURRENT_SUPABASE_URL}/functions/v1/process-withdrawal?action=approve`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ withdrawal_id: withdrawalId }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok && !result.success) {
+        throw new Error(result.error || 'Failed to approve');
+      }
+
+      toast({
+        title: 'Withdrawal Approved',
+        description: result.message || 'Withdrawal has been approved.',
+      });
+      fetchWithdrawals();
+    } catch (error) {
+      console.error('Error approving withdrawal:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to approve withdrawal',
+      });
+    } finally {
+      setProcessingWithdrawalId(null);
+    }
+  };
+
+  const handleRejectWithdrawal = async (withdrawalId: string) => {
+    setProcessingWithdrawalId(withdrawalId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `${CURRENT_SUPABASE_URL}/functions/v1/process-withdrawal?action=reject`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            withdrawal_id: withdrawalId,
+            admin_note: rejectNote || 'Rejected by admin',
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok && !result.success) {
+        throw new Error(result.error || 'Failed to reject');
+      }
+
+      toast({
+        title: 'Withdrawal Rejected',
+        description: result.message || 'Withdrawal rejected and coins refunded.',
+      });
+      setRejectNoteId(null);
+      setRejectNote('');
+      fetchWithdrawals();
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to reject withdrawal',
+      });
+    } finally {
+      setProcessingWithdrawalId(null);
+    }
+  };
+
+  const handleCompleteWithdrawal = async (withdrawalId: string) => {
+    setProcessingWithdrawalId(withdrawalId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `${CURRENT_SUPABASE_URL}/functions/v1/process-withdrawal?action=complete`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            withdrawal_id: withdrawalId,
+            payout_hash: completeTxHash || null,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok && !result.success) {
+        throw new Error(result.error || 'Failed to complete');
+      }
+
+      toast({
+        title: 'Withdrawal Completed',
+        description: 'Withdrawal marked as completed.',
+      });
+      setCompleteDialogId(null);
+      setCompleteTxHash('');
+      fetchWithdrawals();
+    } catch (error) {
+      console.error('Error completing withdrawal:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to complete withdrawal',
+      });
+    } finally {
+      setProcessingWithdrawalId(null);
+    }
+  };
+
+  const getWithdrawalStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'approved': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'processing': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case 'completed': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'rejected': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'failed': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
+  const getCryptoLabel = (id: string) => {
+    const map: Record<string, string> = {
+      btc: 'BTC', eth: 'ETH', usdttrc20: 'USDT (TRC20)', ltc: 'LTC',
+    };
+    return map[id] || id.toUpperCase();
   };
 
   const getRankTierColor = (tier: string) => {
@@ -818,6 +1044,12 @@ export default function Admin() {
               <TabsTrigger value="ranks" className="data-[state=active]:bg-purple-500/20">
                 <Crown className="w-4 h-4 mr-2" />
                 Ranks
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="withdrawals" className="data-[state=active]:bg-purple-500/20">
+                <Wallet className="w-4 h-4 mr-2" />
+                Withdrawals
               </TabsTrigger>
             )}
           </TabsList>
@@ -1464,6 +1696,243 @@ export default function Admin() {
               </div>
             </TabsContent>
           )}
+
+          {/* Withdrawals Tab */}
+          {isAdmin && (
+            <TabsContent value="withdrawals" className="space-y-6">
+              {/* Title */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <Wallet className="w-8 h-8 text-emerald-400" />
+                    Withdrawal Requests
+                  </h1>
+                  <p className="text-purple-200/60 mt-1">
+                    Review and process user withdrawal requests
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Select value={withdrawalFilter} onValueChange={(v) => setWithdrawalFilter(v as 'pending' | 'all')}>
+                    <SelectTrigger className="w-[140px] bg-purple-950/30 border-purple-500/30 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#0a0f1a] border-purple-500/30">
+                      <SelectItem value="pending" className="text-white hover:bg-purple-500/10">Pending</SelectItem>
+                      <SelectItem value="all" className="text-white hover:bg-purple-500/10">All</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={fetchWithdrawals}
+                    variant="outline"
+                    className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${withdrawalsLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-yellow-950/30 border border-yellow-500/20 rounded-xl p-4">
+                  <p className="text-yellow-200/60 text-sm">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-400">
+                    {withdrawals.filter(w => w.status === 'pending').length}
+                  </p>
+                </div>
+                <div className="bg-blue-950/30 border border-blue-500/20 rounded-xl p-4">
+                  <p className="text-blue-200/60 text-sm">Approved / Processing</p>
+                  <p className="text-2xl font-bold text-blue-400">
+                    {withdrawals.filter(w => w.status === 'approved' || w.status === 'processing').length}
+                  </p>
+                </div>
+                <div className="bg-green-950/30 border border-green-500/20 rounded-xl p-4">
+                  <p className="text-green-200/60 text-sm">Completed</p>
+                  <p className="text-2xl font-bold text-green-400">
+                    {withdrawals.filter(w => w.status === 'completed').length}
+                  </p>
+                </div>
+                <div className="bg-purple-950/30 border border-purple-500/20 rounded-xl p-4">
+                  <p className="text-purple-200/60 text-sm">Total USD Pending</p>
+                  <p className="text-2xl font-bold text-purple-400">
+                    ${withdrawals.filter(w => w.status === 'pending').reduce((s, w) => s + Number(w.amount_usd), 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Withdrawals List */}
+              {withdrawalsLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                </div>
+              ) : withdrawals.length > 0 ? (
+                <div className="space-y-3">
+                  {withdrawals.map((w) => (
+                    <div
+                      key={w.id}
+                      className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-5"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        {/* Left: User & Amount */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-2">
+                            <ArrowDownRight className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                            <h3 className="text-white font-semibold text-lg truncate">
+                              {w.user_display_name}
+                            </h3>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${getWithdrawalStatusBadge(w.status)}`}>
+                              {w.status}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm ml-8">
+                            <div>
+                              <span className="text-purple-200/50 block">Amount</span>
+                              <span className="text-white font-medium">{w.amount_sc.toLocaleString()} SC</span>
+                              <span className="text-purple-200/40 text-xs block">${Number(w.amount_usd).toFixed(2)}</span>
+                            </div>
+                            <div>
+                              <span className="text-purple-200/50 block">Crypto</span>
+                              <span className="text-white font-medium">{getCryptoLabel(w.crypto_currency)}</span>
+                            </div>
+                            <div>
+                              <span className="text-purple-200/50 block">Wallet</span>
+                              <span className="text-white font-mono text-xs break-all">{w.wallet_address.slice(0, 12)}...{w.wallet_address.slice(-6)}</span>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(w.wallet_address);
+                                  toast({ title: 'Copied', description: 'Wallet address copied' });
+                                }}
+                                className="text-purple-400 hover:text-purple-300 ml-1"
+                              >
+                                <Copy className="w-3 h-3 inline" />
+                              </button>
+                            </div>
+                            <div>
+                              <span className="text-purple-200/50 block">Requested</span>
+                              <span className="text-purple-200/70 text-xs">{new Date(w.created_at).toLocaleString()}</span>
+                            </div>
+                          </div>
+                          {w.admin_note && (
+                            <div className="mt-2 ml-8 text-xs text-purple-200/40 italic">
+                              Note: {w.admin_note}
+                            </div>
+                          )}
+                          {w.payout_id && (
+                            <div className="mt-1 ml-8 text-xs text-purple-200/40">
+                              Payout ID: {w.payout_id}
+                            </div>
+                          )}
+                          {w.payout_hash && (
+                            <div className="mt-1 ml-8 text-xs text-green-400/70">
+                              TX Hash: {w.payout_hash}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right: Actions */}
+                        <div className="flex items-center gap-2 ml-8 md:ml-0 flex-shrink-0">
+                          {w.status === 'pending' && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveWithdrawal(w.id)}
+                                disabled={processingWithdrawalId === w.id}
+                                className="bg-green-600 hover:bg-green-500 text-white"
+                              >
+                                {processingWithdrawalId === w.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Check className="w-4 h-4 mr-1" />
+                                    Approve
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setRejectNoteId(w.id);
+                                  setRejectNote('');
+                                }}
+                                disabled={processingWithdrawalId === w.id}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          {(w.status === 'approved' || w.status === 'processing') && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setCompleteDialogId(w.id);
+                                setCompleteTxHash('');
+                              }}
+                              disabled={processingWithdrawalId === w.id}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-1" />
+                              Mark Complete
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Inline reject note input */}
+                      {rejectNoteId === w.id && (
+                        <div className="mt-3 ml-8 flex items-center gap-2">
+                          <Input
+                            placeholder="Reason for rejection (optional)"
+                            value={rejectNote}
+                            onChange={(e) => setRejectNote(e.target.value)}
+                            className="bg-purple-950/30 border-purple-500/30 text-white flex-1 h-9 text-sm"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleRejectWithdrawal(w.id)}
+                            disabled={processingWithdrawalId === w.id}
+                            className="bg-red-600 hover:bg-red-500 text-white h-9"
+                          >
+                            {processingWithdrawalId === w.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              'Confirm Reject'
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setRejectNoteId(null)}
+                            className="text-purple-400 h-9"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-12 text-center">
+                  <Wallet className="w-12 h-12 text-purple-200/30 mx-auto mb-4" />
+                  <p className="text-purple-200/50 text-lg">
+                    {withdrawalFilter === 'pending' ? 'No pending withdrawals' : 'No withdrawals found'}
+                  </p>
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="bg-blue-950/20 border border-blue-500/20 rounded-xl p-4">
+                <p className="text-blue-200/70 text-sm">
+                  <strong className="text-blue-300">How it works:</strong> When you approve a withdrawal, the system attempts to send the crypto via NOWPayments Payout API. 
+                  If the automatic payout fails, you can manually send the crypto and then click "Mark Complete". 
+                  Rejecting a withdrawal refunds the user's Skilled Coins.
+                </p>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 
@@ -1569,6 +2038,63 @@ export default function Admin() {
                 <>
                   <Save className="w-4 h-4 mr-2" />
                   Save Rank
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complete Withdrawal Dialog */}
+      <Dialog open={!!completeDialogId} onOpenChange={() => setCompleteDialogId(null)}>
+        <DialogContent className="bg-[#0a0f1a] border-purple-500/30 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              Mark Withdrawal Complete
+            </DialogTitle>
+            <DialogDescription className="text-purple-200/60">
+              Confirm that the crypto has been sent to the user's wallet.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm text-purple-200/60 mb-2 block">
+                Transaction Hash (optional)
+              </label>
+              <Input
+                placeholder="e.g. 0x1234...abcd"
+                value={completeTxHash}
+                onChange={(e) => setCompleteTxHash(e.target.value)}
+                className="bg-purple-950/30 border-purple-500/30 text-white font-mono text-sm"
+              />
+              <p className="text-purple-200/40 text-xs mt-1">
+                Paste the blockchain transaction hash for record-keeping.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCompleteDialogId(null)}
+              className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => completeDialogId && handleCompleteWithdrawal(completeDialogId)}
+              disabled={processingWithdrawalId === completeDialogId}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              {processingWithdrawalId === completeDialogId ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Completing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Mark Complete
                 </>
               )}
             </Button>

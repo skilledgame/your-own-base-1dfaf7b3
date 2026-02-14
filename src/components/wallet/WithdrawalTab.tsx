@@ -8,10 +8,11 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowDownRight, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowDownRight, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -24,15 +25,16 @@ const CRYPTO_OPTIONS = [
 ];
 
 // Minimum withdrawal amount in USD
-const MIN_WITHDRAWAL = 20;
+const MIN_WITHDRAWAL = 500;
 
 export function WithdrawalTab() {
   const { user } = useAuth();
-  const { balance } = useBalance();
+  const { balance, refresh } = useBalance();
   const [amount, setAmount] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [selectedCrypto, setSelectedCrypto] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const numericAmount = parseFloat(amount) || 0;
   const isValidAmount = numericAmount >= MIN_WITHDRAWAL && numericAmount <= balance;
@@ -43,12 +45,35 @@ export function WithdrawalTab() {
 
     setLoading(true);
     try {
-      // TODO: Implement withdrawal edge function
-      // For now, show a coming soon message
-      toast({
-        title: 'Withdrawal Requested',
-        description: 'Withdrawals are being processed manually. Please contact support.',
+      const { data, error } = await supabase.functions.invoke('request-withdrawal', {
+        body: {
+          amount_sc: numericAmount,
+          crypto_currency: selectedCrypto,
+          wallet_address: walletAddress.trim(),
+        },
       });
+
+      if (error) {
+        let serverMsg = error.message || 'Unknown error';
+        try {
+          if (error.context && typeof (error.context as any).json === 'function') {
+            const errBody = await (error.context as any).json();
+            serverMsg = errBody?.error || errBody?.message || JSON.stringify(errBody);
+          }
+        } catch (_) { /* context not readable */ }
+        throw new Error(serverMsg);
+      }
+
+      if (data?.success) {
+        setSubmitted(true);
+        refresh(); // Refresh balance to reflect deduction
+        toast({
+          title: 'Withdrawal Requested',
+          description: data.message || 'Your withdrawal is pending review.',
+        });
+      } else {
+        throw new Error(data?.error || 'Failed to submit withdrawal');
+      }
     } catch (error: any) {
       toast({
         title: 'Withdrawal Error',
@@ -67,6 +92,46 @@ export function WithdrawalTab() {
   // Convert SC to USD (100 SC = 1 USD)
   const usdEquivalent = balance / 100;
   const withdrawalUsdValue = numericAmount / 100;
+
+  // Success state after submitting
+  if (submitted) {
+    return (
+      <div className="space-y-5 text-center py-6">
+        <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto" />
+        <h3 className="text-xl font-bold text-white">Withdrawal Submitted</h3>
+        <p className="text-slate-400 text-sm max-w-xs mx-auto">
+          Your withdrawal of {numericAmount.toLocaleString()} SC (${withdrawalUsdValue.toFixed(2)}) is now pending review. 
+          You'll receive your crypto once approved.
+        </p>
+        <div className="bg-slate-800/50 rounded-xl p-3 text-sm space-y-1 max-w-xs mx-auto">
+          <div className="flex justify-between text-slate-400">
+            <span>Amount</span>
+            <span className="text-white">{numericAmount.toLocaleString()} SC</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Currency</span>
+            <span className="text-white">{CRYPTO_OPTIONS.find(c => c.id === selectedCrypto)?.symbol || selectedCrypto}</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Status</span>
+            <span className="text-yellow-400">Pending Review</span>
+          </div>
+        </div>
+        <Button
+          onClick={() => {
+            setSubmitted(false);
+            setAmount('');
+            setWalletAddress('');
+            setSelectedCrypto(null);
+          }}
+          variant="outline"
+          className="border-slate-600 text-slate-300 hover:bg-slate-700"
+        >
+          Submit Another Withdrawal
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
