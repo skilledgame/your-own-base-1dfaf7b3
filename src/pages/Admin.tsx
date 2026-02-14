@@ -47,9 +47,27 @@ import {
   Trophy,
   FlaskConical,
   Code,
+  Globe,
+  Eye,
+  TrendingUp,
+  Activity,
+  FileText,
+  Plus,
+  Save,
+  Trash2,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { UserBadges, type BadgeType } from '@/components/UserBadge';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface UserProfile {
   id: string;
@@ -62,13 +80,13 @@ interface UserProfile {
   badges: string[];
 }
 
-interface QueueEntry {
+interface SearchEntry {
   id: string;
-  player_id: string;
+  user_id: string;
+  display_name: string | null;
   wager: number;
   game_type: string;
   created_at: string;
-  player_name?: string;
 }
 
 interface ActiveGame {
@@ -83,10 +101,23 @@ interface ActiveGame {
   black_player_name?: string;
 }
 
+interface DailyPageViews {
+  date: string;
+  views: number;
+  unique_visitors: number;
+}
+
+interface ActiveVisitor {
+  session_id: string;
+  user_id: string | null;
+  page_path: string | null;
+  last_seen_at: string;
+}
+
 export default function Admin() {
   const { isAdmin, isModerator, isPrivileged, loading: roleLoading } = useUserRole();
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
+  const [searchEntries, setSearchEntries] = useState<SearchEntry[]>([]);
   const [activeGames, setActiveGames] = useState<ActiveGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,8 +127,23 @@ export default function Admin() {
   const [newBadges, setNewBadges] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
+  // Site analytics state
+  const [dailyPageViews, setDailyPageViews] = useState<DailyPageViews[]>([]);
+  const [activeVisitors, setActiveVisitors] = useState<ActiveVisitor[]>([]);
+  const [siteLoading, setSiteLoading] = useState(false);
+  const [todayViews, setTodayViews] = useState(0);
+  // Site content state
+  const [contentPages, setContentPages] = useState<{ id: string; slug: string; title: string; content: string; updated_at: string | null }[]>([]);
+  const [contentLoading, setContentLoading] = useState(false);
+  const [editingContent, setEditingContent] = useState<{ id: string; slug: string; title: string; content: string; updated_at: string | null } | null>(null);
+  const [contentValue, setContentValue] = useState('');
+  const [contentSaving, setContentSaving] = useState(false);
+  const [newSlug, setNewSlug] = useState('');
+  const [newTitle, setNewTitle] = useState('');
+  const [showAddContent, setShowAddContent] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!roleLoading && !isPrivileged) {
@@ -112,15 +158,15 @@ export default function Admin() {
     }
   }, [isPrivileged]);
 
-  // Real-time subscription for queue updates
+  // Real-time subscription for matchmaking & search updates
   useEffect(() => {
     if (!isPrivileged) return;
 
-    const queueChannel = supabase
-      .channel('admin-queue-monitor')
+    const searchChannel = supabase
+      .channel('admin-search-monitor')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'matchmaking_queue' },
+        { event: '*', schema: 'public', table: 'active_searches' },
         () => {
           fetchMatchmakingData();
         }
@@ -139,10 +185,27 @@ export default function Admin() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(queueChannel);
+      supabase.removeChannel(searchChannel);
       supabase.removeChannel(gamesChannel);
     };
   }, [isPrivileged]);
+
+  // Fetch site analytics when site tab is active
+  useEffect(() => {
+    if (activeTab === 'site' && isPrivileged) {
+      fetchSiteAnalytics();
+      // Refresh active visitors every 30s
+      const interval = setInterval(fetchActiveVisitors, 30_000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, isPrivileged]);
+
+  // Fetch site content when content tab is active
+  useEffect(() => {
+    if (activeTab === 'content' && isAdmin) {
+      fetchContentPages();
+    }
+  }, [activeTab, isAdmin]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -184,32 +247,19 @@ export default function Admin() {
 
   const fetchMatchmakingData = async () => {
     try {
-      // Fetch queue entries (using service role through the types)
-      const { data: queueData, error: queueError } = await supabase
-        .from('matchmaking_queue')
+      // Clean stale searches first (older than 5 min)
+      await supabase.rpc('clean_stale_searches').catch(() => {});
+
+      // Fetch active searches (WS matchmaking queue mirror)
+      const { data: searchData, error: searchError } = await supabase
+        .from('active_searches')
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (queueError) {
-        console.error('Error fetching queue:', queueError);
+      if (searchError) {
+        console.error('Error fetching active searches:', searchError);
       } else {
-        // Get player names for queue entries
-        const playerIds = queueData?.map(q => q.player_id) || [];
-        if (playerIds.length > 0) {
-          const { data: players } = await supabase
-            .from('players')
-            .select('id, name')
-            .in('id', playerIds);
-
-          const playerMap = new Map(players?.map(p => [p.id, p.name]) || []);
-          const enrichedQueue = queueData?.map(q => ({
-            ...q,
-            player_name: playerMap.get(q.player_id) || 'Unknown'
-          })) || [];
-          setQueueEntries(enrichedQueue);
-        } else {
-          setQueueEntries([]);
-        }
+        setSearchEntries(searchData || []);
       }
 
       // Fetch active games
@@ -249,6 +299,200 @@ export default function Admin() {
       }
     } catch (error) {
       console.error('Error fetching matchmaking data:', error);
+    }
+  };
+
+  const fetchSiteAnalytics = async () => {
+    setSiteLoading(true);
+    try {
+      await Promise.all([fetchDailyPageViews(), fetchActiveVisitors(), fetchTodayViews()]);
+    } finally {
+      setSiteLoading(false);
+    }
+  };
+
+  const fetchDailyPageViews = async () => {
+    try {
+      // Get page views for the last 14 days grouped by date
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      const { data, error } = await supabase
+        .from('page_views')
+        .select('created_at, session_id')
+        .gte('created_at', fourteenDaysAgo.toISOString());
+
+      if (error) {
+        console.error('Error fetching page views:', error);
+        return;
+      }
+
+      // Group by date
+      const dayMap = new Map<string, { views: number; sessions: Set<string> }>();
+      
+      // Initialize all 14 days
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateKey = d.toISOString().split('T')[0];
+        dayMap.set(dateKey, { views: 0, sessions: new Set() });
+      }
+
+      (data || []).forEach(row => {
+        const dateKey = new Date(row.created_at).toISOString().split('T')[0];
+        const entry = dayMap.get(dateKey);
+        if (entry) {
+          entry.views++;
+          entry.sessions.add(row.session_id);
+        }
+      });
+
+      const chartData: DailyPageViews[] = Array.from(dayMap.entries()).map(([date, val]) => ({
+        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        views: val.views,
+        unique_visitors: val.sessions.size,
+      }));
+
+      setDailyPageViews(chartData);
+    } catch (error) {
+      console.error('Error fetching daily page views:', error);
+    }
+  };
+
+  const fetchActiveVisitors = async () => {
+    try {
+      // Clean stale visitors first
+      await supabase.rpc('clean_stale_visitors').catch(() => {});
+
+      const { data, error } = await supabase
+        .from('active_visitors')
+        .select('*')
+        .gte('last_seen_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
+        .order('last_seen_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching active visitors:', error);
+        return;
+      }
+
+      setActiveVisitors(data || []);
+    } catch (error) {
+      console.error('Error fetching active visitors:', error);
+    }
+  };
+
+  const fetchTodayViews = async () => {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const { count, error } = await supabase
+        .from('page_views')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', todayStart.toISOString());
+
+      if (!error) {
+        setTodayViews(count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching today views:', error);
+    }
+  };
+
+  // ---- Site Content Management ----
+  const fetchContentPages = async () => {
+    setContentLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('site_content')
+        .select('*')
+        .order('slug');
+
+      if (error) {
+        console.error('Error fetching content pages:', error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch content pages' });
+      } else {
+        setContentPages(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching content pages:', error);
+    } finally {
+      setContentLoading(false);
+    }
+  };
+
+  const handleSaveContent = async () => {
+    if (!editingContent) return;
+    setContentSaving(true);
+    try {
+      const { error } = await supabase
+        .from('site_content')
+        .update({
+          content: contentValue,
+          updated_at: new Date().toISOString(),
+          updated_by: user?.id || null,
+        })
+        .eq('id', editingContent.id);
+
+      if (error) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
+      } else {
+        toast({ title: 'Content saved', description: `"${editingContent.title}" has been updated` });
+        setEditingContent(null);
+        fetchContentPages();
+      }
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save content' });
+    } finally {
+      setContentSaving(false);
+    }
+  };
+
+  const handleAddContentPage = async () => {
+    if (!newSlug.trim() || !newTitle.trim()) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Slug and title are required' });
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('site_content')
+        .insert({
+          slug: newSlug.trim().toLowerCase().replace(/\s+/g, '-'),
+          title: newTitle.trim(),
+          content: '',
+          updated_by: user?.id || null,
+        });
+
+      if (error) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
+      } else {
+        toast({ title: 'Page added', description: `"${newTitle.trim()}" has been created` });
+        setNewSlug('');
+        setNewTitle('');
+        setShowAddContent(false);
+        fetchContentPages();
+      }
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to add page' });
+    }
+  };
+
+  const handleDeleteContentPage = async (page: { id: string; title: string }) => {
+    if (!confirm(`Are you sure you want to delete "${page.title}"? This cannot be undone.`)) return;
+    try {
+      const { error } = await supabase
+        .from('site_content')
+        .delete()
+        .eq('id', page.id);
+
+      if (error) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
+      } else {
+        toast({ title: 'Page deleted', description: `"${page.title}" has been removed` });
+        fetchContentPages();
+      }
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete page' });
     }
   };
 
@@ -442,6 +686,16 @@ export default function Admin() {
               <Gamepad2 className="w-4 h-4 mr-2" />
               Matchmaking
             </TabsTrigger>
+            <TabsTrigger value="site" className="data-[state=active]:bg-purple-500/20">
+              <Globe className="w-4 h-4 mr-2" />
+              Site
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="content" className="data-[state=active]:bg-purple-500/20">
+                <FileText className="w-4 h-4 mr-2" />
+                Content
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Users Tab */}
@@ -605,17 +859,20 @@ export default function Admin() {
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-blue-950/30 border border-blue-500/20 rounded-xl p-4">
-                <p className="text-blue-200/60 text-sm">Players in Queue</p>
-                <p className="text-2xl font-bold text-blue-400">{queueEntries.length}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={`w-2 h-2 rounded-full ${searchEntries.length > 0 ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
+                  <p className="text-blue-200/60 text-sm">Players Searching</p>
+                </div>
+                <p className="text-2xl font-bold text-blue-400">{searchEntries.length}</p>
               </div>
               <div className="bg-green-950/30 border border-green-500/20 rounded-xl p-4">
                 <p className="text-green-200/60 text-sm">Active Games</p>
                 <p className="text-2xl font-bold text-green-400">{activeGames.length}</p>
               </div>
               <div className="bg-yellow-950/30 border border-yellow-500/20 rounded-xl p-4">
-                <p className="text-yellow-200/60 text-sm">Total Wagers in Queue</p>
+                <p className="text-yellow-200/60 text-sm">Total Wagers Searching</p>
                 <p className="text-2xl font-bold text-yellow-400">
-                  {queueEntries.reduce((sum, q) => sum + q.wager, 0).toLocaleString()}
+                  {searchEntries.reduce((sum, q) => sum + q.wager, 0).toLocaleString()}
                 </p>
               </div>
               <div className="bg-purple-950/30 border border-purple-500/20 rounded-xl p-4">
@@ -629,7 +886,7 @@ export default function Admin() {
             {/* Queue by Wager */}
             <div className="grid md:grid-cols-3 gap-4">
               {[100, 500, 1000].map(wagerAmount => {
-                const playersAtWager = queueEntries.filter(q => q.wager === wagerAmount);
+                const playersAtWager = searchEntries.filter(q => q.wager === wagerAmount);
                 return (
                   <div key={wagerAmount} className="bg-blue-950/20 border border-blue-500/20 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -640,23 +897,26 @@ export default function Admin() {
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         playersAtWager.length > 0 
-                          ? 'bg-green-500/20 text-green-400' 
+                          ? 'bg-green-500/20 text-green-400 animate-pulse' 
                           : 'bg-gray-500/20 text-gray-400'
                       }`}>
-                        {playersAtWager.length} waiting
+                        {playersAtWager.length} searching
                       </span>
                     </div>
                     {playersAtWager.length > 0 ? (
                       <div className="space-y-2">
                         {playersAtWager.map(entry => (
                           <div key={entry.id} className="flex items-center justify-between text-sm bg-blue-900/30 rounded-lg px-3 py-2">
-                            <span className="text-white">{entry.player_name}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                              <span className="text-white">{entry.display_name || 'Player'}</span>
+                            </div>
                             <span className="text-blue-200/50">{formatTimeAgo(entry.created_at)}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-blue-200/40 text-sm text-center py-4">No players waiting</p>
+                      <p className="text-blue-200/40 text-sm text-center py-4">No players searching</p>
                     )}
                   </div>
                 );
@@ -702,10 +962,409 @@ export default function Admin() {
               )}
             </div>
           </TabsContent>
+
+          {/* Site Analytics Tab */}
+          <TabsContent value="site" className="space-y-6">
+            {/* Title */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <Globe className="w-8 h-8 text-purple-400" />
+                  Site Analytics
+                </h1>
+                <p className="text-purple-200/60 mt-1">
+                  Visitor activity and page view history
+                </p>
+              </div>
+              <Button
+                onClick={fetchSiteAnalytics}
+                variant="outline"
+                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${siteLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+
+            {/* Live stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-green-950/30 border border-green-500/20 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={`w-2 h-2 rounded-full ${activeVisitors.length > 0 ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
+                  <p className="text-green-200/60 text-sm">Online Now</p>
+                </div>
+                <p className="text-2xl font-bold text-green-400">{activeVisitors.length}</p>
+              </div>
+              <div className="bg-blue-950/30 border border-blue-500/20 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Eye className="w-3.5 h-3.5 text-blue-400" />
+                  <p className="text-blue-200/60 text-sm">Views Today</p>
+                </div>
+                <p className="text-2xl font-bold text-blue-400">{todayViews.toLocaleString()}</p>
+              </div>
+              <div className="bg-purple-950/30 border border-purple-500/20 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
+                  <p className="text-purple-200/60 text-sm">Avg Views / Day</p>
+                </div>
+                <p className="text-2xl font-bold text-purple-400">
+                  {dailyPageViews.length > 0
+                    ? Math.round(dailyPageViews.reduce((s, d) => s + d.views, 0) / dailyPageViews.length).toLocaleString()
+                    : '0'}
+                </p>
+              </div>
+              <div className="bg-yellow-950/30 border border-yellow-500/20 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Users className="w-3.5 h-3.5 text-yellow-400" />
+                  <p className="text-yellow-200/60 text-sm">Unique Today</p>
+                </div>
+                <p className="text-2xl font-bold text-yellow-400">
+                  {dailyPageViews.length > 0
+                    ? dailyPageViews[dailyPageViews.length - 1]?.unique_visitors || 0
+                    : 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Page views chart */}
+            <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-purple-400" />
+                Page Views — Last 14 Days
+              </h3>
+              {siteLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                </div>
+              ) : dailyPageViews.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={dailyPageViews}>
+                    <defs>
+                      <linearGradient id="viewsGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="visitorsGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fill: '#9ca3af', fontSize: 12 }}
+                      stroke="#444"
+                    />
+                    <YAxis
+                      tick={{ fill: '#9ca3af', fontSize: 12 }}
+                      stroke="#444"
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1a1a2e',
+                        border: '1px solid rgba(168,85,247,0.3)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="views"
+                      stroke="#a855f7"
+                      fill="url(#viewsGrad)"
+                      strokeWidth={2}
+                      name="Page Views"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="unique_visitors"
+                      stroke="#22c55e"
+                      fill="url(#visitorsGrad)"
+                      strokeWidth={2}
+                      name="Unique Visitors"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-purple-200/40 text-center py-12">No data yet — views will appear as users visit the site</p>
+              )}
+            </div>
+
+            {/* Active visitors list */}
+            <div className="bg-green-950/20 border border-green-500/20 rounded-xl p-4">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-green-400" />
+                Active Visitors
+                <span className="ml-auto text-sm font-normal text-green-200/50">
+                  Last 2 minutes
+                </span>
+              </h3>
+              {activeVisitors.length > 0 ? (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {activeVisitors.map(visitor => (
+                    <div
+                      key={visitor.session_id}
+                      className="flex items-center justify-between text-sm bg-green-900/30 rounded-lg px-4 py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                        <span className="text-white">
+                          {visitor.user_id ? 'Logged in user' : 'Anonymous'}
+                        </span>
+                        <span className="text-green-200/40 text-xs font-mono">
+                          {visitor.session_id.slice(0, 12)}...
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-green-200/60 text-xs bg-green-900/50 px-2 py-1 rounded">
+                          {visitor.page_path || '/'}
+                        </span>
+                        <span className="text-green-200/40 text-xs">
+                          {formatTimeAgo(visitor.last_seen_at)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-green-200/40 text-center py-8">No active visitors</p>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Content Management Tab */}
+          {isAdmin && (
+            <TabsContent value="content" className="space-y-6">
+              {/* Title */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <FileText className="w-8 h-8 text-purple-400" />
+                    Site Content
+                  </h1>
+                  <p className="text-purple-200/60 mt-1">
+                    Edit text content on the website (Terms, Privacy, etc.)
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setShowAddContent(true)}
+                    variant="outline"
+                    className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Page
+                  </Button>
+                  <Button
+                    onClick={fetchContentPages}
+                    variant="outline"
+                    className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${contentLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {/* Content Pages List */}
+              {contentLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                </div>
+              ) : contentPages.length > 0 ? (
+                <div className="space-y-3">
+                  {contentPages.map((page) => (
+                    <div
+                      key={page.id}
+                      className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-5 flex items-center justify-between"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-1">
+                          <FileText className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                          <h3 className="text-white font-semibold text-lg truncate">{page.title}</h3>
+                        </div>
+                        <div className="flex items-center gap-4 ml-8">
+                          <span className="text-purple-200/50 text-sm font-mono bg-purple-950/40 px-2 py-0.5 rounded">
+                            /{page.slug}
+                          </span>
+                          <span className="text-purple-200/40 text-sm">
+                            {page.content
+                              ? `${page.content.length.toLocaleString()} chars`
+                              : 'Empty — using default'}
+                          </span>
+                          {page.updated_at && (
+                            <span className="text-purple-200/40 text-sm">
+                              Updated: {new Date(page.updated_at).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setEditingContent(page);
+                            setContentValue(page.content);
+                          }}
+                          className="bg-purple-600 hover:bg-purple-500 text-white"
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteContentPage(page)}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-12 text-center">
+                  <FileText className="w-12 h-12 text-purple-200/30 mx-auto mb-4" />
+                  <p className="text-purple-200/50 text-lg">No content pages yet</p>
+                  <p className="text-purple-200/30 text-sm mt-1">Click "Add Page" to create editable content</p>
+                </div>
+              )}
+
+              {/* Tip */}
+              <div className="bg-blue-950/20 border border-blue-500/20 rounded-xl p-4">
+                <p className="text-blue-200/70 text-sm">
+                  <strong className="text-blue-300">Tip:</strong> Content supports HTML formatting. 
+                  When a page has content here, it will override the hardcoded default on the website. 
+                  Leave content empty to use the built-in default text.
+                </p>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 
-      {/* Edit Dialog */}
+      {/* Add Content Page Dialog */}
+      <Dialog open={showAddContent} onOpenChange={setShowAddContent}>
+        <DialogContent className="bg-[#0a0f1a] border-purple-500/30 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-purple-400" />
+              Add Content Page
+            </DialogTitle>
+            <DialogDescription className="text-purple-200/60">
+              Create a new editable content page
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm text-purple-200/60 mb-2 block">Page Title</label>
+              <Input
+                placeholder="e.g. About Us"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="bg-purple-950/30 border-purple-500/30 text-white"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-purple-200/60 mb-2 block">URL Slug</label>
+              <Input
+                placeholder="e.g. about-us"
+                value={newSlug}
+                onChange={(e) => setNewSlug(e.target.value)}
+                className="bg-purple-950/30 border-purple-500/30 text-white font-mono"
+              />
+              <p className="text-purple-200/40 text-xs mt-1">
+                This is the key used to look up this content. Use lowercase with hyphens.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddContent(false)}
+              className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddContentPage}
+              className="bg-purple-600 hover:bg-purple-500 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Page
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Content Dialog */}
+      <Dialog open={!!editingContent} onOpenChange={() => setEditingContent(null)}>
+        <DialogContent className="bg-[#0a0f1a] border-purple-500/30 text-white max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-purple-400" />
+              Edit: {editingContent?.title}
+            </DialogTitle>
+            <DialogDescription className="text-purple-200/60">
+              Edit the HTML content below. Leave empty to use the hardcoded default.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 py-2">
+            <textarea
+              className="w-full h-[400px] p-4 bg-purple-950/30 border border-purple-500/30 rounded-lg font-mono text-sm text-white placeholder:text-purple-200/30 resize-y focus:outline-none focus:border-purple-400/50"
+              value={contentValue}
+              onChange={(e) => setContentValue(e.target.value)}
+              placeholder="Enter HTML content here... Leave empty to use the default hardcoded content."
+              spellCheck={false}
+            />
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-purple-200/40 text-xs">
+                {contentValue.length.toLocaleString()} characters
+              </p>
+              {contentValue.trim() && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setContentValue('')}
+                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs"
+                >
+                  Clear (revert to default)
+                </Button>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingContent(null)}
+              className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveContent}
+              disabled={contentSaving}
+              className="bg-purple-600 hover:bg-purple-500 text-white"
+            >
+              {contentSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
       <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
         <DialogContent className="bg-[#0a0f1a] border-purple-500/30 text-white">
           <DialogHeader>

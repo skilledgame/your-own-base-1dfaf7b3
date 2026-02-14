@@ -230,6 +230,21 @@ function initializeGlobalMessageHandler(): void {
         // Update wsClient tracking
         wsClient.setSearching(false);
         wsClient.setInGame(true);
+
+        // Remove search tracking from DB (match found)
+        (async () => {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id) {
+              await supabase
+                .from('active_searches')
+                .delete()
+                .eq('user_id', session.user.id);
+            }
+          } catch (err) {
+            console.warn("[Chess WS] Failed to remove search tracking after match:", err);
+          }
+        })();
         
         // Get opponent name from payload (try new format first, then legacy)
         const opponentNameFromPayload = payload.opponent?.name || (payload as any).opponentName || "Opponent";
@@ -1178,6 +1193,21 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       setPhase("searching");
       wsClient.setSearching(true, finalName, wager, player_ids);
       wsClient.send(payload);
+
+      // Track search in DB for admin visibility
+      try {
+        await supabase
+          .from('active_searches')
+          .upsert({
+            user_id: userId,
+            display_name: finalName,
+            wager,
+            game_type: 'chess',
+            created_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
+      } catch (err) {
+        console.warn("[Chess WS] Failed to track search in DB:", err);
+      }
     })().catch((error) => {
       console.error("[Chess WS] findMatch failed:", error);
       // Only show for admin users
@@ -1194,6 +1224,21 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     setPhase("idle");
     useChessStore.getState().resetMatchmaking();
     useUILoadingStore.getState().hideLoading();
+
+    // Remove search tracking from DB
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          await supabase
+            .from('active_searches')
+            .delete()
+            .eq('user_id', session.user.id);
+        }
+      } catch (err) {
+        console.warn("[Chess WS] Failed to remove search tracking:", err);
+      }
+    })();
   }, [setPhase]);
 
   const joinGame = useCallback((gameId: string) => {

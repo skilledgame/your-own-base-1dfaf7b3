@@ -376,6 +376,33 @@ export type Database = {
         }
         Relationships: []
       }
+      site_content: {
+        Row: {
+          content: string
+          id: string
+          slug: string
+          title: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          content?: string
+          id?: string
+          slug: string
+          title?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          content?: string
+          id?: string
+          slug?: string
+          title?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       user_badges: {
         Row: {
           id: string
