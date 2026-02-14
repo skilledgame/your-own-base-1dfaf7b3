@@ -173,24 +173,32 @@ function initializeGlobalMessageHandler(): void {
         const fen = payload?.fen ?? null;
         
         // Normalize opponent userId (profiles uses user_id, not id)
-        // Also check whiteId/blackId — the opponent is the one that's NOT our color
+        // IMPORTANT: Prefer whiteId/blackId (auth user IDs) over opponent.playerId
+        // (which may be a players table ID, not an auth.users ID).
+        // The profiles table is keyed on auth.users.id (user_id column).
+        const opponentUserIdFromWhiteBlack = 
+          (color === 'w' ? (payload as any)?.blackId ?? (payload as any)?.black_id : null)
+          || (color === 'b' ? (payload as any)?.whiteId ?? (payload as any)?.white_id : null)
+          || null;
+        
         const opponentUserIdFromPayload = 
           (payload as any)?.opponentUserId ??
           (payload as any)?.opponent_user_id ??
           (payload?.opponent as any)?.user_id ??
           (payload?.opponent as any)?.userId ??
-          payload?.opponent?.playerId ??
-          (payload?.opponent as any)?.player_id ??
-          (payload?.opponent as any)?.id ??
           null;
         
-        // Derive from whiteId/blackId if not found directly
-        const opponentUserId = opponentUserIdFromPayload
-          || (color === 'w' ? (payload as any)?.blackId ?? (payload as any)?.black_id : null)
-          || (color === 'b' ? (payload as any)?.whiteId ?? (payload as any)?.white_id : null)
+        // Use whiteId/blackId first (guaranteed auth user IDs), then direct fields,
+        // then fall back to opponent object fields that might be players table IDs
+        const opponentUserId = opponentUserIdFromWhiteBlack
+          || opponentUserIdFromPayload
+          || payload?.opponent?.playerId
+          || (payload?.opponent as any)?.player_id
+          || (payload?.opponent as any)?.id
           || null;
         
         console.log("[Chess WS] Opponent ID resolution:", {
+          opponentUserIdFromWhiteBlack,
           opponentUserIdFromPayload,
           whiteId: (payload as any)?.whiteId,
           blackId: (payload as any)?.blackId,

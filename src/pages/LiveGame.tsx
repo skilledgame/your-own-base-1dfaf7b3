@@ -319,9 +319,6 @@ export default function LiveGame() {
 
     // Fetch opponent info only ONCE — consolidated into minimal Supabase calls
     const fetchOpponentInfo = async () => {
-      // Mark as fetched BEFORE the async call to prevent duplicate fetches
-      opponentFetchedRef.current = gameKey;
-      
       try {
         let opponentUserId: string | null = null;
 
@@ -330,20 +327,25 @@ export default function LiveGame() {
           opponentUserId = matchmaking.opponentUserId || null;
         }
         
-        // Only query Supabase if we don't have opponent info and have dbGameId
-        // This is a ONE-TIME query at game start
-        if (!opponentUserId && gameState?.dbGameId) {
+        // Helper: look up opponent auth user_id via the games/players tables
+        const resolveOpponentFromDb = async (): Promise<string | null> => {
+          if (!gameState?.dbGameId) return null;
           const { data: game } = await supabase
             .from('games')
             .select('white_player_id, black_player_id, white_player:players!games_white_player_id_fkey(user_id), black_player:players!games_black_player_id_fkey(user_id)')
             .eq('id', gameState.dbGameId)
             .maybeSingle();
-
           if (game && user?.id) {
             const whitePlayerUserId = (game.white_player as any)?.user_id;
             const blackPlayerUserId = (game.black_player as any)?.user_id;
-            opponentUserId = gameState.color === 'w' ? blackPlayerUserId : whitePlayerUserId;
+            return gameState.color === 'w' ? blackPlayerUserId : whitePlayerUserId;
           }
+          return null;
+        };
+        
+        // If we don't have an opponent user ID, try the database fallback
+        if (!opponentUserId) {
+          opponentUserId = await resolveOpponentFromDb();
         }
 
         if (opponentUserId) {
@@ -365,10 +367,39 @@ export default function LiveGame() {
               .eq('user_id', opponentUserId),
           ]);
 
-          const opponentProfile = profileResult.data;
+          let opponentProfile = profileResult.data;
+          
+          // If profile not found, the opponentUserId might be a players.id
+          // instead of an auth user_id. Try resolving via the database.
+          if (!opponentProfile && gameState?.dbGameId) {
+            const resolvedUserId = await resolveOpponentFromDb();
+            if (resolvedUserId && resolvedUserId !== opponentUserId) {
+              console.log('[LiveGame] Profile not found with matchmaking ID, retrying with DB-resolved user_id:', resolvedUserId);
+              opponentUserId = resolvedUserId;
+              const { data: retryProfile } = await supabase
+                .from('profiles')
+                .select('total_wagered_sc, display_name')
+                .eq('user_id', resolvedUserId)
+                .maybeSingle();
+              opponentProfile = retryProfile;
+              
+              // Also re-fetch badges with the correct user ID
+              const { data: retryBadges } = await supabase
+                .from('user_badges')
+                .select('badge')
+                .eq('user_id', resolvedUserId);
+              if (retryBadges) {
+                setOpponentBadges(retryBadges.map((b) => b.badge));
+              }
+            }
+          }
+          
           if (opponentProfile) {
             const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
             setOpponentRank(opponentRankInfo);
+            
+            // Mark as successfully fetched — prevents re-runs for this game
+            opponentFetchedRef.current = gameKey;
             
             // Patch the versus screen (if still showing) with rank + name
             const patchData: Record<string, any> = { opponentRank: opponentRankInfo };
@@ -390,15 +421,20 @@ export default function LiveGame() {
               }
             }
           } else {
+            // Profile still not found — mark as fetched to avoid infinite retries
+            opponentFetchedRef.current = gameKey;
             setOpponentRank(getRankFromTotalWagered(0));
           }
 
-          // Set badges from the parallel fetch
-          if (badgeResult.data) {
+          // Set badges from the parallel fetch (if not already set by retry above)
+          if (badgeResult.data && badgeResult.data.length > 0) {
             setOpponentBadges(badgeResult.data.map((b) => b.badge));
           }
         } else {
-          setOpponentRank(getRankFromTotalWagered(0));
+          // No opponent user ID found at all — DON'T mark as fetched so
+          // the effect can retry when matchmaking.opponentUserId or dbGameId
+          // becomes available.
+          console.log('[LiveGame] No opponentUserId available yet, will retry when available');
         }
       } catch (error) {
         console.error('[LiveGame] Error fetching opponent info:', error);
