@@ -199,13 +199,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
+        let activeSession = initialSession;
+        
         if (initialSession) {
-          console.log('[Auth] Bootstrap: Session found for user:', initialSession.user.id);
-          setSession(initialSession);
-          setUser(initialSession.user);
+          // Check if the access token is expired or about to expire (within 60s)
+          const expiresAt = initialSession.expires_at;
+          const isExpiredOrExpiring = expiresAt 
+            ? (expiresAt * 1000 - Date.now()) < 60 * 1000 
+            : false;
           
-          // Fetch role in background (non-blocking)
-          fetchRole(initialSession.user.id);
+          if (isExpiredOrExpiring) {
+            console.log('[Auth] Bootstrap: Session expired or expiring, refreshing...');
+            try {
+              const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+              if (!mounted) return;
+              
+              if (refreshError) {
+                console.warn('[Auth] Bootstrap: Refresh failed, clearing session:', refreshError.message);
+                // Refresh token is also invalid — user must re-login
+                activeSession = null;
+              } else if (refreshData.session) {
+                console.log('[Auth] Bootstrap: Session refreshed successfully');
+                activeSession = refreshData.session;
+              }
+            } catch (refreshErr) {
+              console.warn('[Auth] Bootstrap: Refresh threw error:', refreshErr);
+              // Don't clear session, let autoRefreshToken handle it
+            }
+          }
+          
+          if (activeSession) {
+            console.log('[Auth] Bootstrap: Session active for user:', activeSession.user.id);
+            setSession(activeSession);
+            setUser(activeSession.user);
+            
+            // Fetch role in background (non-blocking)
+            fetchRole(activeSession.user.id);
+          } else {
+            console.log('[Auth] Bootstrap: Session could not be recovered, user must re-login');
+          }
         } else {
           console.log('[Auth] Bootstrap: No session found');
         }
@@ -213,7 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthReady(true);
         bootstrapComplete.current = true;
         setLastAuthEvent('BOOTSTRAP_COMPLETE');
-        console.log('[Auth] Bootstrap complete, hasSession:', !!initialSession);
+        console.log('[Auth] Bootstrap complete, hasSession:', !!activeSession);
         
       } catch (error) {
         console.error('[Auth] Bootstrap failed:', error);
@@ -306,18 +338,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchRole]);
 
-  // Tab visibility: refresh if session near expiry
+  // Tab visibility: refresh if session expired or near expiry
   useEffect(() => {
+    let lastVisible = Date.now();
+    
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && session && !signOutInProgress.current) {
+        const now = Date.now();
+        const timeSinceLastVisible = now - lastVisible;
+        lastVisible = now;
+        
         const expiresAt = session.expires_at;
         if (expiresAt) {
-          const expiresIn = expiresAt * 1000 - Date.now();
-          if (expiresIn < 5 * 60 * 1000) { // Less than 5 minutes
-            console.log('[Auth] Tab visible, session expiring soon, refreshing...');
+          const expiresIn = expiresAt * 1000 - now;
+          // Refresh if expired, expiring within 5 minutes, OR user was away for 30+ minutes
+          if (expiresIn < 5 * 60 * 1000 || timeSinceLastVisible > 30 * 60 * 1000) {
+            console.log('[Auth] Tab visible, refreshing session (expiresIn:', Math.round(expiresIn / 1000), 's, away:', Math.round(timeSinceLastVisible / 1000), 's)');
             refreshSession();
           }
+        } else if (timeSinceLastVisible > 30 * 60 * 1000) {
+          // No expiry info but user was away for 30+ min, refresh to be safe
+          console.log('[Auth] Tab visible after long absence, refreshing session');
+          refreshSession();
         }
+      } else if (document.visibilityState === 'hidden') {
+        lastVisible = Date.now();
       }
     };
     
