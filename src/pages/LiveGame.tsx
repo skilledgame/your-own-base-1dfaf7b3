@@ -25,7 +25,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
-import { perf } from '@/lib/perfLog';
+
 
 export default function LiveGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -120,7 +120,6 @@ export default function LiveGame() {
     // The resign sends WS, shows overlay, and game_ended will trigger the result modal.
     // Navigating here would cause route flicker.
     if (phase === "in_game") {
-      console.log("[resign] handleBack: resigning (no navigate, wait for game_end)");
       resignGame();
       return; // Don't navigate — overlay is shown, game_ended will handle it
     }
@@ -131,7 +130,6 @@ export default function LiveGame() {
     // Resign — DO NOT navigate immediately.
     // The overlay is shown by resignGame(). game_ended → result modal.
     if (phase === "in_game") {
-      console.log("[resign] handleExit: resigning (no navigate, wait for game_end)");
       resignGame();
       return; // Don't navigate — overlay is shown, game_ended will handle it
     }
@@ -149,7 +147,6 @@ export default function LiveGame() {
     // The client does NOT need to send resign — just log and wait.
     // Sending resignGame() here would show a loading overlay for the opponent
     // when their own clock expires, which is wrong.
-    console.log(`[LiveGame] Time loss detected for ${loserColor === 'w' ? 'white' : 'black'} — waiting for server game_ended`);
   };
 
   const handlePlayAgain = () => {
@@ -166,8 +163,6 @@ export default function LiveGame() {
 
   // Ref to track if we've already sent join_game for this UUID
   const joinGameSentRef = useRef<string | null>(null);
-  // PART A: Perf ref for board_rendered (only mark once)
-  const boardRenderedRef = useRef(false);
   
   // Global loading overlay
   const hideLoading = useUILoadingStore((s) => s.hideLoading);
@@ -187,13 +182,11 @@ export default function LiveGame() {
     
     if (isWebSocketGameId) {
       // This is a WebSocket game - don't try to load from database
-      console.log('[LiveGame] WebSocket game detected (gameId starts with g_), skipping database load');
       setIsPrivateGame(false);
       setPrivateGamePlayerId(null);
       
       // If URL gameId doesn't match store gameId, clear store (including stale gameEndResult)
       if (gameState && gameState.gameId !== gameId) {
-        console.log('[LiveGame] WebSocket gameId mismatch - clearing old game state and gameEndResult');
         setGameState(null);
         setPhase('idle');
         clearGameEnd(); // Clear any stale game end result from previous game
@@ -214,7 +207,6 @@ export default function LiveGame() {
     
     // If URL gameId doesn't match store gameId and store has stale data, clear it
     if (gameState && gameState.gameId !== gameId && gameState.dbGameId !== gameId) {
-      console.log('[LiveGame] GameId mismatch - clearing old game state and gameEndResult');
       setGameState(null);
       setPhase('idle');
       clearGameEnd();
@@ -230,7 +222,6 @@ export default function LiveGame() {
     
     // Send join_game to WebSocket server (only once per gameId)
     if (status === 'connected' && joinGameSentRef.current !== gameId) {
-      console.log('[LiveGame] Sending join_game for private game:', gameId);
       joinGameSentRef.current = gameId;
       setIsPrivateGame(false); // Will use WS, not private game hook
       setPrivateGamePlayerId(null);
@@ -349,12 +340,10 @@ export default function LiveGame() {
 
         // Strategy 2: resolve_player_user_id RPC (players.id → auth user_id)
         if (!opponentProfile && opponentUserId) {
-          console.log('[LiveGame] Profile not found, trying resolve_player_user_id RPC:', opponentUserId);
           const { data: resolvedId } = await supabase.rpc('resolve_player_user_id', {
             p_player_id: opponentUserId,
           });
           if (resolvedId) {
-            console.log('[LiveGame] Resolved players.id → auth user_id:', resolvedId);
             resolvedAuthUserId = resolvedId;
             const { data: retryProfile } = await supabase
               .from('profiles')
@@ -368,7 +357,6 @@ export default function LiveGame() {
         // Strategy 3: get_opponent_profile RPC (full server-side join, no RLS issues)
         // Works even without opponentUserId — only needs dbGameId
         if (!opponentProfile && gameState?.dbGameId) {
-          console.log('[LiveGame] Using get_opponent_profile RPC for dbGameId:', gameState.dbGameId);
           const { data: rpcData } = await supabase.rpc('get_opponent_profile', {
             p_game_id: gameState.dbGameId,
           });
@@ -417,25 +405,16 @@ export default function LiveGame() {
             }
           }
 
-          console.log('[LiveGame] Opponent profile resolved:', {
-            resolvedAuthUserId,
-            displayName: opponentProfile.display_name,
-            totalWagered: opponentProfile.total_wagered_sc,
-            rank: opponentRankInfo.displayName,
-          });
         } else if (!opponentUserId && !gameState?.dbGameId) {
           // No opponent user ID AND no dbGameId — DON'T mark as fetched so
           // the effect can retry when matchmaking.opponentUserId or dbGameId
           // becomes available.
-          console.log('[LiveGame] No opponentUserId or dbGameId available yet, will retry when available');
         } else {
           // We tried all strategies and couldn't find the profile
           opponentFetchedRef.current = gameKey;
           setOpponentRank(getRankFromTotalWagered(0));
-          console.warn('[LiveGame] Could not find opponent profile via any strategy');
         }
       } catch (error) {
-        console.error('[LiveGame] Error fetching opponent info:', error);
         setOpponentRank(getRankFromTotalWagered(0));
       }
     };
@@ -453,13 +432,11 @@ export default function LiveGame() {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[LiveGame] Tab became visible, syncing game...');
         syncGame();
       }
     };
 
     const handleFocus = () => {
-      console.log('[LiveGame] Window focused, syncing game...');
       syncGame();
     };
 
@@ -486,15 +463,6 @@ export default function LiveGame() {
     }
     return undefined;
   }, [playerRank, totalWageredSc]);
-
-  // PART A: Mark route_to_game when LiveGame first mounts
-  const routeMarkedRef = useRef(false);
-  useEffect(() => {
-    if (!routeMarkedRef.current) {
-      routeMarkedRef.current = true;
-      perf.mark('route_to_game');
-    }
-  }, []);
 
   // Hide the global loading overlay once the game is ready to render
   // This covers: matchmaking flow, reconnect flow, private game join
@@ -593,30 +561,11 @@ export default function LiveGame() {
     const shouldShowModal = gameState && (gameState.gameId === gameId || gameState.dbGameId === gameId);
     
     if (!shouldShowModal) {
-      console.log("[LiveGame] NOT showing GameResultModal - gameId mismatch or no gameState", {
-        currentGameId: gameId,
-        gameStateGameId: gameState?.gameId,
-        phase,
-        hasGameEndResult: !!gameEndResult,
-        timestamp: new Date().toISOString(),
-      });
     } else {
       // Guard: Ensure all required fields exist with defaults
       const tokensChange = gameEndResult.creditsChange ?? 0;
       const isWin = gameEndResult.isWin ?? false;
       const reason = gameEndResult.message || gameEndResult.reason || "Game ended";
-      
-      console.log("[LiveGame] Showing GameResultModal", {
-        phase,
-        hasGameEndResult: !!gameEndResult,
-        isWin,
-        tokensChange,
-        reason,
-        balance,
-        gameId,
-        gameStateGameId: gameState.gameId,
-        timestamp: new Date().toISOString(),
-      });
       
       return (
         <>
@@ -677,7 +626,6 @@ export default function LiveGame() {
 
   // Verify this is the correct game (for UUID private games, dbGameId matches the URL)
   if (gameId && gameState.gameId !== gameId && gameState.dbGameId !== gameId) {
-    console.warn("[LiveGame] URL gameId mismatch:", gameId, "vs store:", gameState.gameId, "dbGameId:", gameState.dbGameId);
   }
 
   // Guard against null gameState (prevents React error #300)
@@ -688,13 +636,6 @@ export default function LiveGame() {
         <Button onClick={handleBack}>Go Home</Button>
       </div>
     );
-  }
-
-  // PART A: Mark board_rendered when we reach the render point with gameState
-  if (!boardRenderedRef.current) {
-    boardRenderedRef.current = true;
-    perf.mark('board_rendered');
-    perf.summary();
   }
 
   // Convert color from "w"/"b" to "white"/"black"

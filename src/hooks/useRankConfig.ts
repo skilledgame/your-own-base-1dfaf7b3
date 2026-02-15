@@ -43,7 +43,6 @@ export function useRankConfig() {
         .order('sort_order', { ascending: true });
 
       if (fetchError) {
-        console.error('[useRankConfig] Error fetching rank config:', fetchError);
         setError(fetchError.message);
         // Keep defaults
       } else if (data && data.length > 0) {
@@ -51,7 +50,6 @@ export function useRankConfig() {
       }
       // If data is empty, keep defaults
     } catch (err) {
-      console.error('[useRankConfig] Unexpected error:', err);
       setError('Failed to load rank config');
     } finally {
       setLoading(false);

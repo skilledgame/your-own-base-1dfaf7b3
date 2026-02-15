@@ -50,7 +50,6 @@ export const useUILoadingStore = create<UILoadingState>((set, get) => ({
   },
 
   showVersus: (data: VersusData) => {
-    console.log("[UILoadingStore] showVersus:", data.playerName, "vs", data.opponentName);
     set({ isLoading: true, mode: "versus", reason: undefined, versusData: data, shownAt: Date.now() });
   },
 

@@ -67,7 +67,6 @@ const Leaderboard = () => {
         const { data, error } = await supabase.rpc('get_weekly_leaderboard');
         
         if (error) {
-          console.error('Error fetching leaderboard:', error);
           setLeaderboard([]);
           return;
         }
@@ -108,7 +107,6 @@ const Leaderboard = () => {
 
         setLeaderboard(entries);
       } catch (err) {
-        console.error('Failed to fetch leaderboard:', err);
         setLeaderboard([]);
       } finally {
         setLoading(false);

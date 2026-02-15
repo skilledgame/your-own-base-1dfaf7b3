@@ -110,13 +110,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         body: { wager: selectedWager, gameType: 'chess' }
       });
 
-      console.log('[ChessPrivateMode] Full response:', JSON.stringify(response, null, 2));
-      console.log('[ChessPrivateMode] Response data:', response.data);
-      console.log('[ChessPrivateMode] Response error:', response.error);
-
       if (response.error) {
-        console.error('[ChessPrivateMode] Create lobby error - full error:', JSON.stringify(response.error, null, 2));
-        console.error('[ChessPrivateMode] Create lobby error - response.data:', response.data);
         const errorMessage = response.data?.error || response.data?.details || response.error.message || 
                            (typeof response.error === 'string' ? response.error : 'Please try again');
         toast({
@@ -129,13 +123,9 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       }
 
       const data = response.data;
-      console.log('[ChessPrivateMode] Parsed data:', data);
-      console.log('[ChessPrivateMode] Has lobbyCode?', !!data?.lobbyCode);
-      console.log('[ChessPrivateMode] Has game?', !!data?.game);
       
       // Check for error in response (now returns 200 with success: false)
       if (data?.success === false || data?.error) {
-        console.error('[ChessPrivateMode] Create lobby error:', data.error, 'details:', data.details);
         toast({
           variant: 'destructive',
           title: 'Failed to create lobby',
@@ -146,7 +136,6 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       }
 
       if (data?.lobbyCode && data?.success !== false) {
-        console.log('[ChessPrivateMode] Room created successfully! Code:', data.lobbyCode, 'Room ID:', data.roomId);
         setLobbyCode(data.lobbyCode);
         setLobbyCreated(true);
         setWaitingForOpponent(true);
@@ -173,7 +162,6 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
             },
             (payload) => {
               const room = payload.new as any;
-              console.log('[ChessPrivateMode] Room updated:', room.status, 'game_id:', room.game_id);
               if (room.status === 'matched' && room.game_id) {
                 // Opponent joined! Navigate to lobby for ready-up.
                 const { dismiss } = toast({
@@ -189,7 +177,6 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
 
         sessionStorage.setItem('lobbyChannel', channel.topic);
       } else {
-        console.error('[ChessPrivateMode] No lobbyCode in response! Data:', data);
         toast({
           variant: 'destructive',
           title: 'Failed to create lobby',
@@ -197,7 +184,6 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         });
       }
     } catch (error) {
-      console.error('[ChessPrivateMode] Exception creating lobby:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to create lobby',
@@ -226,15 +212,11 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
     setIsJoining(true);
 
     try {
-      console.log('[ChessPrivateMode] Attempting to join lobby with code:', joinCode);
       const response = await supabase.functions.invoke('join-lobby', {
         body: { lobbyCode: joinCode }
       });
-      console.log('[ChessPrivateMode] Join lobby response:', JSON.stringify(response, null, 2));
 
       if (response.error) {
-        console.error('[ChessPrivateMode] Join lobby error - full error:', JSON.stringify(response.error, null, 2));
-        console.error('[ChessPrivateMode] Join lobby error - response.data:', response.data);
         const errorMessage = response.data?.error || response.data?.details || response.error.message || 
                            (typeof response.error === 'string' ? response.error : 'Please try again');
         toast({
@@ -247,11 +229,9 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
       }
 
       const data = response.data;
-      console.log('[ChessPrivateMode] Join lobby data:', data);
       
       // Check for error in response (now returns 200 with success: false)
       if (data?.success === false || data?.error) {
-        console.error('[ChessPrivateMode] Join lobby error:', data.error, 'details:', data.details);
         toast({
           variant: 'destructive',
           title: 'Failed to join lobby',

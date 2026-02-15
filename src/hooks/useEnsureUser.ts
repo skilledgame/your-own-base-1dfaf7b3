@@ -17,7 +17,6 @@ export function useEnsureUser() {
 
   const ensureUser = useCallback(async (accessToken?: string) => {
     if (isRunning.current) {
-      console.log('[useEnsureUser] Already running, skipping...');
       return null;
     }
 
@@ -28,11 +27,9 @@ export function useEnsureUser() {
       const token = accessToken || session?.access_token;
 
       if (!token) {
-        console.log('[useEnsureUser] No access token available');
         return null;
       }
 
-      console.log('[useEnsureUser] Calling ensure-user edge function...');
 
       const { data, error } = await supabase.functions.invoke('ensure-user', {
         headers: {
@@ -41,11 +38,9 @@ export function useEnsureUser() {
       });
 
       if (error) {
-        console.error('[useEnsureUser] Edge function error:', error);
         return null;
       }
 
-      console.log('[useEnsureUser] Result:', data);
       
       // Refresh balance after user provisioning
       if (data?.ok && user?.id) {
@@ -54,7 +49,6 @@ export function useEnsureUser() {
       
       return data;
     } catch (err) {
-      console.error('[useEnsureUser] Unexpected error:', err);
       return null;
     } finally {
       isRunning.current = false;

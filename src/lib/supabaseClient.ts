@@ -51,7 +51,6 @@ export function clearAuthStorage() {
     // Also remove balance cache
     localStorage.removeItem('skilled_coins_last_known');
     
-    console.log('[Auth] Cleared auth storage:', ['skilled-auth', ...keysToRemove]);
   } catch (error) {
     console.error('[Auth] Error clearing storage:', error);
   }

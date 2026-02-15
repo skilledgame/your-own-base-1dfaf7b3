@@ -127,7 +127,6 @@ export default function VIP() {
   const currentRakeback = rakebackTiers.find(r => r.rank === rankInfo.tierName)?.percentage || 0;
 
   const handleClaimReward = (rewardId: string) => {
-    console.log('Claiming reward:', rewardId);
     // TODO: Implement reward claiming logic
   };
 

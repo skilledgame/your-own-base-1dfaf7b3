@@ -322,19 +322,16 @@ export const WSMultiplayerGameView = ({
   const handleMove = useCallback((from: string, to: string, promotion?: string): boolean => {
     // Block moves if game is over
     if (isGameOver) {
-      console.log("[Game] Game is over, move blocked");
       return false;
     }
     
     // Block moves if time is 0
     const myTime = myColor === 'w' ? whiteTime : blackTime;
     if (myTime <= 0) {
-      console.log("[Game] No time left, move blocked");
       return false;
     }
     
     if (!isMyTurn) {
-      console.log("[Game] Not your turn");
       return false;
     }
 
@@ -355,7 +352,6 @@ export const WSMultiplayerGameView = ({
       const move = testChess.move({ from, to, promotion: promoChar });
       
       if (!move) {
-        console.log("[Game] Invalid move:", from, to);
         return false;
       }
 

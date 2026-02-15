@@ -81,7 +81,6 @@ interface ChessStore {
   gameState: GameState | null;
   gameEndResult: GameEndResult | null;
   playerName: string;
-  // Removed playerCredits - use balanceStore.skilledCoins instead
   selectedWager: number;       // Selected wager for next match
   isAuthenticated: boolean;    // Whether user is signed in
   matchmaking: MatchmakingState;  // Normalized matchmaking state
@@ -94,7 +93,6 @@ interface ChessStore {
   setGameState: (gameState: GameState | null) => void;
   setGameEndResult: (result: GameEndResult | null) => void;
   setPlayerName: (name: string) => void;
-  // Removed setPlayerCredits - balance managed by balanceStore
   setSelectedWager: (wager: number) => void;
   setAuthenticated: (auth: boolean) => void;
   
@@ -149,7 +147,6 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   gameState: null,
   gameEndResult: null,
   playerName: "Player",
-  // Removed playerCredits - use balanceStore.skilledCoins instead
   selectedWager: 10,  // Default wager
   isAuthenticated: false,
   matchmaking: {
@@ -166,17 +163,14 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   
   // Actions
   setPhase: (phase) => {
-    console.log("[ChessStore] setPhase:", phase);
     set({ phase });
   },
   
   setGameState: (gameState) => {
-    console.log("[ChessStore] setGameState:", gameState);
     set({ gameState });
   },
   
   setGameEndResult: (gameEndResult) => {
-    console.log("[ChessStore] setGameEndResult:", gameEndResult);
     set({ gameEndResult });
   },
   
@@ -184,22 +178,17 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     set({ playerName });
   },
   
-  // Removed setPlayerCredits - balance managed by balanceStore
-  
   setSelectedWager: (selectedWager) => {
-    console.log("[ChessStore] setSelectedWager:", selectedWager);
     set({ selectedWager });
   },
   
   setAuthenticated: (isAuthenticated) => {
-    console.log("[ChessStore] setAuthenticated:", isAuthenticated);
     set({ isAuthenticated });
   },
   
   updateFromServer: (fen, turn) => {
     const { gameState } = get();
     if (!gameState) {
-      console.warn("[ChessStore] updateFromServer called but no gameState");
       return;
     }
     
@@ -214,7 +203,6 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   },
   
   resetAll: () => {
-    console.log("[ChessStore] resetAll - clearing all game state, timestamp:", new Date().toISOString());
     set({
       phase: "idle",
       gameState: null,
@@ -290,12 +278,10 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   },
   
   setPremove: (premove) => {
-    console.log("[ChessStore] setPremove:", premove);
     set({ premove });
   },
   
   clearPremove: () => {
-    console.log("[ChessStore] clearPremove");
     set({ premove: null });
   },
   
@@ -304,13 +290,10 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   },
   
   clearGameEnd: () => {
-    console.log("[ChessStore] clearGameEnd");
     set({ gameEndResult: null });
   },
   
   handleMatchFound: ({ gameId, dbGameId, color, fen, playerName, opponentName, wager }) => {
-    console.log("[ChessStore] handleMatchFound - SETTING phase=in_game:", { gameId, dbGameId, color, fen, playerName, opponentName, wager, timestamp: new Date().toISOString() });
-    
     const isMyTurn = color === "w"; // White moves first
     
     // IMPORTANT: Clear any previous game end result FIRST
@@ -330,14 +313,6 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       },
     });
     
-    console.log("[ChessStore] State transition: searching/idle -> in_game", {
-      gameId,
-      color,
-      playerName,
-      timestamp: new Date().toISOString(),
-    });
-    
-    console.log("[ChessStore] handleMatchFound - state updated, phase is now:", get().phase);
   },
   
   handleGameEnd: ({ reason, winnerColor, isOpponentLeft, creditsChange }) => {
@@ -345,25 +320,21 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     
     // GUARD: If we're already in game_over phase, ignore duplicate game_ended messages
     if (currentPhase === "game_over") {
-      console.warn("[ChessStore] handleGameEnd IGNORED - already in game_over phase, reason:", reason);
       return;
     }
     
     // GUARD: If we're not in a game, ignore stale game_ended messages
     if (currentPhase !== "in_game") {
-      console.warn("[ChessStore] handleGameEnd IGNORED - not in_game phase, current phase:", currentPhase);
       return;
     }
     
     // GUARD: Ensure gameState exists
     if (!gameState) {
-      console.warn("[ChessStore] handleGameEnd IGNORED - no gameState");
       return;
     }
     
     // GUARD: If gameEndResult already exists, this is a duplicate - ignore
     if (gameEndResult) {
-      console.warn("[ChessStore] handleGameEnd IGNORED - gameEndResult already exists:", gameEndResult);
       return;
     }
     
@@ -384,18 +355,6 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     } else {
       message = `You lost: ${message}`;
     }
-    
-    console.log("[ChessStore] handleGameEnd - SETTING phase=game_over:", { 
-      reason, 
-      winnerColor, 
-      isWin, 
-      isDraw, 
-      isOpponentLeft, 
-      message, 
-      creditsChange, 
-      gameId: gameState.gameId,
-      timestamp: new Date().toISOString() 
-    });
     
     // Batch all state updates in a single set() call for performance
     // Clear timer snapshot immediately to prevent any further timer calculations

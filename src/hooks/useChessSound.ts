@@ -74,7 +74,6 @@ export const useChessSound = () => {
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + duration);
     } catch (e) {
-      console.warn('[Sound] Failed to play tone:', e);
     }
   }, []);
 

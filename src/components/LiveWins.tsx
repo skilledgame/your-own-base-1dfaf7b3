@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Coins, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { trackQuery } from '@/lib/supabaseInstrumentation';
 
 interface Win {
   id: string;
@@ -35,7 +34,6 @@ export const LiveWins = () => {
     // Throttle: minimum 60 seconds between fetches (except initial)
     const now = Date.now();
     if (lastFetchRef.current > 0 && now - lastFetchRef.current < 60000) {
-      console.log('[LiveWins] Fetch throttled - too soon');
       return;
     }
     
@@ -43,7 +41,7 @@ export const LiveWins = () => {
     lastFetchRef.current = now;
     
     try {
-      trackQuery('games', 'select');
+
       
       // Get the most recent finished games
       const { data: games, error } = await supabase
@@ -81,7 +79,7 @@ export const LiveWins = () => {
 
       // Batch fetch player -> user_id mappings for uncached IDs
       if (uncachedIds.length > 0) {
-        trackQuery('players', 'select');
+
         
         const { data: players } = await supabase
           .from('players')
@@ -92,7 +90,7 @@ export const LiveWins = () => {
           const userIds = players.map(p => p.user_id).filter(Boolean);
           
           if (userIds.length > 0) {
-            trackQuery('profiles', 'select');
+
             
             // Batch fetch profiles
             const { data: profiles } = await supabase

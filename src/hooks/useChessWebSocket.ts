@@ -21,7 +21,7 @@ import { useUserDataStore } from '@/stores/userDataStore';
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
-import { perf } from '@/lib/perfLog';
+
 import { getRankFromTotalWagered } from '@/lib/rankSystem';
 import type { 
   WSConnectionStatus, 
@@ -109,11 +109,9 @@ function initializeGlobalMessageHandler(): void {
   }
   
   messageHandlerRegistered = true;
-  console.log("[Chess WS] Registering global message handler");
   
   wsClient.onMessage((data: unknown) => {
     if (typeof data !== 'object' || data === null || !('type' in data)) {
-      console.warn("[Chess WS] Unknown message format:", data);
       return;
     }
 
@@ -126,9 +124,6 @@ function initializeGlobalMessageHandler(): void {
     switch (msg.type) {
       case "welcome": {
         const payload = msg as unknown as WelcomeMessage;
-        console.log("[Chess WS]", clientId, "Welcome from server:", payload);
-        // PART A: Perf milestone - WS handshake done
-        perf.mark('ws_connected');
         // Only show connection alert for admin users
         if (isAdminCallback && isAdminCallback()) {
           toast.success("Connected to game server");
@@ -137,14 +132,12 @@ function initializeGlobalMessageHandler(): void {
       }
       
       case "searching": {
-        console.log("[Chess WS]", clientId, "Searching for opponent...");
         store.setPhase("searching");
         store.setMatchmakingStatus("searching");
         break;
       }
       
       case "waiting_for_opponent": {
-        console.log("[Chess WS]", clientId, "Waiting for opponent to connect to private game...", msg);
         store.setPhase("searching");
         store.setMatchmakingStatus("searching");
         break;
@@ -154,19 +147,7 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as MatchFoundMessage;
         const store = useChessStore.getState();
         
-        // PART A: Perf milestone
-        perf.mark('match_found');
-        
-        // Structured logging
-        console.log("[Chess WS] MATCH_FOUND", {
-          gameId: payload.gameId,
-          userId: store.playerName || 'unknown',
-          phase: store.phase,
-          hasTimer: !!(payload.whiteTime && payload.blackTime && payload.serverTimeMs),
-          timestamp: new Date().toISOString(),
-        });
-        
-        // STEP D: Normalize IDs immediately from various possible fields
+        // Normalize IDs immediately from various possible fields
         const matchId = payload?.gameId ?? (payload as any)?.game_id ?? (payload as any)?.matchId ?? (payload as any)?.match_id ?? null;
         const dbMatchId = payload?.dbGameId ?? (payload as any)?.dbGameId ?? (payload as any)?.db_game_id ?? null;
         const color = payload?.color ?? null;
@@ -197,35 +178,14 @@ function initializeGlobalMessageHandler(): void {
           || (payload?.opponent as any)?.id
           || null;
         
-        console.log("[Chess WS] Opponent ID resolution:", {
-          opponentUserIdFromWhiteBlack,
-          opponentUserIdFromPayload,
-          whiteId: (payload as any)?.whiteId,
-          blackId: (payload as any)?.blackId,
-          resolvedOpponentUserId: opponentUserId,
-          opponentObj: payload?.opponent,
-          color,
-        });
-        
         const wager = typeof payload?.wager === 'number' ? payload.wager : 0;
         
-        // STEP D: Validate required fields before updating state
+        // Validate required fields before updating state
         if (!matchId || !color || !fen) {
           const errorMsg = `MATCH_FOUND missing required fields: matchId=${!!matchId}, color=${!!color}, fen=${!!fen}`;
-          console.error("[Chess WS] Invalid match_found payload:", payload, errorMsg);
           store.setMatchmakingError(errorMsg);
           break;
         }
-        
-        console.log("[Chess WS] MATCH_FOUND received (normalized):", {
-          clientId,
-          matchId,
-          dbMatchId,
-          color,
-          opponentUserId,
-          wager,
-          timestamp: new Date().toISOString()
-        });
         
         // Update wsClient tracking
         wsClient.setSearching(false);
@@ -241,8 +201,8 @@ function initializeGlobalMessageHandler(): void {
                 .delete()
                 .eq('user_id', session.user.id);
             }
-          } catch (err) {
-            console.warn("[Chess WS] Failed to remove search tracking after match:", err);
+          } catch {
+            // Failed to remove search tracking
           }
         })();
         
@@ -259,15 +219,8 @@ function initializeGlobalMessageHandler(): void {
         // Build timer snapshot from server payload (uses ms fields with seconds fallback)
         const snapshot = buildTimerSnapshot(payload, 'w');
         store.updateTimerSnapshot(snapshot);
-        console.log("[Chess WS] Timer snapshot (match_found)", {
-          gameId: payload.gameId,
-          wMs: snapshot.wMs,
-          bMs: snapshot.bMs,
-          turn: snapshot.turn,
-          clockRunning: snapshot.clockRunning,
-        });
         
-        // STEP D: Update normalized matchmaking state
+        // Update normalized matchmaking state
         store.setMatchmakingMatch({
           matchId,
           dbMatchId: dbMatchId || undefined,
@@ -319,7 +272,6 @@ function initializeGlobalMessageHandler(): void {
 
             // Strategy 1: Direct profile lookup with the opponentUserId we have
             if (opponentUserId) {
-              console.log("[Chess WS] Fetching opponent profile for userId:", opponentUserId);
               const { data } = await supabase
                 .from('profiles')
                 .select('display_name, total_wagered_sc')
@@ -334,12 +286,10 @@ function initializeGlobalMessageHandler(): void {
             // Strategy 2: If profile not found and opponentUserId might be a players.id,
             // use the resolve_player_user_id RPC to get the auth user_id (bypasses RLS)
             if (!profileData && opponentUserId) {
-              console.log("[Chess WS] Profile not found, trying resolve_player_user_id RPC:", opponentUserId);
               const { data: resolvedId } = await supabase.rpc('resolve_player_user_id', {
                 p_player_id: opponentUserId,
               });
               if (resolvedId) {
-                console.log("[Chess WS] Resolved players.id → auth user_id:", resolvedId);
                 resolvedOpponentAuthId = resolvedId;
                 // Update the matchmaking store with the correct auth user_id
                 useChessStore.getState().setMatchmakingMatch({
@@ -359,7 +309,6 @@ function initializeGlobalMessageHandler(): void {
             // get_opponent_profile RPC which does the full games→players→profiles
             // join server-side (SECURITY DEFINER, bypasses all RLS)
             if (!profileData && dbMatchId) {
-              console.log("[Chess WS] Using get_opponent_profile RPC for dbGameId:", dbMatchId);
               const { data: rpcData } = await supabase.rpc('get_opponent_profile', {
                 p_game_id: dbMatchId,
               });
@@ -398,17 +347,9 @@ function initializeGlobalMessageHandler(): void {
                 });
               }
 
-              console.log("[Chess WS] Opponent profile resolved:", {
-                resolvedOpponentAuthId,
-                displayName: profileData.display_name,
-                totalWagered: profileData.total_wagered_sc,
-                rank: opponentRankInfo.displayName,
-              });
-            } else {
-              console.warn("[Chess WS] Could not find opponent profile via any strategy");
             }
-          } catch (err) {
-            console.warn("[Chess WS] Error fetching opponent profile:", err);
+          } catch {
+            // Failed to fetch opponent profile
           }
         })();
         
@@ -424,15 +365,11 @@ function initializeGlobalMessageHandler(): void {
         if (navigationCallback && matchId) {
           if (dbMatchId) {
             // Private game: user is already on /game/live/{UUID}, stay there
-            console.log("[Chess WS] Private game match_found — NOT navigating (staying on UUID page). dbGameId:", dbMatchId);
           } else {
-            // PART B: Guard against duplicate navigation (navigatedToGameRef pattern)
             if (navigatedToGameId === matchId) {
-              console.log("[Chess WS] Already navigated to game, skipping duplicate nav:", matchId);
+              // Already navigated to this game
             } else {
               navigatedToGameId = matchId;
-              // Public matchmaking: navigate from queue/lobby page to the game page
-              console.log("[Chess WS] NAVIGATING to game:", `/game/live/${matchId}`);
               navigationCallback(`/game/live/${matchId}`);
             }
           }
@@ -444,28 +381,12 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as MoveAppliedMessage;
         const currentState = useChessStore.getState();
         
-        console.log("[Chess WS] MOVE_APPLIED", {
-          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
-          userId: currentState.playerName || 'unknown',
-          phase: currentState.phase,
-          turn: payload.turn,
-          hasTimer: !!(payload.whiteTime && payload.blackTime && payload.serverTimeMs),
-          timestamp: new Date().toISOString(),
-        });
-        
         // Update FEN from server (server is authoritative)
         store.updateFromServer(payload.fen, payload.turn);
         
         // Always update timer snapshot on move_applied (turn always changes)
         const moveSnapshot = buildTimerSnapshot(payload, payload.turn);
         store.updateTimerSnapshot(moveSnapshot);
-        console.log("[Chess WS] Timer snapshot (move_applied)", {
-          gameId: payload.gameId || currentState.gameState?.gameId || 'unknown',
-          wMs: moveSnapshot.wMs,
-          bMs: moveSnapshot.bMs,
-          turn: moveSnapshot.turn,
-          clockRunning: moveSnapshot.clockRunning,
-        });
         
         // PREMOVE EXECUTION: Check if it's now our turn and we have a premove queued
         const updatedState = useChessStore.getState();
@@ -474,8 +395,6 @@ function initializeGlobalMessageHandler(): void {
         const premove = updatedState.premove;
         
         if (isNowMyTurn && premove && updatedState.phase === "in_game") {
-          console.log("[Chess WS] PREMOVE: Turn switched to us, attempting premove execution:", premove);
-          
           // Validate premove against new position
           try {
             const testChess = new Chess(payload.fen);
@@ -487,8 +406,6 @@ function initializeGlobalMessageHandler(): void {
             
             if (moveResult) {
               // Premove is valid - execute it immediately
-              console.log("[Chess WS] PREMOVE: Valid! Sending to server:", premove);
-              
               // Build UCI string
               const uci = `${premove.from.toLowerCase()}${premove.to.toLowerCase()}${premove.promotion ? premove.promotion.toLowerCase() : ""}`;
               
@@ -496,13 +413,9 @@ function initializeGlobalMessageHandler(): void {
                 type: "move",
                 move: uci,
               });
-            } else {
-              // Premove is illegal - discard silently
-              console.log("[Chess WS] PREMOVE: Invalid in new position, discarding");
             }
-          } catch (e) {
-            // chess.js threw an error - premove is illegal
-            console.log("[Chess WS] PREMOVE: chess.js error, discarding:", e);
+          } catch {
+            // Premove invalid in new position
           }
           
           // Always clear premove after attempting execution
@@ -513,7 +426,6 @@ function initializeGlobalMessageHandler(): void {
       
       case "game_sync": {
         const payload = msg as unknown as GameSyncMessage;
-        console.log("[Chess WS]", clientId, "Game sync received:", payload);
         
         // Update game state from server sync
         if (store.gameState && store.gameState.gameId === payload.gameId) {
@@ -525,7 +437,6 @@ function initializeGlobalMessageHandler(): void {
           
           // If game ended, handle it
           if (payload.status === "ended") {
-            console.log("[Chess WS] Sync shows game already ended");
             store.clearTimerSnapshot();
             store.clearPremove();
           }
@@ -537,7 +448,6 @@ function initializeGlobalMessageHandler(): void {
           const syncPremove = syncState.premove;
           
           if (syncIsMyTurn && syncPremove && syncState.phase === "in_game" && payload.status !== "ended") {
-            console.log("[Chess WS] PREMOVE (game_sync): Turn is ours, attempting premove:", syncPremove);
             try {
               const syncTestChess = new Chess(payload.fen);
               const syncMoveResult = syncTestChess.move({
@@ -548,11 +458,9 @@ function initializeGlobalMessageHandler(): void {
               if (syncMoveResult) {
                 const syncUci = `${syncPremove.from.toLowerCase()}${syncPremove.to.toLowerCase()}${syncPremove.promotion ? syncPremove.promotion.toLowerCase() : ""}`;
                 wsClient.send({ type: "move", move: syncUci });
-              } else {
-                console.log("[Chess WS] PREMOVE (game_sync): Invalid, discarding");
               }
-            } catch (e) {
-              console.log("[Chess WS] PREMOVE (game_sync): Error, discarding:", e);
+            } catch {
+              // Premove invalid
             }
             store.clearPremove();
           }
@@ -564,18 +472,14 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as GameEndedMessage;
         const currentState = useChessStore.getState();
         
-        console.log("[resign] game_end received", { reason: payload.reason, winnerColor: payload.winnerColor, timestamp: new Date().toISOString() });
-        
         // Clear resign fallback timeout (if any)
         if ((window as any).__resignTimeoutId) {
           clearTimeout((window as any).__resignTimeoutId);
           (window as any).__resignTimeoutId = null;
-          console.log("[resign] timeout cleared (game_end arrived in time)");
         }
         
         // ALWAYS hide global loading/transition overlay on game end
         useUILoadingStore.getState().hideLoading();
-        console.log("[resign] overlay hidden");
         
         // PART B: Reset navigation guard so next game can navigate
         navigatedToGameId = null;
@@ -583,22 +487,8 @@ function initializeGlobalMessageHandler(): void {
         // Validate payload and extract gameId
         const gameId = payload.gameId || currentState.gameState?.gameId || null;
         
-        console.log("[Client] GAME_ENDED received", {
-          gameId,
-          dbGameId: payload.dbGameId || currentState.gameState?.dbGameId || 'unknown',
-          userId: currentState.playerName || 'unknown',
-          phase: currentState.phase,
-          reason: payload.reason,
-          winnerColor: payload.winnerColor,
-          hasReason: !!payload.reason,
-          hasWinnerColor: payload.winnerColor !== undefined,
-          fullPayload: payload,
-          timestamp: new Date().toISOString(),
-        });
-        
         // Validate required fields
         if (!payload.reason) {
-          console.error("[Client] GAME_ENDED - Missing reason field", payload);
           // Use default reason but don't crash
           payload.reason = "game_over";
         }
@@ -629,40 +519,16 @@ function initializeGlobalMessageHandler(): void {
         
         // Clear timer snapshot on game end
         store.clearTimerSnapshot();
-        console.log("[Client] Timer snapshot cleared (game_ended)", {
-          gameId,
-          timestamp: new Date().toISOString(),
-        });
-        
-        // Log state transition
-        console.log("[Client] Calling handleGameEnd", {
-          gameId,
-          reason: payload.reason,
-          winnerColor: payload.winnerColor,
-          isOpponentLeft,
-          creditsChange,
-          myColor,
-          wager,
-          timestamp: new Date().toISOString(),
-        });
         
         // Wrap handleGameEnd in try-catch to prevent crashes
         try {
           // Additional validation before calling handleGameEnd
           if (!currentState.gameState) {
-            console.error("[Client] GAME_ENDED - No gameState, cannot process game end", {
-              gameId,
-              phase: currentState.phase,
-            });
-            return; // Don't crash, just log and return
+            return;
           }
           
           // Ensure we have valid gameId match
           if (gameId && currentState.gameState.gameId !== gameId) {
-            console.warn("[Client] GAME_ENDED - gameId mismatch, ignoring", {
-              payloadGameId: gameId,
-              storeGameId: currentState.gameState.gameId,
-            });
             return; // Stale message, ignore
           }
           
@@ -673,20 +539,7 @@ function initializeGlobalMessageHandler(): void {
             creditsChange,
           });
           
-          console.log("[Client] handleGameEnd completed successfully", {
-            gameId,
-            newPhase: useChessStore.getState().phase,
-            timestamp: new Date().toISOString(),
-          });
-        } catch (error) {
-          console.error("[Client] GAME_ENDED - Error in handleGameEnd:", error, {
-            gameId,
-            payload,
-            currentState: {
-              phase: currentState.phase,
-              hasGameState: !!currentState.gameState,
-            },
-          });
+        } catch {
           // Only show error for admin users
         if (isAdminCallback && isAdminCallback()) {
           toast.error("Error processing game end. Please refresh.");
@@ -694,8 +547,8 @@ function initializeGlobalMessageHandler(): void {
           // Still try to transition to game_over even if handleGameEnd failed
           try {
             store.setPhase("game_over");
-          } catch (e) {
-            console.error("[Client] Failed to set phase to game_over:", e);
+          } catch {
+            // Failed to set phase
           }
         }
         
@@ -707,7 +560,6 @@ function initializeGlobalMessageHandler(): void {
             reason: payload.reason || "game_over",
           });
         } else {
-          console.warn("[Client] GAME_ENDED - no gameId, falling back to legacy balance refresh");
           if (balanceRefreshCallback) {
             balanceRefreshCallback();
           }
@@ -734,13 +586,11 @@ function initializeGlobalMessageHandler(): void {
         //   2. Authoritative DB fetch after 500ms
         // The Realtime subscription on profiles will also pick up the change.
         // So we DON'T need another balance refresh here — it would be a duplicate.
-        console.log("[Client] credits_settled — no-op (syncBalanceAfterGame already handles this)");
         break;
       }
       
       case "opponent_left": {
         const payload = msg as unknown as OpponentLeftMessage;
-        console.log("[Chess WS]", clientId, "Opponent left:", payload);
         
         // ALWAYS hide loading/transition overlay
         useUILoadingStore.getState().hideLoading();
@@ -783,7 +633,6 @@ function initializeGlobalMessageHandler(): void {
       
       case "error": {
         const payload = msg as unknown as ErrorMessage;
-        console.log("[Chess WS]", clientId, "Error:", payload.code, payload.message);
         
         // Always hide global loading overlay on error
         useUILoadingStore.getState().hideLoading();
@@ -795,7 +644,6 @@ function initializeGlobalMessageHandler(): void {
           
           if (currentPhase !== "in_game") {
             // Desync detected! Reset and reconnect
-            console.log("[Chess WS] Desync detected - resetting");
             // Only show connection alerts for admin users
             if (isAdminCallback && isAdminCallback()) {
               toast.error("Desynced with server. Reconnecting...");
@@ -897,7 +745,6 @@ function initializeGlobalMessageHandler(): void {
       case "game_reconnected": {
         // Server sent full game state after reconnecting within grace period
         const payload = msg as any;
-        console.log("[Chess WS]", clientId, "Game reconnected:", payload);
 
         const reconnColor: 'w' | 'b' = payload.color ?? null;
         const reconnFen: string = payload.fen ?? '';
@@ -932,7 +779,7 @@ function initializeGlobalMessageHandler(): void {
       }
 
       default:
-        console.log("[Chess WS]", clientId, "Unknown message type:", msg.type, msg);
+        // Unknown message type
     }
   });
 }
@@ -958,7 +805,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     playerName,
     setPhase,
     setPlayerName,
-    // Removed setPlayerCredits - balance managed by balanceStore
     setAuthenticated,
     resetAll 
   } = useChessStore();
@@ -992,8 +838,8 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       // This avoids a redundant supabase.auth.getUser() call + duplicate balance fetch.
       const userDataRefresh = useUserDataStore.getState().refresh;
       await userDataRefresh();
-    } catch (error) {
-      console.error("[Chess WS] Failed to refresh balance:", error);
+    } catch {
+      // Failed to refresh balance
     }
   }, []);
   
@@ -1021,7 +867,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       const { data, error } = await supabase.auth.getSession();
       
       if (error || !data.session) {
-        console.log("[Chess WS] No session - user not authenticated");
         wsClient.setAuthToken(null);
         setIsAuthenticated(false);
         setAuthenticated(false);
@@ -1033,10 +878,8 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       wsClient.setAuthToken(token);
       setIsAuthenticated(true);
       setAuthenticated(true);
-      console.log("[Chess WS] Auth token refreshed");
       return true;
-    } catch (error) {
-      console.error("[Chess WS] Failed to refresh auth:", error);
+    } catch {
       wsClient.setAuthToken(null);
       setIsAuthenticated(false);
       setAuthenticated(false);
@@ -1070,7 +913,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[Chess WS] Auth state changed:", event);
       
       if (session?.access_token) {
         // Update token on wsClient
@@ -1085,10 +927,8 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
           // CRITICAL: Do NOT reconnect if we're in a game - that would end the game!
           const currentPhase = useChessStore.getState().phase;
           if (currentPhase === "in_game" || currentPhase === "searching") {
-            console.log("[Chess WS] Token updated but in game/searching - NOT reconnecting");
+            // Don't reconnect during game/search
           } else {
-            // Only reconnect if idle/game_over
-            console.log("[Chess WS] Token updated - reconnecting (phase:", currentPhase, ")");
             wsClient.disconnect();
             setTimeout(() => wsClient.connect(), 100);
           }
@@ -1096,7 +936,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         
         // Balance refresh handled by userDataStore (initialized in App.tsx on auth change)
       } else {
-        console.log("[Chess WS] No session - clearing auth");
         wsClient.setAuthToken(null);
         setIsAuthenticated(false);
         setAuthenticated(false);
@@ -1146,7 +985,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session || !session.access_token) {
-        console.log("[Chess WS] findMatch blocked - no valid session");
         // Only show for admin users
         if (isAdminCallback && isAdminCallback()) {
           toast.error("Please sign in again");
@@ -1188,7 +1026,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
         playerName: finalName,
       };
 
-      console.log("[Chess WS] findMatch:", { wager, player_ids });
 
       setPhase("searching");
       wsClient.setSearching(true, finalName, wager, player_ids);
@@ -1205,11 +1042,10 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
             game_type: 'chess',
             created_at: new Date().toISOString(),
           }, { onConflict: 'user_id' });
-      } catch (err) {
-        console.warn("[Chess WS] Failed to track search in DB:", err);
+      } catch {
+        // Failed to track search in DB
       }
-    })().catch((error) => {
-      console.error("[Chess WS] findMatch failed:", error);
+    })().catch(() => {
       // Only show for admin users
       if (isAdminCallback && isAdminCallback()) {
         toast.error("Please sign in again");
@@ -1235,14 +1071,13 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
             .delete()
             .eq('user_id', session.user.id);
         }
-      } catch (err) {
-        console.warn("[Chess WS] Failed to remove search tracking:", err);
+      } catch {
+        // Failed to remove search tracking
       }
     })();
   }, [setPhase]);
 
   const joinGame = useCallback((gameId: string) => {
-    console.log("[Chess WS] Sending join_game for private game:", gameId);
     setPhase("searching"); // Show waiting state
     wsClient.send({ type: "join_game", gameId });
   }, [setPhase]);
@@ -1251,7 +1086,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     const currentGameState = useChessStore.getState().gameState;
     
     if (!currentGameState) {
-      console.warn("[Chess WS] Cannot send move - no game state");
       return;
     }
 
@@ -1263,7 +1097,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       move: uci,
     };
 
-    console.log("[WS] sending move", { type: "move", move: uci });
     wsClient.send(payload);
   }, []);
 
@@ -1272,27 +1105,15 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     const currentGameState = currentState.gameState;
     const wsStatus = wsClient.getStatus();
     
-    console.log("[resign] clicked", {
-      gameId: currentGameState?.gameId || 'unknown',
-      dbGameId: currentGameState?.dbGameId || 'unknown',
-      userId: currentState.playerName || 'unknown',
-      phase: currentState.phase,
-      wsStatus,
-      hasGameState: !!currentGameState,
-      timestamp: new Date().toISOString(),
-    });
-    
     // Clear any queued premove on resign
     useChessStore.getState().clearPremove();
     
     // Idempotent: if game already ended, do nothing
     if (currentState.phase === "game_over") {
-      console.log("[resign] Game already ended, resign is no-op");
       return;
     }
     
     if (!currentGameState) {
-      console.warn("[resign] Cannot resign - no game state");
       if (isAdminCallback && isAdminCallback()) {
         toast.error("Cannot resign - no active game");
       }
@@ -1302,11 +1123,9 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     // ── IMMEDIATELY show loading overlay BEFORE any WS call ──
     // This prevents any intermediate UI/route from rendering.
     useUILoadingStore.getState().showLoading();
-    console.log("[resign] overlay shown (spinner)");
     
     // Check if WS is connected
     if (wsStatus !== "connected") {
-      console.warn("[resign] WebSocket not connected, status:", wsStatus);
       useUILoadingStore.getState().hideLoading();
       if (isAdminCallback && isAdminCallback()) {
         toast.error("Not connected to server. Please reconnect.");
@@ -1320,11 +1139,9 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       dbGameId: currentGameState.dbGameId,
     };
 
-    console.log("[resign] ws sent", payload);
     try {
       wsClient.send(payload);
-    } catch (error) {
-      console.error("[resign] Error sending resign:", error);
+    } catch {
       useUILoadingStore.getState().hideLoading();
       if (isAdminCallback && isAdminCallback()) {
         toast.error("Failed to send resign request");
@@ -1337,7 +1154,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       const storeState = useChessStore.getState();
       // If still in_game (no game_ended arrived), clear overlay and show error
       if (storeState.phase === "in_game") {
-        console.warn("[resign] timeout fallback fired — no game_end received within 7s");
         useUILoadingStore.getState().hideLoading();
         toast.error("Resign request timed out. Please try again.");
       }
@@ -1351,7 +1167,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     const currentGameState = useChessStore.getState().gameState;
     
     if (!currentGameState) {
-      console.warn("[Chess WS] Cannot sync - no game state");
       return;
     }
 
@@ -1360,7 +1175,6 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
       gameId: currentGameState.gameId,
     };
 
-    console.log("[Chess WS] Requesting game sync:", payload);
     wsClient.send(payload);
   }, []);
 
@@ -1376,8 +1190,7 @@ export function useChessWebSocket(): UseChessWebSocketReturn {
     try {
       const parsed = JSON.parse(json);
       wsClient.send(parsed);
-    } catch (e) {
-      console.error("[Chess WS] Invalid JSON:", e);
+    } catch {
       // Only show for admin users
       if (isAdminCallback && isAdminCallback()) {
         toast.error("Invalid JSON");

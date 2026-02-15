@@ -139,7 +139,6 @@ export default function PrivateGameLobby() {
         },
         (payload) => {
           const updated = payload.new as any;
-          console.log('[Lobby] Room updated:', updated);
 
           setRoom((prev) => prev ? {
             ...prev,
@@ -168,7 +167,6 @@ export default function PrivateGameLobby() {
     if (room?.status === 'started' && room?.game_id && !starting) {
       setStarting(true);
       globalShowLoading(); // Overlay until LiveGame renders the board
-      console.log('[Lobby] Game started, navigating immediately to:', room.game_id);
       navigate(`/game/live/${room.game_id}`);
     }
   }, [room?.status, room?.game_id, starting, navigate, globalShowLoading]);
@@ -228,7 +226,6 @@ export default function PrivateGameLobby() {
       }
 
       // Navigate immediately — overlay stays until LiveGame renders the board
-      console.log('[Lobby] Start game RPC succeeded, navigating to:', room.game_id);
       navigate(`/game/live/${room.game_id}`);
     } catch (err) {
       console.error('[Lobby] Start game exception:', err);

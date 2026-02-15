@@ -39,8 +39,6 @@ import { useEnsureUser } from "./hooks/useEnsureUser";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { useEffect } from "react";
 import { useUserDataStore } from "./stores/userDataStore";
-// Note: balanceStore and profileStore are still available for legacy compatibility
-// but useBalance and useProfile hooks now delegate to userDataStore
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({

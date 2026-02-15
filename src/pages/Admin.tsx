@@ -305,7 +305,6 @@ export default function Admin() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching waitlist:', error);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch waitlist entries' });
       } else {
         setWaitlistEntries(data || []);
@@ -361,7 +360,6 @@ export default function Admin() {
 
       setUsers(result.users || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -384,7 +382,6 @@ export default function Admin() {
         .order('created_at', { ascending: true });
 
       if (searchError) {
-        console.error('Error fetching active searches:', searchError);
       } else {
         setSearchEntries(searchData || []);
       }
@@ -397,7 +394,6 @@ export default function Admin() {
         .order('created_at', { ascending: false });
 
       if (gamesError) {
-        console.error('Error fetching games:', gamesError);
       } else {
         // Get player names for games
         const allPlayerIds = [
@@ -425,7 +421,6 @@ export default function Admin() {
         }
       }
     } catch (error) {
-      console.error('Error fetching matchmaking data:', error);
     }
   };
 
@@ -450,7 +445,6 @@ export default function Admin() {
         .gte('created_at', fourteenDaysAgo.toISOString());
 
       if (error) {
-        console.error('Error fetching page views:', error);
         return;
       }
 
@@ -482,7 +476,6 @@ export default function Admin() {
 
       setDailyPageViews(chartData);
     } catch (error) {
-      console.error('Error fetching daily page views:', error);
     }
   };
 
@@ -498,13 +491,11 @@ export default function Admin() {
         .order('last_seen_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching active visitors:', error);
         return;
       }
 
       setActiveVisitors(data || []);
     } catch (error) {
-      console.error('Error fetching active visitors:', error);
     }
   };
 
@@ -522,7 +513,6 @@ export default function Admin() {
         setTodayViews(count || 0);
       }
     } catch (error) {
-      console.error('Error fetching today views:', error);
     }
   };
 
@@ -536,13 +526,11 @@ export default function Admin() {
         .order('sort_order', { ascending: true });
 
       if (error) {
-        console.error('Error fetching rank tiers:', error);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch rank tiers' });
       } else {
         setRankTiers(data || []);
       }
     } catch (error) {
-      console.error('Error fetching rank tiers:', error);
     } finally {
       setRankLoading(false);
     }
@@ -620,7 +608,6 @@ export default function Admin() {
 
       setWithdrawals(result.withdrawals || []);
     } catch (error) {
-      console.error('Error fetching withdrawals:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -660,7 +647,6 @@ export default function Admin() {
       });
       fetchWithdrawals();
     } catch (error) {
-      console.error('Error approving withdrawal:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -705,7 +691,6 @@ export default function Admin() {
       setRejectNote('');
       fetchWithdrawals();
     } catch (error) {
-      console.error('Error rejecting withdrawal:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -750,7 +735,6 @@ export default function Admin() {
       setCompleteTxHash('');
       fetchWithdrawals();
     } catch (error) {
-      console.error('Error completing withdrawal:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -812,7 +796,6 @@ export default function Admin() {
         .order('slug');
 
       if (error) {
-        console.error('Error fetching content pages:', error);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch content pages' });
       } else {
         setContentPages(data || []);
@@ -992,7 +975,6 @@ export default function Admin() {
       setEditingUser(null);
       fetchUsers();
     } catch (error) {
-      console.error('Error saving user:', error);
       toast({
         variant: 'destructive',
         title: 'Error',

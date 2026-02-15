@@ -98,7 +98,6 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
   
   fetchBalance: async (userId: string) => {
     if (!userId) {
-      console.log('[Balance] No userId provided');
       return;
     }
     
@@ -109,7 +108,6 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
         currentState.lastUpdated && 
         currentState.skilledCoins !== null &&
         Date.now() - currentState.lastUpdated < 5000) {
-      console.log('[Balance] Skipping refetch - data is fresh');
       return;
     }
     
@@ -124,14 +122,12 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
         .maybeSingle();
       
       if (error) {
-        console.error('[Balance] Fetch error:', error);
         set({ loading: false, error: error.message });
         return;
       }
       
       if (data) {
         const coins = data.skilled_coins;
-        console.log('[Balance] Fetched skilled_coins:', coins);
         
         // Save to localStorage for next session
         saveLastKnownBalance(coins);
@@ -146,11 +142,9 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
         });
       } else {
         // Player doesn't exist yet - ensure-user should create it
-        console.log('[Balance] No player found for user, will be created by ensure-user');
         set({ skilledCoins: null, loading: false, userId });
       }
     } catch (error) {
-      console.error('[Balance] Unexpected error:', error);
       set({ loading: false, error: 'Failed to fetch balance' });
     }
   },
@@ -159,13 +153,11 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
     // DISABLED: userDataStore already has a Realtime subscription on profiles.
     // Having two subscriptions on the same table doubles Realtime load.
     // userDataStore.syncBalanceAfterGame() cross-syncs to this store via setBalance().
-    console.log('[Balance] subscribeToBalance is a no-op — userDataStore handles Realtime');
     set({ userId });
   },
   
   unsubscribe: () => {
     // No-op — subscription was removed (handled by userDataStore)
-    console.log('[Balance] unsubscribe is a no-op');
   },
   
   reset: () => {
@@ -190,11 +182,9 @@ export const useBalanceStore = create<BalanceStore>((set, get) => ({
     
     // Guard: only update if value actually changed
     if (currentBalance === balance) {
-      console.log('[Balance] setBalance - value unchanged, skipping');
       return;
     }
     
-    console.log('[Balance] Manual set:', balance);
     saveLastKnownBalance(balance);
     set({ 
       skilledCoins: balance, 

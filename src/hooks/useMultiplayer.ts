@@ -50,7 +50,6 @@ export const useMultiplayer = () => {
       .maybeSingle();
 
     if (error) {
-      console.error('Error loading player:', error);
       setIsLoading(false);
       return null;
     }
@@ -103,7 +102,6 @@ export const useMultiplayer = () => {
       if (isAdmin) {
         toast.error('Failed to create player');
       }
-      console.error(error);
       return null;
     }
 
@@ -118,7 +116,6 @@ export const useMultiplayer = () => {
 
   // Create a lobby (open game waiting for opponent)
   const createLobby = async (playerId: string, wager: number, gameType: string = 'chess', lobbyCode?: string) => {
-    console.log('[useMultiplayer] Creating lobby for player:', playerId);
     
     try {
       const response = await supabase.functions.invoke('create-lobby', {
@@ -126,7 +123,6 @@ export const useMultiplayer = () => {
       });
 
       if (response.error) {
-        console.error('[useMultiplayer] Create lobby error:', response.error);
         // Only show for admin users
         if (isAdmin) {
           toast.error('Failed to create lobby');
@@ -135,7 +131,6 @@ export const useMultiplayer = () => {
       }
 
       const data = response.data;
-      console.log('[useMultiplayer] Lobby created:', data);
 
       if (data?.game) {
         setCurrentGame(data.game);
@@ -148,7 +143,6 @@ export const useMultiplayer = () => {
 
       return null;
     } catch (error) {
-      console.error('[useMultiplayer] Create lobby error:', error);
       // Only show for admin users
       if (isAdmin) {
         toast.error('Failed to create lobby');
@@ -159,7 +153,6 @@ export const useMultiplayer = () => {
 
   // Join an existing lobby
   const joinLobby = async (lobbyCode: string) => {
-    console.log('[useMultiplayer] Joining lobby:', lobbyCode);
     
     try {
       const response = await supabase.functions.invoke('join-lobby', {
@@ -167,7 +160,6 @@ export const useMultiplayer = () => {
       });
 
       if (response.error) {
-        console.error('[useMultiplayer] Join lobby error:', response.error);
         // Only show for admin users
         if (isAdmin) {
           toast.error(response.error.message || 'Failed to join lobby');
@@ -176,7 +168,6 @@ export const useMultiplayer = () => {
       }
 
       const data = response.data;
-      console.log('[useMultiplayer] Joined lobby:', data);
 
       if (data?.error) {
         // Only show for admin users
@@ -200,7 +191,6 @@ export const useMultiplayer = () => {
 
       return null;
     } catch (error) {
-      console.error('[useMultiplayer] Join lobby error:', error);
       // Only show for admin users
       if (isAdmin) {
         toast.error('Failed to join lobby');
@@ -211,7 +201,6 @@ export const useMultiplayer = () => {
 
   // Load a game by ID (used after WebSocket matchmaking)
   const loadGame = async (gameId: string) => {
-    console.log('[useMultiplayer] Loading game:', gameId);
     
     const { data, error } = await supabase
       .from('games')
@@ -220,7 +209,6 @@ export const useMultiplayer = () => {
       .maybeSingle();
     
     if (error || !data) {
-      console.error('[useMultiplayer] Error loading game:', error);
       return null;
     }
     
@@ -301,7 +289,6 @@ export const useMultiplayer = () => {
       .eq('id', currentGame.id);
     
     if (error) {
-      console.error('[useMultiplayer] Error updating game:', error);
     }
     setCurrentGame(prev => prev ? { ...prev, ...updates } : null);
   };
@@ -311,7 +298,6 @@ export const useMultiplayer = () => {
     if (!currentGame || !player) return;
 
     try {
-      console.log('[useMultiplayer] Ending game:', currentGame.id, 'winner:', winnerId);
       const response = await supabase.functions.invoke('end-game', {
         body: {
           gameId: currentGame.id,
@@ -321,7 +307,6 @@ export const useMultiplayer = () => {
       });
 
       if (response.error) {
-        console.error('Failed to end game:', response.error);
         // Only show for admin users
         if (isAdmin) {
           toast.error('Failed to end game');
@@ -331,7 +316,6 @@ export const useMultiplayer = () => {
 
       // Balance will be updated via realtime subscription to profiles.skilled_coins
     } catch (error) {
-      console.error('Error ending game:', error);
       // Only show for admin users
       if (isAdmin) {
         toast.error('Failed to end game');

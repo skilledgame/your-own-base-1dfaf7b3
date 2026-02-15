@@ -233,14 +233,12 @@ export default function Stats() {
         setStats(prev => ({ ...prev, freePlaysRemaining: freePlays }));
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
     }
     
     setLoading(false);
   };
 
   const handleClaimReward = (type: string) => {
-    console.log('Claiming reward:', type);
     // TODO: Implement reward claiming logic
   };
 

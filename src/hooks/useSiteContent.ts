@@ -35,7 +35,6 @@ export function useSiteContent(slug: string) {
       if (cancelled) return;
 
       if (fetchError) {
-        console.error('[useSiteContent] Error fetching content:', fetchError);
         setError(fetchError.message);
       } else {
         setData(row);

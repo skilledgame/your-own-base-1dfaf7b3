@@ -127,7 +127,6 @@ export default function ChessLobby() {
       });
 
       if (response.error) {
-        console.error('Create lobby error:', response.error);
         toast({
           variant: 'destructive',
           title: 'Failed to create lobby',
@@ -177,7 +176,6 @@ export default function ChessLobby() {
             },
             (payload) => {
               const room = payload.new as any;
-              console.log('[ChessLobby] Room updated:', room.status, 'game_id:', room.game_id);
               if (room.status === 'matched' && room.game_id) {
                 // Opponent joined! Navigate to lobby for ready-up.
                 const { dismiss } = toast({
@@ -195,7 +193,6 @@ export default function ChessLobby() {
         sessionStorage.setItem('lobbyChannel', channel.topic);
       }
     } catch (error) {
-      console.error('Create lobby error:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to create lobby',
@@ -232,7 +229,6 @@ export default function ChessLobby() {
       });
 
       if (response.error) {
-        console.error('Join lobby error:', response.error);
         toast({
           variant: 'destructive',
           title: 'Failed to join lobby',
@@ -262,7 +258,6 @@ export default function ChessLobby() {
         // hideLoading will be called by PrivateGameLobby once it loads
       }
     } catch (error) {
-      console.error('Join lobby error:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to join lobby',

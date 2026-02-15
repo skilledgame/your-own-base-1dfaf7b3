@@ -17,7 +17,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { trackQuery } from '@/lib/supabaseInstrumentation';
 import { useBalanceStore } from '@/stores/balanceStore';
 
 // LocalStorage key for persisting last known balance
@@ -122,20 +121,18 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
           state.profile !== null && 
           state.lastFetchTime && 
           Date.now() - state.lastFetchTime < 5000) {
-        console.log('[UserDataStore] Skipping initialize - data is fresh');
         return;
       }
       
       // If different user, reset first
       if (state.userId && state.userId !== userId) {
-        console.log('[UserDataStore] User changed, resetting');
         get().reset();
       }
       
       set({ userId, loading: true, error: null });
       
       try {
-        trackQuery('profiles', 'select');
+
         
         const { data, error } = await supabase
           .from('profiles')
@@ -144,7 +141,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
           .maybeSingle();
         
         if (error) {
-          console.error('[UserDataStore] Fetch error:', error);
           set({ loading: false, error: error.message });
           return;
         }
@@ -174,18 +170,12 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
           
           // Set up realtime subscription
           get()._setupSubscription(userId);
-          
-          console.log('[UserDataStore] Initialized:', { 
-            skilled_coins: profile.skilled_coins, 
-            total_wagered_sc: profile.total_wagered_sc 
-          });
         } else {
           // No profile found - might need to be created by ensure-user
-          console.log('[UserDataStore] No profile found for user');
+
           set({ loading: false });
         }
       } catch (error) {
-        console.error('[UserDataStore] Unexpected error:', error);
         set({ loading: false, error: 'Failed to load user data' });
       }
     },
@@ -194,20 +184,18 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
       const state = get();
       
       if (!state.userId) {
-        console.log('[UserDataStore] Cannot refresh - no userId');
         return;
       }
       
       // Throttle refreshes
       if (state.lastFetchTime && Date.now() - state.lastFetchTime < state._minRefreshInterval) {
-        console.log('[UserDataStore] Refresh throttled - too soon');
         return;
       }
       
       set({ loading: true, error: null });
       
       try {
-        trackQuery('profiles', 'select');
+
         
         const { data, error } = await supabase
           .from('profiles')
@@ -216,7 +204,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
           .maybeSingle();
         
         if (error) {
-          console.error('[UserDataStore] Refresh error:', error);
           set({ loading: false, error: error.message });
           return;
         }
@@ -244,7 +231,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
           });
         }
       } catch (error) {
-        console.error('[UserDataStore] Refresh error:', error);
         set({ loading: false, error: 'Failed to refresh' });
       }
     },
@@ -255,7 +241,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
       
       const newBalance = Math.max(0, state.profile.skilled_coins + delta);
       
-      console.log('[UserDataStore] Applying balance delta:', { delta, newBalance });
       
       set({
         profile: {
@@ -284,7 +269,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         return;
       }
       
-      console.log('[UserDataStore] Setting balance:', balance);
       
       set({
         profile: {
@@ -308,7 +292,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
       
       // DEDUP: Skip if we already synced for this gameId
       if (state._syncedGameIds.has(gameId)) {
-        console.log('[balance-sync] SKIPPED duplicate sync for gameId=' + gameId);
         return;
       }
       
@@ -317,12 +300,10 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
       updatedSyncedIds.add(gameId);
       set({ _syncedGameIds: updatedSyncedIds });
       
-      console.log(`[balance-sync] gameId=${gameId} started, reason=${reason}, delta=${creditsChange}`);
       
       // Step 1: Optimistically apply the known delta immediately
       if (creditsChange !== 0 && state.profile) {
         const newBalance = Math.max(0, state.profile.skilled_coins + creditsChange);
-        console.log(`[balance-sync] optimistic delta applied: ${state.profile.skilled_coins} + (${creditsChange}) = ${newBalance}`);
         
         set({
           profile: {
@@ -349,14 +330,12 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
       // Delayed slightly to let DB settle after the server's end_game call
       const userId = state.userId;
       if (!userId) {
-        console.log('[balance-sync] no userId, skipping authoritative refresh');
         return;
       }
       
       setTimeout(async () => {
         try {
-          console.log(`[balance-sync] gameId=${gameId} refreshing from supabase...`);
-          trackQuery('profiles', 'select');
+  
           
           const { data, error } = await supabase
             .from('profiles')
@@ -365,7 +344,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             .maybeSingle();
           
           if (error) {
-            console.error('[balance-sync] refresh error:', error);
             return;
           }
           
@@ -394,10 +372,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             // Cross-sync to legacy balanceStore
             useBalanceStore.getState().setBalance(profile.skilled_coins);
             
-            console.log(`[balance-sync] gameId=${gameId} refreshed from supabase, balance=${profile.skilled_coins}`);
           }
         } catch (err) {
-          console.error('[balance-sync] unexpected error:', err);
         }
       }, 500); // 500ms delay to let DB commit settle
     },
@@ -410,7 +386,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         return;
       }
       
-      console.log('[UserDataStore] Setting up realtime subscription');
       
       const channel = supabase
         .channel(`user-data-${userId}`)
@@ -428,7 +403,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             
             if (!currentProfile) return;
             
-            console.log('[UserDataStore] Realtime update:', newData);
             
             const updatedProfile = {
               ...currentProfile,
@@ -481,7 +455,6 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         _syncedGameIds: new Set<string>(),
       });
       
-      console.log('[UserDataStore] Reset complete');
     },
   };
 });

@@ -14,31 +14,19 @@ import { supabase, clearAuthStorage } from '@/integrations/supabase/client';
 
 export type AppRole = 'admin' | 'moderator' | 'user';
 
-// Auth event for debugging
 export type AuthEvent = AuthChangeEvent | 'BOOTSTRAP_START' | 'BOOTSTRAP_COMPLETE' | 'BOOTSTRAP_ERROR';
 
 interface AuthContextType {
-  // Core auth state
   user: User | null;
   session: Session | null;
-  
-  // Bootstrap state - CRITICAL for avoiding "in-between" state
   isAuthReady: boolean;
   authError: string | null;
-  
-  // Convenience flags
   isAuthenticated: boolean;
-  
-  // Role (fetched after bootstrap)
   role: AppRole;
   isAdmin: boolean;
   isPrivileged: boolean;
   roleLoading: boolean;
-  
-  // Last auth event (for debugging)
   lastAuthEvent: AuthEvent | null;
-  
-  // Actions
   signOut: () => Promise<void>;
   hardReset: () => Promise<void>;
   refreshSession: () => Promise<Session | null>;
@@ -47,18 +35,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Core state
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [lastAuthEvent, setLastAuthEvent] = useState<AuthEvent | null>(null);
-  
-  // Role state
   const [role, setRole] = useState<AppRole>('user');
   const [roleLoading, setRoleLoading] = useState(false);
   
-  // Refs to prevent duplicate operations
   const bootstrapComplete = useRef(false);
   const roleFetched = useRef(false);
   const signOutInProgress = useRef(false);
@@ -69,7 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     setRoleLoading(true);
     
-    // Use setTimeout to avoid blocking the auth listener
     setTimeout(async () => {
       try {
         const { data, error } = await supabase
@@ -80,13 +63,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!error && data?.role) {
           setRole(data.role as AppRole);
-          console.log('[Auth] Role fetched:', data.role);
         } else {
           setRole('user');
         }
         roleFetched.current = true;
-      } catch (error) {
-        console.error('[Auth] Error fetching role:', error);
+      } catch {
         setRole('user');
       } finally {
         setRoleLoading(false);
@@ -94,15 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 0);
   }, []);
 
-  // Refresh session (manual, debounced)
+  // Refresh session
   const refreshSession = useCallback(async (): Promise<Session | null> => {
     try {
       const { data, error } = await supabase.auth.refreshSession();
       
-      if (error) {
-        console.error('[Auth] Refresh failed:', error.message);
-        return session;
-      }
+      if (error) return session;
       
       if (data.session) {
         setSession(data.session);
@@ -112,8 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       return session;
-    } catch (error) {
-      console.error('[Auth] Refresh error:', error);
+    } catch {
       return session;
     }
   }, [session]);
@@ -124,9 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOutInProgress.current = true;
     
     try {
-      console.log('[Auth] Signing out...');
-      
-      // Clear local state FIRST (immediate UI update)
       setSession(null);
       setUser(null);
       setRole('user');
@@ -134,12 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       roleFetched.current = false;
       setLastAuthEvent('SIGNED_OUT');
       
-      // Then call Supabase (local scope to avoid cross-tab issues)
       await supabase.auth.signOut({ scope: 'local' });
-      
-      console.log('[Auth] Sign out complete');
-    } catch (error) {
-      console.error('[Auth] Sign out error:', error);
+    } catch {
+      // Sign out error - state already cleared
     } finally {
       signOutInProgress.current = false;
     }
@@ -147,10 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Hard reset - nuclear option for stuck states
   const hardReset = useCallback(async () => {
-    console.log('[Auth] Hard reset initiated...');
-    
     try {
-      // Clear local state
       setSession(null);
       setUser(null);
       setRole('user');
@@ -159,17 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       bootstrapComplete.current = false;
       signOutInProgress.current = false;
       
-      // Sign out from Supabase
       await supabase.auth.signOut({ scope: 'local' });
-      
-      // Clear ALL auth storage
       clearAuthStorage();
-      
-      // Force reload
       window.location.reload();
-    } catch (error) {
-      console.error('[Auth] Hard reset error:', error);
-      // Still try to reload even if there's an error
+    } catch {
       window.location.reload();
     }
   }, []);
@@ -182,16 +143,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (bootstrapComplete.current) return;
       
       setLastAuthEvent('BOOTSTRAP_START');
-      console.log('[Auth] Bootstrap starting...');
       
       try {
-        // Get session from localStorage
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
         if (!mounted) return;
         
         if (error) {
-          console.error('[Auth] Bootstrap error:', error);
           setAuthError(error.message);
           setIsAuthReady(true);
           bootstrapComplete.current = true;
@@ -209,46 +167,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             : false;
           
           if (isExpiredOrExpiring) {
-            console.log('[Auth] Bootstrap: Session expired or expiring, refreshing...');
             try {
               const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
               if (!mounted) return;
               
               if (refreshError) {
-                console.warn('[Auth] Bootstrap: Refresh failed, clearing session:', refreshError.message);
-                // Refresh token is also invalid — user must re-login
                 activeSession = null;
               } else if (refreshData.session) {
-                console.log('[Auth] Bootstrap: Session refreshed successfully');
                 activeSession = refreshData.session;
               }
-            } catch (refreshErr) {
-              console.warn('[Auth] Bootstrap: Refresh threw error:', refreshErr);
+            } catch {
               // Don't clear session, let autoRefreshToken handle it
             }
           }
           
           if (activeSession) {
-            console.log('[Auth] Bootstrap: Session active for user:', activeSession.user.id);
             setSession(activeSession);
             setUser(activeSession.user);
-            
-            // Fetch role in background (non-blocking)
             fetchRole(activeSession.user.id);
-          } else {
-            console.log('[Auth] Bootstrap: Session could not be recovered, user must re-login');
           }
-        } else {
-          console.log('[Auth] Bootstrap: No session found');
         }
         
         setIsAuthReady(true);
         bootstrapComplete.current = true;
         setLastAuthEvent('BOOTSTRAP_COMPLETE');
-        console.log('[Auth] Bootstrap complete, hasSession:', !!activeSession);
         
       } catch (error) {
-        console.error('[Auth] Bootstrap failed:', error);
         if (mounted) {
           setAuthError(error instanceof Error ? error.message : 'Unknown error');
           setIsAuthReady(true);
@@ -269,38 +213,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
-        console.log('[Auth] Event:', event, 'hasSession:', !!newSession);
-        
-        // Record event for debugging
         setLastAuthEvent(event);
         
-        // Ignore events during sign out
-        if (signOutInProgress.current) {
-          console.log('[Auth] Ignoring event during sign out');
-          return;
-        }
+        if (signOutInProgress.current) return;
         
-        // Handle INITIAL_SESSION specially
         if (event === 'INITIAL_SESSION') {
-          // If bootstrap already handled this, skip
-          if (bootstrapComplete.current) {
-            console.log('[Auth] INITIAL_SESSION after bootstrap, syncing...');
-            // Still sync the session in case it changed
-            if (newSession) {
-              setSession(newSession);
-              setUser(newSession.user);
-            }
+          if (bootstrapComplete.current && newSession) {
+            setSession(newSession);
+            setUser(newSession.user);
           }
           return;
         }
         
-        // For all other events, update state synchronously
         switch (event) {
           case 'SIGNED_IN':
             if (newSession) {
               setSession(newSession);
               setUser(newSession.user);
-              // Fetch role in background
               if (!roleFetched.current) {
                 fetchRole(newSession.user.id);
               }
@@ -315,7 +244,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             break;
             
           case 'SIGNED_OUT':
-            // Only clear if not already cleared by our signOut function
             if (!signOutInProgress.current) {
               setSession(null);
               setUser(null);
@@ -351,14 +279,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const expiresAt = session.expires_at;
         if (expiresAt) {
           const expiresIn = expiresAt * 1000 - now;
-          // Refresh if expired, expiring within 5 minutes, OR user was away for 30+ minutes
           if (expiresIn < 5 * 60 * 1000 || timeSinceLastVisible > 30 * 60 * 1000) {
-            console.log('[Auth] Tab visible, refreshing session (expiresIn:', Math.round(expiresIn / 1000), 's, away:', Math.round(timeSinceLastVisible / 1000), 's)');
             refreshSession();
           }
         } else if (timeSinceLastVisible > 30 * 60 * 1000) {
-          // No expiry info but user was away for 30+ min, refresh to be safe
-          console.log('[Auth] Tab visible after long absence, refreshing session');
           refreshSession();
         }
       } else if (document.visibilityState === 'hidden') {

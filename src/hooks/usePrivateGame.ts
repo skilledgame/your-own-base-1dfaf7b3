@@ -78,7 +78,6 @@ export function usePrivateGame({
           .maybeSingle();
 
         if (error || !game) {
-          console.error('[usePrivateGame] Error loading game:', error);
           // Only show for admin users
           if (isAdmin) {
             toast.error('Failed to load game');
@@ -103,7 +102,6 @@ export function usePrivateGame({
         });
         setLoading(false);
       } catch (error) {
-        console.error('[usePrivateGame] Error:', error);
         setLoading(false);
       }
     };
@@ -115,7 +113,6 @@ export function usePrivateGame({
   useEffect(() => {
     if (!gameId) return;
 
-    console.log('[usePrivateGame] Setting up Realtime subscription for game:', gameId);
     
     const channel = supabase
       .channel(`private-game-${gameId}`)
@@ -129,7 +126,6 @@ export function usePrivateGame({
         },
         (payload) => {
           const updated = payload.new as any;
-          console.log('[usePrivateGame] Game updated via Realtime:', updated);
           
           setGameState(prev => {
             if (!prev) return prev;
@@ -170,14 +166,12 @@ export function usePrivateGame({
         }
       )
       .subscribe((status) => {
-        console.log('[usePrivateGame] Subscription status:', status);
       });
 
     channelRef.current = channel;
 
     return () => {
       if (channelRef.current) {
-        console.log('[usePrivateGame] Cleaning up Realtime subscription');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
@@ -196,7 +190,6 @@ export function usePrivateGame({
         .maybeSingle();
 
       if (gameError || !game) {
-        console.error('[usePrivateGame] Error loading game for timeout:', gameError);
         return;
       }
 
@@ -207,7 +200,6 @@ export function usePrivateGame({
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        console.error('[usePrivateGame] No auth token for timeout');
         return;
       }
 
@@ -224,14 +216,12 @@ export function usePrivateGame({
       });
 
       if (error || !data?.success) {
-        console.error('[usePrivateGame] Error ending game on timeout:', error || data?.error);
         return;
       }
 
       const creditsChange = data.balances ? (data.balances.new_balance - data.balances.old_balance) : 0;
       onGameEndRef.current?.(winnerId, 'timeout', winnerColor, creditsChange);
     } catch (error) {
-      console.error('[usePrivateGame] Exception handling timeout:', error);
     }
   }, [gameId]);
 
@@ -319,7 +309,6 @@ export function usePrivateGame({
   // Send move via Edge Function
   const sendMove = useCallback(async (from: string, to: string, promotion?: string): Promise<boolean> => {
     if (!gameState || !gameState.isMyTurn || gameState.status !== 'active') {
-      console.warn('[usePrivateGame] Cannot send move - not your turn or game not active');
       return false;
     }
 
@@ -329,7 +318,6 @@ export function usePrivateGame({
       const move = chess.move({ from, to, promotion: promotion || 'q' });
       
       if (!move) {
-        console.warn('[usePrivateGame] Invalid move:', from, to);
         return false;
       }
 
@@ -344,7 +332,6 @@ export function usePrivateGame({
       // Get auth token for Edge Function
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        console.error('[usePrivateGame] No auth token available');
         // Only show for admin users
         if (isAdmin) {
           toast.error('Please sign in again');
@@ -353,7 +340,6 @@ export function usePrivateGame({
       }
 
       // Send move via Edge Function
-      console.log('[usePrivateGame] Sending move:', { gameId, from, to, promotion: promotion || 'q', whiteTime: newWhiteTime, blackTime: newBlackTime });
       let data, error;
       try {
         const response = await supabase.functions.invoke('make-move', {
@@ -371,15 +357,8 @@ export function usePrivateGame({
         });
         data = response.data;
         error = response.error;
-        console.log('[usePrivateGame] Move response:', { 
-          hasData: !!data, 
-          hasError: !!error, 
-          success: data?.success, 
-          error: error?.message || data?.error
-        });
       } catch (networkError) {
         // Network error (function not reachable, CORS, etc.)
-        console.error('[usePrivateGame] Network error calling Edge Function:', networkError);
         const networkErrorMessage = networkError instanceof Error 
           ? networkError.message 
           : 'Network error - please check your connection';
@@ -392,7 +371,6 @@ export function usePrivateGame({
 
       // Check for error in response.error or data.error
       if (error) {
-        console.error('[usePrivateGame] Edge Function error:', error);
         // Check if it's a network/connection error
         if (error.message?.includes('Failed to send') || error.message?.includes('fetch')) {
           // Only show connection alerts for admin users
@@ -410,7 +388,6 @@ export function usePrivateGame({
       }
 
       if (!data) {
-        console.error('[usePrivateGame] No data in response');
         // Only show for admin users
         if (isAdmin) {
           toast.error('Failed to make move - no response from server');
@@ -420,7 +397,6 @@ export function usePrivateGame({
 
       if (!data.success) {
         const errorMessage = data.error || 'Failed to make move';
-        console.error('[usePrivateGame] Move failed:', errorMessage, data);
         // Only show for admin users
         if (isAdmin) {
           toast.error(errorMessage);
@@ -429,10 +405,8 @@ export function usePrivateGame({
       }
 
       // Move will be updated via Realtime subscription
-      console.log('[usePrivateGame] Move sent successfully');
       return true;
     } catch (error) {
-      console.error('[usePrivateGame] Exception sending move:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to make move';
       // Only show for admin users
       if (isAdmin) {
@@ -445,7 +419,6 @@ export function usePrivateGame({
   // Resign game
   const resign = useCallback(async () => {
     if (!gameState) {
-      console.warn('[usePrivateGame] Cannot resign - no game state');
       return;
     }
 
@@ -458,7 +431,6 @@ export function usePrivateGame({
         .maybeSingle();
 
       if (gameError || !game) {
-        console.error('[usePrivateGame] Error loading game for resign:', gameError);
         // Only show for admin users
         if (isAdmin) {
           toast.error('Failed to load game');
@@ -472,7 +444,6 @@ export function usePrivateGame({
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        console.error('[usePrivateGame] No auth token for resign');
         // Only show for admin users
         if (isAdmin) {
           toast.error('Please sign in again');
@@ -493,7 +464,6 @@ export function usePrivateGame({
       });
 
       if (error) {
-        console.error('[usePrivateGame] Error resigning:', error);
         // Only show for admin users
         if (isAdmin) {
           toast.error(error.message || 'Failed to resign');
@@ -502,7 +472,6 @@ export function usePrivateGame({
       }
 
       if (!data?.success) {
-        console.error('[usePrivateGame] Resign failed:', data);
         // Only show for admin users
         if (isAdmin) {
           toast.error(data?.error || 'Failed to resign');
@@ -517,7 +486,6 @@ export function usePrivateGame({
       // Call onGameEnd with proper winner info
       onGameEndRef.current?.(opponentPlayerId, 'resignation', winnerColor, creditsChange);
     } catch (error) {
-      console.error('[usePrivateGame] Exception resigning:', error);
       // Only show for admin users
       if (isAdmin) {
         toast.error('Failed to resign');
