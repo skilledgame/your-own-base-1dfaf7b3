@@ -319,6 +319,34 @@ serve(async (req) => {
       }
     }
 
+    // Also mark any matching preorder as completed (for waitlist preorders)
+    // This enables the auto-credit trigger when the user signs up on the real site
+    if (newStatus === 'confirmed' && order_id) {
+      console.log('[payment-webhook] Checking for matching preorder with order_id:', order_id);
+      const { data: preorder, error: preorderFindError } = await supabaseAdmin
+        .from('preorders')
+        .select('id, status')
+        .eq('order_id', order_id)
+        .maybeSingle();
+
+      if (preorderFindError) {
+        console.error('[payment-webhook] Error finding preorder:', preorderFindError);
+      } else if (preorder && preorder.status === 'pending') {
+        const { error: preorderUpdateError } = await supabaseAdmin
+          .from('preorders')
+          .update({ status: 'completed' })
+          .eq('id', preorder.id);
+
+        if (preorderUpdateError) {
+          console.error('[payment-webhook] Failed to update preorder status:', preorderUpdateError);
+        } else {
+          console.log('[payment-webhook] Preorder marked as completed:', preorder.id);
+        }
+      } else if (!preorder) {
+        console.log('[payment-webhook] No preorder found for this order_id (normal deposit)');
+      }
+    }
+
     console.log('[payment-webhook] Webhook processing complete');
 
     return new Response(

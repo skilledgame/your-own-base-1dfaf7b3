@@ -195,11 +195,18 @@ export default function Admin() {
     email: string;
     source: string;
     verified: boolean;
+    notified: boolean;
     created_at: string;
   }
   const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistSearch, setWaitlistSearch] = useState('');
+  // Waitlist email state
+  const [showEmailCompose, setShowEmailCompose] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [emailAudience, setEmailAudience] = useState<'verified' | 'un-notified'>('verified');
+  const [emailSending, setEmailSending] = useState(false);
   // Withdrawals state
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
@@ -331,6 +338,42 @@ export default function Admin() {
     a.download = `waitlist-export-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSendWaitlistEmail = async () => {
+    if (!emailSubject.trim() || !emailBody.trim()) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Subject and body are required' });
+      return;
+    }
+    setEmailSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-waitlist-email', {
+        body: {
+          subject: emailSubject.trim(),
+          html_body: emailBody.trim(),
+          send_to: emailAudience,
+        },
+      });
+      if (error) {
+        throw error;
+      }
+      if (data?.sent > 0) {
+        toast({ title: 'Emails Sent', description: `Successfully sent to ${data.sent} recipients${data.failed > 0 ? ` (${data.failed} failed)` : ''}` });
+        setShowEmailCompose(false);
+        setEmailSubject('');
+        setEmailBody('');
+        fetchWaitlist(); // Refresh to show updated notified status
+      } else if (data?.error) {
+        toast({ variant: 'destructive', title: 'Error', description: data.error });
+      } else {
+        toast({ title: 'No Recipients', description: 'No matching recipients found' });
+      }
+    } catch (error: any) {
+      console.error('Error sending waitlist email:', error);
+      toast({ variant: 'destructive', title: 'Send Failed', description: error.message || 'Failed to send emails' });
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   const fetchUsers = async () => {
@@ -1760,6 +1803,14 @@ export default function Admin() {
                 </div>
                 <div className="flex gap-2">
                   <Button
+                    onClick={() => setShowEmailCompose(true)}
+                    className="bg-violet-600 hover:bg-violet-500 text-white"
+                    disabled={waitlistEntries.filter(e => e.verified).length === 0}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Send Email
+                  </Button>
+                  <Button
                     onClick={handleExportWaitlistCSV}
                     variant="outline"
                     className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
@@ -1778,6 +1829,107 @@ export default function Admin() {
                   </Button>
                 </div>
               </div>
+
+              {/* Email Compose Dialog */}
+              <Dialog open={showEmailCompose} onOpenChange={setShowEmailCompose}>
+                <DialogContent className="bg-[#0a0f1a] border-purple-500/30 text-white max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-violet-400" />
+                      Send Email to Waitlist
+                    </DialogTitle>
+                    <DialogDescription className="text-purple-200/60">
+                      Compose and send an email to your waitlist subscribers
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4 py-2">
+                    {/* Audience selector */}
+                    <div>
+                      <label className="text-sm text-purple-200/70 mb-1.5 block">Audience</label>
+                      <Select value={emailAudience} onValueChange={(v) => setEmailAudience(v as 'verified' | 'un-notified')}>
+                        <SelectTrigger className="bg-purple-950/30 border-purple-500/30 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#0a0f1a] border-purple-500/30">
+                          <SelectItem value="verified" className="text-white hover:bg-purple-500/10">
+                            All verified ({waitlistEntries.filter(e => e.verified).length})
+                          </SelectItem>
+                          <SelectItem value="un-notified" className="text-white hover:bg-purple-500/10">
+                            Not yet notified ({waitlistEntries.filter(e => e.verified && !e.notified).length})
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Subject */}
+                    <div>
+                      <label className="text-sm text-purple-200/70 mb-1.5 block">Subject</label>
+                      <Input
+                        placeholder="e.g. Skilled is launching next week! 🚀"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        className="bg-purple-950/30 border-purple-500/20 text-white placeholder:text-purple-200/30"
+                        disabled={emailSending}
+                      />
+                    </div>
+
+                    {/* Body (HTML) */}
+                    <div>
+                      <label className="text-sm text-purple-200/70 mb-1.5 block">Body (HTML supported)</label>
+                      <Textarea
+                        placeholder={"<h1>Big news!</h1>\n<p>Skilled is launching on March 1st. Your waitlist spot is secured.</p>\n<p>Get ready to play chess for real money.</p>"}
+                        value={emailBody}
+                        onChange={(e) => setEmailBody(e.target.value)}
+                        className="bg-purple-950/30 border-purple-500/20 text-white placeholder:text-purple-200/30 min-h-[200px] font-mono text-sm"
+                        disabled={emailSending}
+                      />
+                    </div>
+
+                    {/* Preview */}
+                    {emailBody.trim() && (
+                      <div>
+                        <label className="text-sm text-purple-200/70 mb-1.5 block">Preview</label>
+                        <div
+                          className="bg-white rounded-lg p-4 text-black text-sm max-h-[200px] overflow-y-auto"
+                          dangerouslySetInnerHTML={{ __html: emailBody }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter className="gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowEmailCompose(false)}
+                      className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                      disabled={emailSending}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSendWaitlistEmail}
+                      className="bg-violet-600 hover:bg-violet-500 text-white"
+                      disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
+                    >
+                      {emailSending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4 mr-2" />
+                          Send to {emailAudience === 'verified'
+                            ? waitlistEntries.filter(e => e.verified).length
+                            : waitlistEntries.filter(e => e.verified && !e.notified).length
+                          } people
+                        </>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1844,6 +1996,7 @@ export default function Admin() {
                       <TableRow className="border-purple-500/20 hover:bg-transparent">
                         <TableHead className="text-purple-200/60">Email</TableHead>
                         <TableHead className="text-purple-200/60">Status</TableHead>
+                        <TableHead className="text-purple-200/60">Emailed</TableHead>
                         <TableHead className="text-purple-200/60">Source</TableHead>
                         <TableHead className="text-purple-200/60">Date</TableHead>
                       </TableRow>
@@ -1869,6 +2022,13 @@ export default function Admin() {
                               {entry.verified ? 'Verified' : 'Pending'}
                             </span>
                           </TableCell>
+                          <TableCell>
+                            {entry.notified ? (
+                              <Check className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <span className="text-purple-200/30">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-purple-200/60">{entry.source}</TableCell>
                           <TableCell className="text-purple-200/60">
                             {new Date(entry.created_at).toLocaleDateString('en-US', {
@@ -1880,7 +2040,7 @@ export default function Admin() {
                       ))}
                       {waitlistEntries.filter(e => !waitlistSearch || e.email.toLowerCase().includes(waitlistSearch.toLowerCase())).length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-10 text-purple-200/50">
+                          <TableCell colSpan={5} className="text-center py-10 text-purple-200/50">
                             {waitlistSearch ? 'No matching emails' : 'No waitlist signups yet'}
                           </TableCell>
                         </TableRow>
