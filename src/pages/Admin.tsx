@@ -347,26 +347,48 @@ export default function Admin() {
     }
     setEmailSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-waitlist-email', {
+      const { data: rawData, error } = await supabase.functions.invoke('send-waitlist-email', {
         body: {
           subject: emailSubject.trim(),
           html_body: emailBody.trim(),
           send_to: emailAudience,
         },
       });
+
+      console.log('[Admin] send-waitlist-email response:', { rawData, error, typeOfData: typeof rawData });
+
       if (error) {
-        throw error;
+        // Try to extract message from FunctionsHttpError
+        let msg = error.message || 'Failed to send emails';
+        try {
+          if (error.context && typeof error.context.json === 'function') {
+            const errBody = await error.context.json();
+            msg = errBody?.error || errBody?.message || msg;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
       }
+
+      // Parse data - handle both pre-parsed JSON and string responses
+      let data = rawData;
+      if (typeof rawData === 'string') {
+        try { data = JSON.parse(rawData); } catch { data = {}; }
+      }
+
+      console.log('[Admin] Parsed data:', data);
+
       if (data?.sent > 0) {
         toast({ title: 'Emails Sent', description: `Successfully sent to ${data.sent} recipients${data.failed > 0 ? ` (${data.failed} failed)` : ''}` });
         setShowEmailCompose(false);
         setEmailSubject('');
         setEmailBody('');
-        fetchWaitlist(); // Refresh to show updated notified status
+        fetchWaitlist();
       } else if (data?.error) {
         toast({ variant: 'destructive', title: 'Error', description: data.error });
+      } else if (data?.errors?.length > 0) {
+        toast({ variant: 'destructive', title: 'Send Failed', description: data.errors[0] });
       } else {
-        toast({ title: 'No Recipients', description: 'No matching recipients found' });
+        toast({ title: 'No Recipients', description: `No matching recipients found (debug: ${JSON.stringify(data)})` });
       }
     } catch (error: any) {
       console.error('Error sending waitlist email:', error);
