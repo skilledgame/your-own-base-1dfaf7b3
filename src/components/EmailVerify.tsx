@@ -22,7 +22,7 @@ const EMPTY_CODE = Array(CODE_LENGTH).fill('');
 interface EmailVerifyProps {
   email: string;
   password: string;
-  onVerified: () => void;
+  onVerified: (userId: string) => void;
   onBack?: () => void;
 }
 
@@ -110,8 +110,8 @@ export function EmailVerify({ email, password, onVerified, onBack }: EmailVerify
       }
 
       if (data?.session) {
-        // Email verified, session created — proceed
-        onVerified();
+        // Email verified, session created — pass userId directly to avoid race conditions
+        onVerified(data.session.user.id);
       } else {
         setError('Verification succeeded but no session was created. Please try signing in.');
       }

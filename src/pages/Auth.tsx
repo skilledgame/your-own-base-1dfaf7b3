@@ -32,6 +32,15 @@ type AuthStep =
   | 'email-2fa-verify' // Email-based 2FA challenge on login
   | 'complete';
 
+// Steps that indicate the user is actively in a multi-step signup flow.
+// checkAuth should NOT override these by navigating away.
+const ACTIVE_FLOW_STEPS: AuthStep[] = [
+  'email-verify',
+  'choose-username',
+  'mfa-choice',
+  'mfa-enroll',
+];
+
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<AuthStep>('email');
@@ -45,9 +54,16 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if already fully authenticated
+  // Track step in a ref so the checkAuth effect can read the latest value
+  const stepRef = useRef<AuthStep>(step);
+  useEffect(() => { stepRef.current = step; }, [step]);
+
+  // Check if already fully authenticated (runs once on mount)
   useEffect(() => {
     const checkAuth = async () => {
+      // If user is already in a multi-step signup/enrollment flow, don't interfere
+      if (ACTIVE_FLOW_STEPS.includes(stepRef.current)) return;
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
@@ -256,12 +272,9 @@ export default function Auth() {
   // ── Step handlers ──
 
   // Email verification success (signup) → choose username
-  const handleEmailVerified = async () => {
-    // Get userId from the now-active session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      setUserId(session.user.id);
-    }
+  // userId is passed directly from verifyOtp response to avoid getSession() race conditions
+  const handleEmailVerified = (verifiedUserId: string) => {
+    setUserId(verifiedUserId);
     toast({
       title: 'Email verified!',
       description: 'Now choose your username.',
