@@ -29,6 +29,7 @@ import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
 import { useChessSound } from '@/hooks/useChessSound';
 import { type RankInfo } from '@/lib/rankSystem';
+import { RankBadge } from '@/components/RankBadge';
 import { useChessStore } from '@/stores/chessStore';
 import { wsClient } from '@/lib/wsClient';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
@@ -400,22 +401,7 @@ export const WSMultiplayerGameView = ({
     ? (timerSnapshot.clockRunning && timerSnapshot.turn !== myColor)
     : !isMyTurn;
 
-  // Get rank display names
-  const playerRankDisplay = playerRank?.displayName || 'Unranked';
-  const opponentRankDisplay = opponentRank?.displayName || 'Unranked';
-  
-  // Get rank colors for styling
-  const getRankColor = (rank: RankInfo | undefined) => {
-    if (!rank) return 'text-muted-foreground';
-    switch (rank.tierName) {
-      case 'diamond': return 'text-cyan-400';
-      case 'platinum': return 'text-slate-300';
-      case 'gold': return 'text-yellow-400';
-      case 'silver': return 'text-gray-300';
-      case 'bronze': return 'text-orange-500';
-      default: return 'text-muted-foreground';
-    }
-  };
+  // Rank display is handled by the RankBadge component
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden pb-16 md:pb-0">
@@ -559,9 +545,7 @@ export const WSMultiplayerGameView = ({
                           </span>
                         );
                       })()}
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
-                        {opponentRankDisplay}
-                      </span>
+                      <RankBadge rank={opponentRank} size="xs" />
                       {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
                       {opponentStreak > 0 && (
                         <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
@@ -614,9 +598,7 @@ export const WSMultiplayerGameView = ({
                           </span>
                         );
                       })()}
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
-                        {playerRankDisplay}
-                      </span>
+                      <RankBadge rank={playerRank} size="xs" />
                       {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
                       {playerStreak > 0 && (
                         <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">

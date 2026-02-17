@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useProfile } from '@/hooks/useProfile';
-import { getRankFromDynamicConfig, formatSkilledCoins } from '@/lib/rankSystem';
+import { getRankFromDynamicConfig, formatSkilledCoins, getRankImage } from '@/lib/rankSystem';
 import { useRankConfig } from '@/hooks/useRankConfig';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
@@ -177,12 +177,21 @@ export default function VIP() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center gap-4">
-                <div className={cn(
-                  "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg",
-                  getRankColor(rankInfo.tierName)
-                )}>
-                  <Crown className="w-8 h-8 text-white" />
-                </div>
+                {getRankImage(rankInfo.tierName) ? (
+                  <img
+                    src={getRankImage(rankInfo.tierName)!}
+                    alt={`${rankInfo.displayName} rank`}
+                    className="w-16 h-16 object-contain drop-shadow-lg"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className={cn(
+                    "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg",
+                    getRankColor(rankInfo.tierName)
+                  )}>
+                    <Crown className="w-8 h-8 text-white" />
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">{displayName || 'Player'}</p>
                   <h2 className={cn(
@@ -394,12 +403,21 @@ export default function VIP() {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br",
-                        getRankColor(rank.tier)
-                      )}>
-                        <RankIcon className="w-6 h-6 text-white" />
-                      </div>
+                      {getRankImage(rank.tier) ? (
+                        <img
+                          src={getRankImage(rank.tier)!}
+                          alt={`${rank.name} rank`}
+                          className="w-12 h-12 object-contain drop-shadow-md"
+                          draggable={false}
+                        />
+                      ) : (
+                        <div className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br",
+                          getRankColor(rank.tier)
+                        )}>
+                          <RankIcon className="w-6 h-6 text-white" />
+                        </div>
+                      )}
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">

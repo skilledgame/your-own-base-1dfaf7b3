@@ -15,6 +15,7 @@ import { Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PIECE_SYMBOLS } from '@/lib/chessConstants';
 import type { RankInfo } from '@/lib/rankSystem';
+import { RankBadge } from '@/components/RankBadge';
 
 interface VersusScreenProps {
   playerName: string;
@@ -24,19 +25,6 @@ interface VersusScreenProps {
   playerRank?: RankInfo;
   opponentRank?: RankInfo;
   onComplete: () => void;
-}
-
-// Rank tier → tailwind color class
-function rankColor(rank?: RankInfo): string {
-  if (!rank) return 'text-slate-400';
-  switch (rank.tierName) {
-    case 'diamond':  return 'text-cyan-400';
-    case 'platinum': return 'text-slate-300';
-    case 'gold':     return 'text-yellow-400';
-    case 'silver':   return 'text-gray-300';
-    case 'bronze':   return 'text-orange-500';
-    default:         return 'text-slate-400';
-  }
 }
 
 export function VersusScreen({
@@ -143,9 +131,7 @@ export function VersusScreen({
             {isWhite ? 'White' : 'Black'}
           </span>
           {playerRank && (
-            <span className={cn('text-xs sm:text-sm font-semibold', rankColor(playerRank))}>
-              {playerRank.displayName}
-            </span>
+            <RankBadge rank={playerRank} size="md" showLabel />
           )}
         </div>
         <span className="text-[10px] text-white/30 uppercase tracking-widest mt-1">You</span>
@@ -219,9 +205,7 @@ export function VersusScreen({
             {isWhite ? 'Black' : 'White'}
           </span>
           {opponentRank && (
-            <span className={cn('text-xs sm:text-sm font-semibold', rankColor(opponentRank))}>
-              {opponentRank.displayName}
-            </span>
+            <RankBadge rank={opponentRank} size="md" showLabel />
           )}
         </div>
       </div>
