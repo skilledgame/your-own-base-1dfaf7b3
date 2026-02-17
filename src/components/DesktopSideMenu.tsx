@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, X, Home, Gamepad2, HelpCircle, 
   FileText, Shield, Mail, Crown, Trophy, Coins,
-  LogOut, ChevronRight, Moon, Sun, User, ChevronLeft, BarChart3, Settings
+  LogOut, ChevronRight, Moon, Sun, User, ChevronLeft, BarChart3, Settings,
+  Users, Swords
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -23,6 +24,8 @@ const menuItems = [
   { icon: Home, label: 'Home', path: '/' },
   { icon: Gamepad2, label: 'Games', path: '/#games' },
   { icon: Crown, label: 'Play Chess', path: '/chess' },
+  { icon: Users, label: 'Friends', path: '/friends' },
+  { icon: Swords, label: 'Clan', path: '/clan' },
   { icon: Trophy, label: 'How It Works', path: '/how-it-works' },
   { icon: Coins, label: 'Deposit', path: '/deposit' },
 ];

@@ -35,11 +35,16 @@ import LiveGame from "./pages/LiveGame";
 import PrivateGameLobby from "./pages/PrivateGameLobby";
 import Affiliate from "./pages/Affiliate";
 import VIP from "./pages/VIP";
+import Friends from "./pages/Friends";
+import Clan from "./pages/Clan";
+import ClanLeaderboard from "./pages/ClanLeaderboard";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUserDataStore } from "./stores/userDataStore";
+import { useFriendStore } from "./stores/friendStore";
+import { usePresenceStore } from "./stores/presenceStore";
 import { supabase } from "@/integrations/supabase/client";
 
 // Create a stable QueryClient instance outside the component
@@ -147,9 +152,14 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       initializeUserData(user.id);
+      // Initialize friend store and presence tracking
+      useFriendStore.getState().initialize(user.id);
+      usePresenceStore.getState().initialize(user.id);
     } else if (isAuthReady && !isAuthenticated) {
       // Only reset if auth is ready and user is definitely logged out
       resetUserData();
+      useFriendStore.getState().reset();
+      usePresenceStore.getState().reset();
     }
   }, [isAuthenticated, isAuthReady, user?.id, initializeUserData, resetUserData]);
   
@@ -209,6 +219,9 @@ const App = () => (
                       } />
                       <Route path="/affiliate" element={<Affiliate />} />
                       <Route path="/vip" element={<VIP />} />
+                      <Route path="/friends" element={<Friends />} />
+                      <Route path="/clan" element={<Clan />} />
+                      <Route path="/clan/leaderboard" element={<ClanLeaderboard />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
