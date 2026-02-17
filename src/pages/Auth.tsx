@@ -209,7 +209,7 @@ export default function Auth() {
           // Email confirmation required — show OTP code entry screen
           toast({
             title: 'Check your email!',
-            description: 'We sent a 6-digit verification code to your email.',
+            description: 'We sent a verification code to your email.',
           });
           setStep('email-verify');
         }

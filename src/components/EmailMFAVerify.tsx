@@ -18,6 +18,9 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Mail, ArrowLeft, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const CODE_LENGTH = 8;
+const EMPTY_CODE = Array(CODE_LENGTH).fill('');
+
 interface EmailMFAVerifyProps {
   email: string;
   onVerified: () => void;
@@ -25,7 +28,7 @@ interface EmailMFAVerifyProps {
 }
 
 export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProps) {
-  const [verifyCode, setVerifyCode] = useState(['', '', '', '', '', '']);
+  const [verifyCode, setVerifyCode] = useState<string[]>([...EMPTY_CODE]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(true);
@@ -83,24 +86,24 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
     setVerifyCode(newCode);
     setError('');
 
-    if (digit && index < 5) {
+    if (digit && index < CODE_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   }, [verifyCode]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, CODE_LENGTH);
     if (pasted.length > 0) {
-      const newCode = [...verifyCode];
-      for (let i = 0; i < 6; i++) {
+      const newCode = [...EMPTY_CODE];
+      for (let i = 0; i < CODE_LENGTH; i++) {
         newCode[i] = pasted[i] || '';
       }
       setVerifyCode(newCode);
-      const lastIdx = Math.min(pasted.length - 1, 5);
+      const lastIdx = Math.min(pasted.length - 1, CODE_LENGTH - 1);
       inputRefs.current[lastIdx]?.focus();
     }
-  }, [verifyCode]);
+  }, []);
 
   const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent) => {
     if (e.key === 'Backspace' && !verifyCode[index] && index > 0) {
@@ -110,8 +113,8 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
 
   const handleVerify = async () => {
     const code = verifyCode.join('');
-    if (code.length !== 6) {
-      setError('Please enter all 6 digits');
+    if (code.length !== CODE_LENGTH) {
+      setError(`Please enter all ${CODE_LENGTH} digits`);
       return;
     }
 
@@ -131,7 +134,7 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
         } else {
           setError(verifyError.message);
         }
-        setVerifyCode(['', '', '', '', '', '']);
+        setVerifyCode([...EMPTY_CODE]);
         inputRefs.current[0]?.focus();
         return;
       }
@@ -150,10 +153,10 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
     }
   };
 
-  // Auto-submit when all 6 digits entered
+  // Auto-submit when all digits entered
   useEffect(() => {
     const code = verifyCode.join('');
-    if (code.length === 6 && !loading && !sending) {
+    if (code.length === CODE_LENGTH && !loading && !sending) {
       handleVerify();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,7 +174,7 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
         setError('Failed to resend code. ' + otpError.message);
       } else {
         setResendCooldown(60);
-        setVerifyCode(['', '', '', '', '', '']);
+        setVerifyCode([...EMPTY_CODE]);
         inputRefs.current[0]?.focus();
       }
     } catch {
@@ -206,14 +209,14 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
         </div>
         <h2 className="text-xl font-bold text-foreground">Check Your Email</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          We sent a 6-digit verification code to
+          We sent a verification code to
         </p>
         <p className="text-sm font-medium text-foreground mt-0.5">{maskedEmail}</p>
       </div>
 
       {/* Code input */}
       <div className="space-y-3">
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center gap-1.5">
           {verifyCode.map((digit, index) => (
             <Input
               key={index}
@@ -226,7 +229,7 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={index === 0 ? handlePaste : undefined}
               className={cn(
-                "w-11 h-12 text-center text-lg font-mono font-bold",
+                "w-10 h-12 text-center text-lg font-mono font-bold px-0",
                 error && "border-destructive"
               )}
               disabled={loading}
@@ -243,7 +246,7 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
         <Button
           onClick={handleVerify}
           className="w-full"
-          disabled={loading || verifyCode.join('').length !== 6}
+          disabled={loading || verifyCode.join('').length !== CODE_LENGTH}
         >
           {loading ? (
             <>
