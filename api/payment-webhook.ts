@@ -190,56 +190,36 @@ export default async function handler(
       return res.status(200).json({ message: "Already processed" });
     }
 
-    // ---- Credit user skilled_coins ----
+    // ---- Credit user skilled_coins (atomic, race-condition-proof) ----
     const coins = Math.floor(transaction.amount_usd * 100); // 1 USD = 100 coins
 
     console.log(
       `[webhook] Crediting ${coins} coins to user ${transaction.user_id}`
     );
 
-    // Fetch current balance from profiles
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("skilled_coins")
-      .eq("user_id", transaction.user_id)
+    const { data: creditResult, error: creditError } = await supabase
+      .rpc("atomic_credit_balance", {
+        p_user_id: transaction.user_id,
+        p_amount: coins,
+      })
       .single();
 
-    if (profileError || !profile) {
+    if (creditError || !creditResult?.success) {
       console.error(
-        "[webhook] Profile not found:",
+        "[webhook] Atomic credit failed:",
         transaction.user_id,
-        profileError?.message
+        creditError?.message ?? "Profile not found"
       );
       // Revert transaction status so it can be retried
       await supabase
         .from("crypto_transactions")
         .update({ status: "pending" })
         .eq("id", transaction.id);
-      return res.status(200).json({ error: "Profile not found" });
-    }
-
-    const newBalance = (profile.skilled_coins ?? 0) + coins;
-
-    const { error: balanceError } = await supabase
-      .from("profiles")
-      .update({ skilled_coins: newBalance })
-      .eq("user_id", transaction.user_id);
-
-    if (balanceError) {
-      console.error(
-        "[webhook] Balance update failed:",
-        balanceError.message
-      );
-      // Revert transaction status so it can be retried
-      await supabase
-        .from("crypto_transactions")
-        .update({ status: "pending" })
-        .eq("id", transaction.id);
-      return res.status(500).json({ error: "Balance update failed" });
+      return res.status(200).json({ error: "Balance update failed" });
     }
 
     console.log(
-      `[webhook] Success: user ${transaction.user_id} skilled_coins ${profile.skilled_coins ?? 0} → ${newBalance}`
+      `[webhook] Success: user ${transaction.user_id} skilled_coins ${creditResult.old_balance} → ${creditResult.new_balance}`
     );
 
     return res.status(200).json({ message: "Payment processed" });

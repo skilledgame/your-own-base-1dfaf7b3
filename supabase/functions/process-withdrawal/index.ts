@@ -417,42 +417,23 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Refund coins to user
-      const { data: profile, error: profileError } = await adminClient
-        .from('profiles')
-        .select('skilled_coins')
-        .eq('user_id', withdrawal.user_id)
+      // Refund coins to user (atomic, race-condition-proof)
+      const { data: refundResult, error: refundError } = await adminClient
+        .rpc('atomic_credit_balance', {
+          p_user_id: withdrawal.user_id,
+          p_amount: withdrawal.amount_sc,
+        })
         .single();
 
-      if (profileError || !profile) {
-        console.error('[process-withdrawal] Profile not found for refund:', profileError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to find user profile for refund' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const refundedBalance = (profile.skilled_coins ?? 0) + withdrawal.amount_sc;
-
-      // Refund profiles
-      const { error: refundProfileError } = await adminClient
-        .from('profiles')
-        .update({ skilled_coins: refundedBalance, updated_at: new Date().toISOString() })
-        .eq('user_id', withdrawal.user_id);
-
-      if (refundProfileError) {
-        console.error('[process-withdrawal] Refund profile error:', refundProfileError);
+      if (refundError || !refundResult?.success) {
+        console.error('[process-withdrawal] Atomic refund failed:', refundError?.message ?? 'Profile not found');
         return new Response(
           JSON.stringify({ error: 'Failed to refund balance' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Sync players table
-      await adminClient
-        .from('players')
-        .update({ credits: refundedBalance })
-        .eq('user_id', withdrawal.user_id);
+      console.log(`[process-withdrawal] Refunded ${withdrawal.amount_sc} SC: ${refundResult.old_balance} → ${refundResult.new_balance}`);
 
       // Mark as rejected
       const { error: rejectError } = await adminClient

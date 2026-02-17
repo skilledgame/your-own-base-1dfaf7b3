@@ -123,54 +123,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ---- Fetch current balance and deduct ----
-    const { data: profile, error: profileError } = await adminClient
-      .from('profiles')
-      .select('skilled_coins')
-      .eq('user_id', userId)
+    // ---- Atomic balance deduction (race-condition-proof) ----
+    const { data: deductResult, error: deductError } = await adminClient
+      .rpc('atomic_deduct_balance', {
+        p_user_id: userId,
+        p_amount: amountSc,
+      })
       .single();
 
-    if (profileError || !profile) {
-      console.error('[request-withdrawal] Profile not found:', profileError);
+    if (deductError) {
+      console.error('[request-withdrawal] Atomic deduct failed:', deductError);
       return new Response(
-        JSON.stringify({ error: 'Profile not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Failed to process withdrawal' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if ((profile.skilled_coins ?? 0) < amountSc) {
+    if (!deductResult?.success) {
+      // Either profile not found or insufficient balance
+      const currentBalance = deductResult?.old_balance ?? 0;
+      if (currentBalance === 0 && deductResult?.new_balance === 0) {
+        return new Response(
+          JSON.stringify({ error: 'Profile not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: 'Insufficient balance' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const newBalance = (profile.skilled_coins ?? 0) - amountSc;
-
-    // Deduct coins from profiles
-    const { error: deductProfileError } = await adminClient
-      .from('profiles')
-      .update({ skilled_coins: newBalance, updated_at: new Date().toISOString() })
-      .eq('user_id', userId);
-
-    if (deductProfileError) {
-      console.error('[request-withdrawal] Failed to deduct from profiles:', deductProfileError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to deduct balance' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Also deduct from players table to keep in sync
-    const { error: deductPlayerError } = await adminClient
-      .from('players')
-      .update({ credits: newBalance })
-      .eq('user_id', userId);
-
-    if (deductPlayerError) {
-      console.error('[request-withdrawal] Failed to sync players table:', deductPlayerError);
-      // Non-critical, continue
-    }
+    console.log(`[request-withdrawal] Deducted ${amountSc} SC from user ${userId}: ${deductResult.old_balance} → ${deductResult.new_balance}`);
 
     // ---- Create withdrawal record ----
     const { data: withdrawal, error: insertError } = await adminClient
@@ -188,15 +172,15 @@ Deno.serve(async (req) => {
 
     if (insertError || !withdrawal) {
       console.error('[request-withdrawal] Failed to create withdrawal:', insertError);
-      // CRITICAL: Refund the coins since we already deducted
-      await adminClient
-        .from('profiles')
-        .update({ skilled_coins: profile.skilled_coins, updated_at: new Date().toISOString() })
-        .eq('user_id', userId);
-      await adminClient
-        .from('players')
-        .update({ credits: profile.skilled_coins })
-        .eq('user_id', userId);
+      // CRITICAL: Refund the coins since we already deducted (atomic credit)
+      const { error: refundError } = await adminClient
+        .rpc('atomic_credit_balance', {
+          p_user_id: userId,
+          p_amount: amountSc,
+        });
+      if (refundError) {
+        console.error('[request-withdrawal] CRITICAL: Refund also failed!', refundError);
+      }
 
       return new Response(
         JSON.stringify({ error: 'Failed to create withdrawal request' }),
