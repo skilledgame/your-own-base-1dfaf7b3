@@ -418,8 +418,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
               total_wagered_sc: newData.total_wagered_sc ?? currentProfile.total_wagered_sc,
               display_name: newData.display_name ?? currentProfile.display_name,
               email: newData.email ?? currentProfile.email,
-              chess_elo: (newData as any).chess_elo ?? currentProfile.chess_elo,
-              daily_play_streak: (newData as any).daily_play_streak ?? currentProfile.daily_play_streak,
+              chess_elo: newData.chess_elo ?? currentProfile.chess_elo,
+              daily_play_streak: newData.daily_play_streak ?? currentProfile.daily_play_streak,
             };
             
             // Update cache
