@@ -21,7 +21,7 @@ export function useProfile() {
   const skilledCoins = profile?.skilled_coins ?? 0;
   const totalWageredSc = profile?.total_wagered_sc ?? 0;
   const displayName = profile?.display_name ?? null;
-  const chessElo = profile?.chess_elo ?? 1200;
+  const chessElo = profile?.chess_elo ?? 800;
   const dailyPlayStreak = profile?.daily_play_streak ?? 0;
   
   return {

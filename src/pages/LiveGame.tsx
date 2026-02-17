@@ -40,7 +40,7 @@ export default function LiveGame() {
   );
   const [playerBadges, setPlayerBadges] = useState<string[]>([]);
   const [opponentBadges, setOpponentBadges] = useState<string[]>([]);
-  const [opponentElo, setOpponentElo] = useState<number>(1200);
+  const [opponentElo, setOpponentElo] = useState<number>(800);
   const [opponentStreak, setOpponentStreak] = useState<number>(0);
   
   // Global state from Zustand store
@@ -372,7 +372,7 @@ export default function LiveGame() {
         if (opponentProfile) {
           const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
           setOpponentRank(opponentRankInfo);
-          setOpponentElo(opponentProfile.chess_elo ?? 1200);
+          setOpponentElo(opponentProfile.chess_elo ?? 800);
           setOpponentStreak(opponentProfile.daily_play_streak ?? 0);
           
           // Mark as successfully fetched — prevents re-runs for this game
