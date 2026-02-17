@@ -83,6 +83,7 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
   }, []);
 
   // MFA enforcement: redirect to /auth if user needs MFA verification or enrollment
+  // Skips MFA for OAuth (Google) users — they are already verified by their provider
   useEffect(() => {
     if (!isAuthReady || !isAuthenticated) {
       setMfaChecked(true);
@@ -92,6 +93,13 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
     // Don't check MFA if already on auth page or public pages
     const publicPaths = ['/auth', '/terms', '/privacy', '/how-it-works'];
     if (publicPaths.includes(location.pathname)) {
+      setMfaChecked(true);
+      return;
+    }
+
+    // Skip MFA for OAuth users (Google, etc.) — they don't need TOTP 2FA
+    const provider = user?.app_metadata?.provider;
+    if (provider && provider !== 'email') {
       setMfaChecked(true);
       return;
     }
@@ -123,7 +131,7 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
     };
 
     checkMFA();
-  }, [isAuthReady, isAuthenticated, location.pathname, navigate]);
+  }, [isAuthReady, isAuthenticated, user, location.pathname, navigate]);
   
   // Initialize centralized user data store when authenticated
   // This replaces separate balance and profile store initialization

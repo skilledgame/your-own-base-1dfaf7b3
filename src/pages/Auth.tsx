@@ -32,20 +32,32 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if already fully authenticated (aal2 or aal1 with no factors)
+  // Check if already fully authenticated
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      // Check MFA status
+      // OAuth users (Google, etc.) skip MFA entirely — send them home
+      const provider = session.user.app_metadata?.provider;
+      if (provider && provider !== 'email') {
+        navigate('/');
+        return;
+      }
+
+      // Check MFA status for email/password users
       const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (!aalData) return;
 
-      // If already at aal2, or no MFA factors enrolled (aal1/aal1), don't redirect
-      // The AppWithAuth guard will handle enforcement
       if (aalData.currentLevel === 'aal2') {
+        // Already fully verified with 2FA
         navigate('/');
+      } else if (aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
+        // Has MFA factor but needs to verify — show challenge
+        setStep('mfa-verify');
+      } else if (aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal1') {
+        // No MFA factor — show enrollment
+        setStep('mfa-enroll');
       }
     };
 
