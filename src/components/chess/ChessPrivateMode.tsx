@@ -17,6 +17,7 @@ import { LogoLink } from '@/components/LogoLink';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { UserDropdown } from '@/components/UserDropdown';
+import { FriendsButton } from '@/components/FriendsButton';
 import { BalanceDepositPill } from '@/components/BalanceDepositPill';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
@@ -35,8 +36,7 @@ import {
   UserPlus,
   Link2,
   Shield,
-  Search,
-  MessageCircle
+  Search
 } from 'lucide-react';
 
 interface ChessPrivateModeProps {
@@ -377,10 +377,10 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
                   <div className="hidden sm:flex items-center">
                     <UserDropdown />
                   </div>
-                  {/* Chat icon */}
-                  <Button variant="ghost" size="icon" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => window.voiceflow?.chat?.open()}>
-                    <MessageCircle className="w-5 h-5" />
-                  </Button>
+                  {/* Friends button */}
+                  <div className="hidden sm:flex">
+                    <FriendsButton />
+                  </div>
                   <div className="sm:hidden">
                     <button onClick={() => openWallet('deposit')}>
                       <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
