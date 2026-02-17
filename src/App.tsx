@@ -37,8 +37,10 @@ import Affiliate from "./pages/Affiliate";
 import VIP from "./pages/VIP";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useUserDataStore } from "./stores/userDataStore";
+import { supabase } from "@/integrations/supabase/client";
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -53,13 +55,16 @@ const queryClient = new QueryClient({
   },
 });
 
-// Wrapper that handles auth-ready gate and initializations
+// Wrapper that handles auth-ready gate, MFA enforcement, and initializations
 function AppWithAuth({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isAuthReady } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   // Use individual selectors to prevent infinite re-renders
   const initializeUserData = useUserDataStore(state => state.initialize);
   const resetUserData = useUserDataStore(state => state.reset);
   const { showLoading, hideLoading } = useUILoadingStore();
+  const [mfaChecked, setMfaChecked] = useState(false);
   
   // Run ensure-user after auth is ready
   useEnsureUser();
@@ -76,6 +81,49 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
       localStorage.setItem('theme', 'dark');
     }
   }, []);
+
+  // MFA enforcement: redirect to /auth if user needs MFA verification or enrollment
+  useEffect(() => {
+    if (!isAuthReady || !isAuthenticated) {
+      setMfaChecked(true);
+      return;
+    }
+
+    // Don't check MFA if already on auth page or public pages
+    const publicPaths = ['/auth', '/terms', '/privacy', '/how-it-works'];
+    if (publicPaths.includes(location.pathname)) {
+      setMfaChecked(true);
+      return;
+    }
+
+    const checkMFA = async () => {
+      try {
+        const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (error) {
+          setMfaChecked(true);
+          return;
+        }
+
+        // If user has MFA factors but hasn't verified yet (aal1 -> aal2 needed)
+        if (data.currentLevel === 'aal1' && data.nextLevel === 'aal2') {
+          navigate('/auth', { replace: true });
+          return;
+        }
+
+        // If user has NO MFA factors enrolled, redirect to auth for enrollment
+        if (data.currentLevel === 'aal1' && data.nextLevel === 'aal1') {
+          navigate('/auth', { replace: true });
+          return;
+        }
+      } catch {
+        // If MFA check fails, don't block the user
+      } finally {
+        setMfaChecked(true);
+      }
+    };
+
+    checkMFA();
+  }, [isAuthReady, isAuthenticated, location.pathname, navigate]);
   
   // Initialize centralized user data store when authenticated
   // This replaces separate balance and profile store initialization
@@ -98,7 +146,7 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
   }, [isAuthReady, showLoading, hideLoading]);
 
   // Don't render children until auth is ready — overlay handles the visual
-  if (!isAuthReady) {
+  if (!isAuthReady || !mfaChecked) {
     return null;
   }
   

@@ -171,21 +171,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
               if (!mounted) return;
               
-              if (refreshError) {
-                activeSession = null;
-              } else if (refreshData.session) {
+              if (!refreshError && refreshData.session) {
                 activeSession = refreshData.session;
               }
+              // If refresh fails, KEEP the existing session — don't null it.
+              // autoRefreshToken will retry, and the user stays "logged in"
+              // with the stale token until it succeeds.
             } catch {
-              // Don't clear session, let autoRefreshToken handle it
+              // Network error — keep existing session, don't log out
             }
           }
           
-          if (activeSession) {
-            setSession(activeSession);
-            setUser(activeSession.user);
-            fetchRole(activeSession.user.id);
-          }
+          // Always set the session if we had one — never discard it on refresh failure
+          setSession(activeSession);
+          setUser(activeSession.user);
+          fetchRole(activeSession.user.id);
         }
         
         setIsAuthReady(true);
@@ -266,7 +266,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchRole]);
 
-  // Tab visibility: refresh if session expired or near expiry
+  // Tab visibility: ALWAYS refresh when tab becomes visible again
+  // This is critical because browsers suspend JS timers in background tabs,
+  // so autoRefreshToken may not fire. We aggressively refresh on return.
   useEffect(() => {
     let lastVisible = Date.now();
     
@@ -276,13 +278,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const timeSinceLastVisible = now - lastVisible;
         lastVisible = now;
         
-        const expiresAt = session.expires_at;
-        if (expiresAt) {
-          const expiresIn = expiresAt * 1000 - now;
-          if (expiresIn < 5 * 60 * 1000 || timeSinceLastVisible > 30 * 60 * 1000) {
-            refreshSession();
-          }
-        } else if (timeSinceLastVisible > 30 * 60 * 1000) {
+        // Refresh if away for more than 30 seconds — very aggressive
+        // This prevents "logged out" state after any period of inactivity
+        if (timeSinceLastVisible > 30 * 1000) {
           refreshSession();
         }
       } else if (document.visibilityState === 'hidden') {
@@ -292,6 +290,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [session, refreshSession]);
+
+  // Periodic session refresh as safety net — every 10 minutes while tab is active
+  // This ensures the token never fully expires even during long active sessions
+  useEffect(() => {
+    if (!session || signOutInProgress.current) return;
+    
+    const interval = setInterval(() => {
+      if (!signOutInProgress.current && document.visibilityState === 'visible') {
+        refreshSession();
+      }
+    }, 10 * 60 * 1000); // 10 minutes
+    
+    return () => clearInterval(interval);
   }, [session, refreshSession]);
 
   const value: AuthContextType = {
