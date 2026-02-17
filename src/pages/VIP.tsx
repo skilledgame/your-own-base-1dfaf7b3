@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useProfile } from '@/hooks/useProfile';
 import { getRankFromDynamicConfig, formatSkilledCoins, getRankImage } from '@/lib/rankSystem';
@@ -84,6 +83,19 @@ const getRankColor = (tier: string) => {
     case 'silver': return 'from-gray-300 to-gray-400';
     case 'bronze': return 'from-orange-600 to-orange-800';
     default: return 'from-gray-500 to-gray-600';
+  }
+};
+
+/** Returns [base, light, base] gradient stops for the animated wave */
+const getRankBarColors = (tier: string): [string, string, string] => {
+  switch (tier) {
+    case 'goat':     return ['#7c3aed', '#c084fc', '#7c3aed'];
+    case 'diamond':  return ['#0ea5e9', '#7dd3fc', '#0ea5e9'];
+    case 'platinum': return ['#5eead4', '#99f6e4', '#5eead4'];
+    case 'gold':     return ['#d97706', '#fbbf24', '#d97706'];
+    case 'silver':   return ['#6b7280', '#d1d5db', '#6b7280'];
+    case 'bronze':   return ['#92400e', '#d97706', '#92400e'];
+    default:         return ['#6b7280', '#9ca3af', '#6b7280'];
   }
 };
 
@@ -223,7 +235,22 @@ export default function VIP() {
                     {formatSkilledCoins(remaining)} SC to go
                   </span>
                 </div>
-                <Progress value={progress} className="h-3" />
+                {(() => {
+                  const [c1, c2, c3] = getRankBarColors(rankInfo.tierName);
+                  return (
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(progress, 100)}%`,
+                          background: `linear-gradient(90deg, ${c1}, ${c2}, ${c3})`,
+                          backgroundSize: '200% 100%',
+                          animation: 'rankWave 2s ease-in-out infinite',
+                        }}
+                      />
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{rankInfo.displayName}</span>
                   <span>{RANK_LADDER[currentRankIndex + 1]?.name || 'Max'}</span>
@@ -458,7 +485,22 @@ export default function VIP() {
                         {/* Progress bar for current rank */}
                         {isCurrentRank && nextRank && (
                           <div className="mt-2">
-                            <Progress value={progressToNext} className="h-1.5" />
+                            {(() => {
+                              const [c1, c2, c3] = getRankBarColors(rank.tier);
+                              return (
+                                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-500"
+                                    style={{
+                                      width: `${Math.min(progressToNext, 100)}%`,
+                                      background: `linear-gradient(90deg, ${c1}, ${c2}, ${c3})`,
+                                      backgroundSize: '200% 100%',
+                                      animation: 'rankWave 2s ease-in-out infinite',
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
