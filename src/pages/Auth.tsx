@@ -50,6 +50,7 @@ export default function Auth() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [userId, setUserId] = useState<string | null>(null);
+  const [hasTotpFactor, setHasTotpFactor] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -183,6 +184,7 @@ export default function Auth() {
 
         if (aalData.nextLevel === 'aal2' && aalData.currentLevel === 'aal1') {
           // User has TOTP MFA enrolled — show TOTP verification screen
+          setHasTotpFactor(true);
           setStep('mfa-verify');
         } else {
           // No TOTP enrolled — check for email-based 2FA
@@ -282,47 +284,36 @@ export default function Auth() {
     setStep('choose-username');
   };
 
-  // Username chosen → show 2FA choice
-  const handleUsernameChosen = (_username: string) => {
-    toast({
-      title: 'Username saved!',
-      description: 'Would you like to set up two-factor authentication?',
-    });
-    setStep('mfa-choice');
-  };
-
-  // User chose authenticator app → show TOTP enrollment
-  const handleChooseAuthenticator = () => {
-    setStep('mfa-enroll');
-  };
-
-  // User chose email 2FA → save preference and go home
-  const handleChooseEmail = async () => {
+  // Username chosen → auto-enable email 2FA, then ask about authenticator app
+  const handleUsernameChosen = async (_username: string) => {
+    // Automatically enable email-based 2FA for all new signups
     try {
       await supabase.auth.updateUser({
         data: { mfa_method: 'email' },
       });
-      // They're already authenticated from signup, mark as verified for this session
       sessionStorage.setItem('email_2fa_verified', 'true');
-      toast({
-        title: 'Email 2FA enabled!',
-        description: 'You\'ll receive a verification code via email each time you log in.',
-      });
-      navigate('/');
     } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to enable email 2FA. Please try again.',
-      });
+      // Non-critical — continue with the flow even if metadata update fails
+      console.warn('Failed to auto-enable email 2FA metadata');
     }
+
+    toast({
+      title: 'Username saved!',
+      description: 'Email 2FA has been enabled. Want to add an authenticator app too?',
+    });
+    setStep('mfa-choice');
   };
 
-  // User chose "Maybe Later" → skip 2FA
-  const handleSkip2FA = () => {
+  // User chose to set up authenticator app → show TOTP enrollment
+  const handleChooseAuthenticator = () => {
+    setStep('mfa-enroll');
+  };
+
+  // User chose to skip authenticator setup → go home (email 2FA already enabled)
+  const handleSkipAuthenticator = () => {
     toast({
-      title: 'You can set up 2FA later',
-      description: 'Go to Settings → Security to enable two-factor authentication.',
+      title: 'You\'re all set!',
+      description: 'Email 2FA is active. You can add an authenticator app later in Settings.',
     });
     navigate('/');
   };
@@ -546,12 +537,11 @@ export default function Auth() {
               <ChooseUsername userId={userId} onComplete={handleUsernameChosen} />
             )}
 
-            {/* Step: 2FA Method Choice (after choosing username) */}
+            {/* Step: Authenticator app offer (email 2FA already enabled) */}
             {step === 'mfa-choice' && (
               <MFAChoice
                 onChooseAuthenticator={handleChooseAuthenticator}
-                onChooseEmail={handleChooseEmail}
-                onSkip={handleSkip2FA}
+                onSkip={handleSkipAuthenticator}
               />
             )}
 
@@ -560,6 +550,7 @@ export default function Auth() {
               <MFAVerify
                 onVerified={handleMFAVerified}
                 onBack={goBackToEmail}
+                onSwitchToEmail={() => setStep('email-2fa-verify')}
               />
             )}
 
@@ -578,6 +569,7 @@ export default function Auth() {
                 email={email}
                 onVerified={handleEmail2FAVerified}
                 onBack={goBackToEmail}
+                onSwitchToAuthenticator={hasTotpFactor ? () => setStep('mfa-verify') : undefined}
               />
             )}
           </div>

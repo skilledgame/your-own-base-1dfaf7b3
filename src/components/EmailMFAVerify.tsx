@@ -15,7 +15,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Mail, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Loader2, Mail, ArrowLeft, RefreshCw, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CODE_LENGTH = 8;
@@ -25,9 +25,10 @@ interface EmailMFAVerifyProps {
   email: string;
   onVerified: () => void;
   onBack?: () => void;
+  onSwitchToAuthenticator?: () => void;
 }
 
-export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProps) {
+export function EmailMFAVerify({ email, onVerified, onBack, onSwitchToAuthenticator }: EmailMFAVerifyProps) {
   const [verifyCode, setVerifyCode] = useState<string[]>([...EMPTY_CODE]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -283,6 +284,19 @@ export function EmailMFAVerify({ email, onVerified, onBack }: EmailMFAVerifyProp
             </>
           )}
         </Button>
+
+        {onSwitchToAuthenticator && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full text-muted-foreground"
+            onClick={onSwitchToAuthenticator}
+            disabled={loading}
+          >
+            <Shield className="w-4 h-4 mr-2" />
+            Use authenticator app instead
+          </Button>
+        )}
 
         {onBack && (
           <Button

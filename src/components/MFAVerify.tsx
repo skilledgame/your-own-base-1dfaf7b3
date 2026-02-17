@@ -13,12 +13,13 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Shield, ArrowLeft } from 'lucide-react';
+import { Loader2, Shield, ArrowLeft, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MFAVerifyProps {
   onVerified: () => void;
   onBack?: () => void;
+  onSwitchToEmail?: () => void;
   /** Custom title text */
   title?: string;
   /** Custom description text */
@@ -28,6 +29,7 @@ interface MFAVerifyProps {
 export function MFAVerify({
   onVerified,
   onBack,
+  onSwitchToEmail,
   title = 'Two-Factor Authentication',
   description = 'Enter the 6-digit code from your authenticator app',
 }: MFAVerifyProps) {
@@ -190,6 +192,19 @@ export function MFAVerify({
             'Verify'
           )}
         </Button>
+
+        {onSwitchToEmail && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full text-muted-foreground"
+            onClick={onSwitchToEmail}
+            disabled={loading}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Use email code instead
+          </Button>
+        )}
 
         {onBack && (
           <Button
