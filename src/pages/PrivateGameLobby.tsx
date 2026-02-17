@@ -479,13 +479,19 @@ function PlayerCard({
   isReady: boolean;
   isMe: boolean;
 }) {
-  const rankColor = player?.rank?.tierName === 'diamond'
+  const rankColor = player?.rank?.tierName === 'goat'
+    ? 'from-purple-400 to-violet-600'
+    : player?.rank?.tierName === 'diamond'
     ? 'from-cyan-400 to-blue-500'
+    : player?.rank?.tierName === 'platinum'
+    ? 'from-slate-300 to-slate-500'
     : player?.rank?.tierName === 'gold'
     ? 'from-yellow-400 to-amber-500'
     : player?.rank?.tierName === 'silver'
     ? 'from-gray-300 to-gray-400'
-    : 'from-amber-600 to-amber-700';
+    : player?.rank?.tierName === 'bronze'
+    ? 'from-orange-600 to-orange-800'
+    : 'from-gray-500 to-gray-600';
 
   return (
     <div className={`flex-1 w-full sm:max-w-[280px] rounded-2xl border-2 transition-all ${

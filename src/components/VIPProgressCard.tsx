@@ -39,6 +39,8 @@ export const VIPProgressCard = () => {
 
   const getRankColor = (tier: string) => {
     switch (tier) {
+      case 'goat':
+        return 'from-purple-400 to-violet-600';
       case 'diamond':
         return 'from-cyan-400 to-blue-500';
       case 'platinum':
