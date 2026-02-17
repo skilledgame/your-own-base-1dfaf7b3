@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { User, LogOut, Crown, Shield, Search } from 'lucide-react';
+import { User, LogOut, Crown, Shield, Search, MessageCircle } from 'lucide-react';
 import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -476,6 +476,10 @@ export const WSMultiplayerGameView = ({
                   <div className="hidden sm:flex items-center">
                     <UserDropdown />
                   </div>
+                  {/* Chat icon */}
+                  <Button variant="ghost" size="icon" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => window.voiceflow?.chat?.open()}>
+                    <MessageCircle className="w-5 h-5" />
+                  </Button>
                   <div className="sm:hidden">
                     <button onClick={() => openWallet('deposit')}>
                       <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />

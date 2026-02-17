@@ -33,7 +33,8 @@ import {
   Wallet,
   LogIn,
   Shield,
-  Search
+  Search,
+  MessageCircle
 } from 'lucide-react';
 
 interface ChessOnlineModeProps {
@@ -215,6 +216,10 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                   <div className="hidden sm:flex items-center">
                     <UserDropdown />
                   </div>
+                  {/* Chat icon */}
+                  <Button variant="ghost" size="icon" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => window.voiceflow?.chat?.open()}>
+                    <MessageCircle className="w-5 h-5" />
+                  </Button>
                   <div className="sm:hidden">
                     <button onClick={() => openWallet('deposit')}>
                       <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />

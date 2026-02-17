@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trophy, Loader2, Shield, Lock, Zap, Crown, ArrowRight, ChevronDown, Gamepad2, Coins, Wallet, Search } from 'lucide-react';
+import { Trophy, Loader2, Shield, Lock, Zap, Crown, ArrowRight, ChevronDown, Gamepad2, Coins, Wallet, Search, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
@@ -236,6 +236,10 @@ export const LandingPage = ({
                   <div className="hidden sm:flex items-center">
                     <UserDropdown />
                   </div>
+                  {/* Chat icon */}
+                  <Button variant="ghost" size="icon" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => window.voiceflow?.chat?.open()}>
+                    <MessageCircle className="w-5 h-5" />
+                  </Button>
                   {/* Mobile: Show balance pill */}
                   <MobileBalancePill isPrivileged={isPrivileged} />
                 </>
