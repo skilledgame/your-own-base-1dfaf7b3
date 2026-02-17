@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { User, LogOut, Crown, Shield, Search, MessageCircle, Flame } from 'lucide-react';
+import { User, LogOut, Crown, Shield, Search, MessageCircle, Flame, UserPlus } from 'lucide-react';
 import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -42,6 +42,8 @@ import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletModal } from '@/contexts/WalletModalContext';
 import { getEloTitle } from '@/lib/eloSystem';
+import { useFriendStore } from '@/stores/friendStore';
+import { toast } from 'sonner';
 
 interface WSMultiplayerGameViewProps {
   gameId: string;
@@ -553,6 +555,26 @@ export const WSMultiplayerGameView = ({
                           {opponentStreak}
                         </span>
                       )}
+                      <button
+                        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded transition-colors"
+                        title="Add Friend"
+                        onClick={async () => {
+                          try {
+                            const matchmaking = useChessStore.getState().matchmaking;
+                            const opponentUserId = matchmaking.opponentUserId;
+                            if (opponentUserId) {
+                              await useFriendStore.getState().sendRequest(opponentUserId);
+                              toast.success('Friend request sent!');
+                            } else {
+                              toast.error('Could not identify opponent');
+                            }
+                          } catch (error: any) {
+                            toast.error(error.message || 'Failed to send request');
+                          }
+                        }}
+                      >
+                        <UserPlus className="w-3 h-3" />
+                      </button>
                     </div>
                     {/* Row 2: Captured pieces */}
                     <CapturedPieces 

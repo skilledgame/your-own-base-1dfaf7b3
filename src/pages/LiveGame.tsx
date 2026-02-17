@@ -25,6 +25,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
+import { usePresenceStore } from '@/stores/presenceStore';
 
 
 export default function LiveGame() {
@@ -427,6 +428,14 @@ export default function LiveGame() {
   // IMPORTANT: Remove gameState from dependencies to prevent re-running on every move
   // Only re-run when game ID changes (new game) or opponent info becomes available
   }, [gameState?.gameId, gameState?.dbGameId, isPrivateGame, matchmaking.opponentUserId, totalWageredSc, playerDisplayName, user?.id, setGameState]);
+
+  // Update presence to "in_game" while on this page
+  useEffect(() => {
+    usePresenceStore.getState().setStatus('in_game');
+    return () => {
+      usePresenceStore.getState().setStatus('online');
+    };
+  }, []);
 
   // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
   useEffect(() => {
