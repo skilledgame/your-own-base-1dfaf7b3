@@ -521,6 +521,25 @@ export const WSMultiplayerGameView = ({
           <div className="max-w-4xl mx-auto">
             {/* Game Area */}
             <div className="flex flex-col items-center gap-4">
+              {/* Resign / Leave button above the board area */}
+              <div className="flex justify-end w-full max-w-md">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    if (isGameOver) {
+                      onBack();
+                    } else {
+                      setShowResignDialog(true);
+                    }
+                  }} 
+                  className={`gap-1.5 ${isGameOver ? '' : 'text-destructive hover:text-destructive border-destructive/30'}`}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  {isGameOver ? 'Leave' : 'Resign'}
+                </Button>
+              </div>
+
               {/* Opponent Info Bar */}
               <div className="flex items-center justify-between w-full max-w-md">
                 <div className="flex items-center gap-3 px-3 py-2.5 bg-secondary/80 border border-white/5 rounded-xl">
@@ -559,24 +578,7 @@ export const WSMultiplayerGameView = ({
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      if (isGameOver) {
-                        onBack();
-                      } else {
-                        setShowResignDialog(true);
-                      }
-                    }} 
-                    className={`gap-1.5 ${isGameOver ? '' : 'text-destructive hover:text-destructive border-destructive/30'}`}
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    {isGameOver ? 'Leave' : 'Resign'}
-                  </Button>
-                </div>
+                <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
               </div>
 
               {/* Chess Board with sound callbacks - only show opponent's last move */}

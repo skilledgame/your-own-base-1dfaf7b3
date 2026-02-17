@@ -345,30 +345,39 @@ export type Database = {
       }
       profiles: {
         Row: {
+          chess_elo: number
           created_at: string
+          daily_play_streak: number
           display_name: string | null
           email: string | null
           id: string
+          last_played_date: string | null
           skilled_coins: number
           total_wagered_sc: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          chess_elo?: number
           created_at?: string
+          daily_play_streak?: number
           display_name?: string | null
           email?: string | null
           id?: string
+          last_played_date?: string | null
           skilled_coins?: number
           total_wagered_sc?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          chess_elo?: number
           created_at?: string
+          daily_play_streak?: number
           display_name?: string | null
           email?: string | null
           id?: string
+          last_played_date?: string | null
           skilled_coins?: number
           total_wagered_sc?: number
           updated_at?: string
@@ -557,10 +566,13 @@ export type Database = {
       }
       get_opponent_name: { Args: { p_player_id: string }; Returns: string }
       get_opponent_profile: {
-        Args: { p_user_id: string }
+        Args: { p_game_id: string }
         Returns: {
+          opponent_user_id: string
           display_name: string
           total_wagered_sc: number
+          chess_elo: number
+          daily_play_streak: number
         }[]
       }
       get_or_create_free_plays: {
