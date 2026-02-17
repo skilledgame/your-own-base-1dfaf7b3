@@ -40,13 +40,15 @@ export default function LiveGame() {
   );
   const [playerBadges, setPlayerBadges] = useState<string[]>([]);
   const [opponentBadges, setOpponentBadges] = useState<string[]>([]);
+  const [opponentElo, setOpponentElo] = useState<number>(1200);
+  const [opponentStreak, setOpponentStreak] = useState<number>(0);
   
   // Global state from Zustand store
   const { phase, gameState, gameEndResult, setPhase, setGameState, setPlayerName, handleGameEnd, matchmaking } = useChessStore();
   const { balance } = useBalance();
   const { user } = useAuth();
   const { isAdmin } = useUserRole();
-  const { totalWageredSc, displayName: playerDisplayName } = useProfile();
+  const { totalWageredSc, displayName: playerDisplayName, chessElo, dailyPlayStreak } = useProfile();
   const showNetworkDebug = isAdmin;
   
   // WebSocket connection and actions (for matchmade AND private games)
@@ -322,14 +324,14 @@ export default function LiveGame() {
         // 2) resolve_player_user_id RPC (handles players.id → auth user_id, bypasses RLS)
         // 3) get_opponent_profile RPC (full game→player→profile join, bypasses all RLS)
 
-        let opponentProfile: { display_name?: string | null; total_wagered_sc: number | null } | null = null;
+        let opponentProfile: { display_name?: string | null; total_wagered_sc: number | null; chess_elo?: number | null; daily_play_streak?: number | null } | null = null;
         let resolvedAuthUserId: string | null = null;
 
         // Strategy 1: Direct profile lookup
         if (opponentUserId) {
           const { data: directProfile } = await supabase
             .from('profiles')
-            .select('total_wagered_sc, display_name')
+            .select('total_wagered_sc, display_name, chess_elo, daily_play_streak')
             .eq('user_id', opponentUserId)
             .maybeSingle();
           if (directProfile) {
@@ -347,7 +349,7 @@ export default function LiveGame() {
             resolvedAuthUserId = resolvedId;
             const { data: retryProfile } = await supabase
               .from('profiles')
-              .select('total_wagered_sc, display_name')
+              .select('total_wagered_sc, display_name, chess_elo, daily_play_streak')
               .eq('user_id', resolvedId)
               .maybeSingle();
             if (retryProfile) opponentProfile = retryProfile;
@@ -362,7 +364,7 @@ export default function LiveGame() {
           });
           if (rpcData && rpcData.length > 0) {
             const row = rpcData[0];
-            opponentProfile = { display_name: row.display_name, total_wagered_sc: row.total_wagered_sc };
+            opponentProfile = { display_name: row.display_name, total_wagered_sc: row.total_wagered_sc, chess_elo: row.chess_elo, daily_play_streak: row.daily_play_streak };
             resolvedAuthUserId = row.opponent_user_id;
           }
         }
@@ -370,6 +372,8 @@ export default function LiveGame() {
         if (opponentProfile) {
           const opponentRankInfo = getRankFromTotalWagered(opponentProfile.total_wagered_sc || 0);
           setOpponentRank(opponentRankInfo);
+          setOpponentElo(opponentProfile.chess_elo ?? 1200);
+          setOpponentStreak(opponentProfile.daily_play_streak ?? 0);
           
           // Mark as successfully fetched — prevents re-runs for this game
           opponentFetchedRef.current = gameKey;
@@ -667,6 +671,10 @@ export default function LiveGame() {
         opponentRank={opponentRank}
         playerBadges={playerBadges}
         opponentBadges={opponentBadges}
+        playerElo={chessElo}
+        opponentElo={opponentElo}
+        playerStreak={dailyPlayStreak}
+        opponentStreak={opponentStreak}
         onSendMove={handleSendMove}
         onExit={handleExit}
         onBack={handleBack}

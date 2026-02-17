@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { User, LogOut, Crown, Shield, Search, MessageCircle } from 'lucide-react';
+import { User, LogOut, Crown, Shield, Search, MessageCircle, Flame } from 'lucide-react';
 import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -40,6 +40,7 @@ import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletModal } from '@/contexts/WalletModalContext';
+import { getEloTitle } from '@/lib/eloSystem';
 
 interface WSMultiplayerGameViewProps {
   gameId: string;
@@ -66,6 +67,12 @@ interface WSMultiplayerGameViewProps {
   playerBadges?: string[];
   opponentBadges?: string[];
   
+  // ELO + Streak
+  playerElo?: number;
+  opponentElo?: number;
+  playerStreak?: number;
+  opponentStreak?: number;
+  
   // Actions
   onSendMove: (from: string, to: string, promotion?: string) => void;
   onExit: () => void;
@@ -91,6 +98,10 @@ export const WSMultiplayerGameView = ({
   opponentRank,
   playerBadges = [],
   opponentBadges = [],
+  playerElo = 1200,
+  opponentElo = 1200,
+  playerStreak = 0,
+  opponentStreak = 0,
   onSendMove,
   onExit,
   onBack,
@@ -510,23 +521,37 @@ export const WSMultiplayerGameView = ({
           <div className="max-w-4xl mx-auto">
             {/* Game Area */}
             <div className="flex flex-col items-center gap-4">
-              {/* Opponent Info with Timer and Captured Pieces */}
+              {/* Opponent Info Bar */}
               <div className="flex items-center justify-between w-full max-w-md">
-                <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
-                  <User className="w-5 h-5 text-muted-foreground" />
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold">{opponentName || "Opponent"}</span>
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
+                <div className="flex items-center gap-3 px-3 py-2.5 bg-secondary/80 border border-white/5 rounded-xl">
+                  {/* Avatar placeholder (skin slot) */}
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    {/* Row 1: Name + ELO + Rank + Badges + Streak */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-sm truncate max-w-[120px]">{opponentName || "Opponent"}</span>
+                      {(() => {
+                        const eloInfo = getEloTitle(opponentElo);
+                        return (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${eloInfo.bgClass} ${eloInfo.colorClass} ${eloInfo.borderClass}`}>
+                            {opponentElo}
+                          </span>
+                        );
+                      })()}
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getRankColor(opponentRank)}`}>
                         {opponentRankDisplay}
                       </span>
                       {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
+                      {opponentStreak > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
+                          <Flame className="w-3 h-3" />
+                          {opponentStreak}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Crown className="w-3 h-3" />
-                      {opponentColorLabel}
-                    </span>
-                    {/* Opponent's captured pieces (pieces they captured = my missing pieces) */}
+                    {/* Row 2: Captured pieces */}
                     <CapturedPieces 
                       pieces={opponentCaptured} 
                       color={isWhite ? "black" : "white"}
@@ -551,23 +576,37 @@ export const WSMultiplayerGameView = ({
                 onCheckSound={playCheck}
               />
 
-              {/* Player Info with Timer and Resign */}
+              {/* Player Info Bar */}
               <div className="flex items-center justify-between w-full max-w-md">
-                <div className="flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
-                  <User className="w-5 h-5 text-primary" />
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold">{playerName}</span>
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
+                <div className="flex items-center gap-3 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-xl">
+                  {/* Avatar placeholder (skin slot) */}
+                  <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    {/* Row 1: Name + ELO + Rank + Badges + Streak */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-sm truncate max-w-[120px]">{playerName}</span>
+                      {(() => {
+                        const eloInfo = getEloTitle(playerElo);
+                        return (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${eloInfo.bgClass} ${eloInfo.colorClass} ${eloInfo.borderClass}`}>
+                            {playerElo}
+                          </span>
+                        );
+                      })()}
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getRankColor(playerRank)}`}>
                         {playerRankDisplay}
                       </span>
                       {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
+                      {playerStreak > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
+                          <Flame className="w-3 h-3" />
+                          {playerStreak}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Crown className="w-3 h-3" />
-                      {myColorLabel} (You)
-                    </span>
-                    {/* My captured pieces (pieces I captured = opponent's missing pieces) */}
+                    {/* Row 2: Captured pieces */}
                     <CapturedPieces 
                       pieces={myCaptured} 
                       color={isWhite ? "white" : "black"}

@@ -28,6 +28,8 @@ export interface UserProfile {
   total_wagered_sc: number;
   display_name: string | null;
   email: string | null;
+  chess_elo: number;
+  daily_play_streak: number;
 }
 
 interface CachedUserData {
@@ -136,7 +138,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         
         const { data, error } = await supabase
           .from('profiles')
-          .select('user_id, skilled_coins, total_wagered_sc, display_name, email')
+          .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak')
           .eq('user_id', userId)
           .maybeSingle();
         
@@ -152,6 +154,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             total_wagered_sc: data.total_wagered_sc ?? 0,
             display_name: data.display_name,
             email: data.email,
+            chess_elo: data.chess_elo ?? 1200,
+            daily_play_streak: data.daily_play_streak ?? 0,
           };
           
           // Cache for next session
@@ -199,7 +203,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         
         const { data, error } = await supabase
           .from('profiles')
-          .select('user_id, skilled_coins, total_wagered_sc, display_name, email')
+          .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak')
           .eq('user_id', state.userId)
           .maybeSingle();
         
@@ -215,6 +219,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             total_wagered_sc: data.total_wagered_sc ?? 0,
             display_name: data.display_name,
             email: data.email,
+            chess_elo: data.chess_elo ?? 1200,
+            daily_play_streak: data.daily_play_streak ?? 0,
           };
           
           setCachedData({
@@ -339,7 +345,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
           
           const { data, error } = await supabase
             .from('profiles')
-            .select('user_id, skilled_coins, total_wagered_sc, display_name, email')
+            .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak')
             .eq('user_id', userId)
             .maybeSingle();
           
@@ -354,6 +360,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
               total_wagered_sc: data.total_wagered_sc ?? 0,
               display_name: data.display_name,
               email: data.email,
+              chess_elo: data.chess_elo ?? 1200,
+              daily_play_streak: data.daily_play_streak ?? 0,
             };
             
             setCachedData({
@@ -410,6 +418,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
               total_wagered_sc: newData.total_wagered_sc ?? currentProfile.total_wagered_sc,
               display_name: newData.display_name ?? currentProfile.display_name,
               email: newData.email ?? currentProfile.email,
+              chess_elo: (newData as any).chess_elo ?? currentProfile.chess_elo,
+              daily_play_streak: (newData as any).daily_play_streak ?? currentProfile.daily_play_streak,
             };
             
             // Update cache
