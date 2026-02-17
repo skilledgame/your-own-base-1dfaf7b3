@@ -1,40 +1,71 @@
 /**
- * FriendsButton - Compact friend icon with online friend count
- * Styled inspired by Fortnite's friend list button.
- * Links to /friends page.
+ * FriendsButton - Header button that matches UserDropdown style.
+ *
+ * Shows friend icon + count. On hover, slides out a FriendsSlideover
+ * panel from the right with Friends and Clan tabs.
  */
 
-import { useNavigate } from 'react-router-dom';
-import { Users } from 'lucide-react';
-import { useFriendStore } from '@/stores/friendStore';
-import { cn } from '@/lib/utils';
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Users } from "lucide-react";
+import { useFriendStore } from "@/stores/friendStore";
+import { cn } from "@/lib/utils";
+import { FriendsSlideover } from "./FriendsSlideover";
 
 interface FriendsButtonProps {
   className?: string;
 }
 
 export function FriendsButton({ className }: FriendsButtonProps) {
-  const navigate = useNavigate();
-  const friends = useFriendStore(state => state.friends);
+  const friends = useFriendStore((state) => state.friends);
   const friendCount = friends.length;
+  const [isOpen, setIsOpen] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setIsOpen(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    timeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   return (
-    <button
-      onClick={() => navigate('/friends')}
-      className={cn(
-        "relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg",
-        "bg-primary/10 border border-primary/20",
-        "text-primary hover:bg-primary/20 hover:border-primary/30",
-        "transition-all duration-200",
-        "focus:outline-none focus:ring-2 focus:ring-primary/40",
-        className
-      )}
-      title="Friends"
-    >
-      <Users className="w-4 h-4" />
-      <span className="text-xs font-bold tabular-nums leading-none">
-        {friendCount}
-      </span>
-    </button>
+    <>
+      <button
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 rounded-xl",
+          "bg-slate-800/60 hover:bg-slate-700/60",
+          "border border-slate-600/40",
+          "transition-all duration-200",
+          "focus:outline-none focus:ring-2 focus:ring-primary/50",
+          "text-slate-300 hover:text-white",
+          className,
+        )}
+        title="Friends"
+      >
+        <Users className="w-4 h-4" />
+        <span className="text-sm font-semibold tabular-nums">{friendCount}</span>
+      </button>
+
+      <FriendsSlideover
+        isOpen={isOpen}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
+    </>
   );
 }
