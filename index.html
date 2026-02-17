@@ -17,7 +17,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
+    <style>
+      /* Hide the default Voiceflow floating launcher button */
+      #voiceflow-chat .__floatingButton,
+      .vfrc-launcher {
+        display: none !important;
+      }
+    </style>
   </head>
 
   <body>
@@ -33,7 +39,8 @@
               versionID: 'production',
               voice: {
                 url: "https://runtime-api.voiceflow.com"
-              }
+              },
+              autostart: false
             });
           }
           v.src = "https://cdn.voiceflow.com/widget-next/bundle.mjs"; v.type = "text/javascript"; s.parentNode.insertBefore(v, s);
