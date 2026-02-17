@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { formatSkilledCoins, getRankFromDynamicConfig } from '@/lib/rankSystem';
+import { formatSkilledCoins, getRankFromDynamicConfig, getRankImage } from '@/lib/rankSystem';
 import { useRankConfig } from '@/hooks/useRankConfig';
 
 interface DailyStreakRewardsProps {
@@ -264,12 +264,21 @@ export function DailyStreakRewards({ currentStreak, totalWageredSc, onClaimRewar
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className={cn(
-                "w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg",
-                getRankColor(currentRank.tierName)
-              )}>
-                <Crown className="w-6 h-6 text-white" />
-              </div>
+              {getRankImage(currentRank.tierName) ? (
+                <img
+                  src={getRankImage(currentRank.tierName)!}
+                  alt={`${currentRank.displayName} rank`}
+                  className="w-12 h-12 object-contain drop-shadow-lg"
+                  draggable={false}
+                />
+              ) : (
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg",
+                  getRankColor(currentRank.tierName)
+                )}>
+                  <Crown className="w-6 h-6 text-white" />
+                </div>
+              )}
               <div>
                 <h3 className="text-lg font-bold text-foreground">VIP Rewards</h3>
                 <p className="text-sm text-muted-foreground">Exclusive bonuses for your rank</p>
@@ -380,19 +389,37 @@ export function DailyStreakRewards({ currentStreak, totalWageredSc, onClaimRewar
               
               return (
                 <div key={rank} className="flex items-center shrink-0">
-                  <div className={cn(
-                    "w-10 h-10 rounded-lg flex items-center justify-center border-2 transition-all",
-                    isCurrentRank 
-                      ? "border-primary bg-primary/10 scale-110" 
-                      : isUnlocked 
-                        ? "border-transparent bg-gradient-to-br " + getRankColor(rank)
-                        : "border-border bg-muted/30"
-                  )}>
-                    <Crown className={cn(
-                      "w-5 h-5",
-                      isCurrentRank || isUnlocked ? "text-white" : "text-muted-foreground/50"
-                    )} />
-                  </div>
+                  {getRankImage(rank) ? (
+                    <div className={cn(
+                      "w-10 h-10 rounded-lg flex items-center justify-center border-2 transition-all",
+                      isCurrentRank 
+                        ? "border-primary bg-primary/10 scale-110" 
+                        : isUnlocked 
+                          ? "border-transparent"
+                          : "border-border bg-muted/30 opacity-40"
+                    )}>
+                      <img
+                        src={getRankImage(rank)!}
+                        alt={rank}
+                        className="w-8 h-8 object-contain"
+                        draggable={false}
+                      />
+                    </div>
+                  ) : (
+                    <div className={cn(
+                      "w-10 h-10 rounded-lg flex items-center justify-center border-2 transition-all",
+                      isCurrentRank 
+                        ? "border-primary bg-primary/10 scale-110" 
+                        : isUnlocked 
+                          ? "border-transparent bg-gradient-to-br " + getRankColor(rank)
+                          : "border-border bg-muted/30"
+                    )}>
+                      <Crown className={cn(
+                        "w-5 h-5",
+                        isCurrentRank || isUnlocked ? "text-white" : "text-muted-foreground/50"
+                      )} />
+                    </div>
+                  )}
                   {idx < RANK_ORDER.length - 1 && (
                     <div className={cn(
                       "w-6 h-0.5 mx-1",

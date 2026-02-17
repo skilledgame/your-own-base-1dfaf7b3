@@ -144,6 +144,20 @@ export function getRankFromDynamicConfig(
 }
 
 /**
+ * Rank badge image paths (served from /public/ranks/)
+ * Returns null if no custom image exists for the tier.
+ */
+export const RANK_IMAGES: Record<string, string> = {
+  bronze: '/ranks/bronze.png',
+  silver: '/ranks/silver.png',
+  gold: '/ranks/gold.png',
+};
+
+export function getRankImage(tierName: string): string | null {
+  return RANK_IMAGES[tierName] ?? null;
+}
+
+/**
  * Format Skilled Coins amount for display
  */
 export function formatSkilledCoins(amount: number | null | undefined): string {

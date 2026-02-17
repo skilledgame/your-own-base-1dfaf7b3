@@ -70,6 +70,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getRankImage } from '@/lib/rankSystem';
 import { Textarea } from '@/components/ui/textarea';
 import { UserBadges, type BadgeType } from '@/components/UserBadge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -841,12 +842,13 @@ export default function Admin() {
   };
 
   const getRankTierIcon = (tier: string) => {
+    const image = getRankImage(tier);
+    if (image) {
+      return <img src={image} alt={`${tier} rank`} className="w-6 h-6 object-contain" draggable={false} />;
+    }
     switch (tier) {
       case 'diamond': return <Trophy className="w-5 h-5" />;
       case 'platinum': return <Sparkles className="w-5 h-5" />;
-      case 'gold': return <Crown className="w-5 h-5" />;
-      case 'silver': return <Gem className="w-5 h-5" />;
-      case 'bronze': return <Award className="w-5 h-5" />;
       default: return <UserIcon className="w-5 h-5" />;
     }
   };

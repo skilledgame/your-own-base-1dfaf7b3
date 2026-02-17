@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
-import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
+import { getRankFromTotalWagered, getRankImage, type RankInfo } from '@/lib/rankSystem';
 import { LogoLink } from '@/components/LogoLink';
 import { Button } from '@/components/ui/button';
 import {
@@ -500,9 +500,18 @@ function PlayerCard({
         </span>
 
         {/* Avatar */}
-        <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${rankColor} flex items-center justify-center shadow-lg`}>
-          <Crown className="w-10 h-10 text-white/90" />
-        </div>
+        {getRankImage(player?.rank?.tierName || '') ? (
+          <img
+            src={getRankImage(player?.rank?.tierName || '')!}
+            alt={`${player?.rank?.displayName || 'Unranked'} rank`}
+            className="w-20 h-20 object-contain drop-shadow-lg"
+            draggable={false}
+          />
+        ) : (
+          <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${rankColor} flex items-center justify-center shadow-lg`}>
+            <Crown className="w-10 h-10 text-white/90" />
+          </div>
+        )}
 
         {/* Name */}
         <h3 className="text-xl font-bold text-white truncate max-w-full">
@@ -510,8 +519,18 @@ function PlayerCard({
         </h3>
 
         {/* Rank */}
-        <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${rankColor} text-white text-xs font-bold uppercase`}>
-          {player?.rank?.displayName || 'Unranked'}
+        <div className="flex items-center gap-2">
+          {getRankImage(player?.rank?.tierName || '') && (
+            <img
+              src={getRankImage(player?.rank?.tierName || '')!}
+              alt=""
+              className="w-5 h-5 object-contain"
+              draggable={false}
+            />
+          )}
+          <span className={`px-3 py-1 rounded-full bg-gradient-to-r ${rankColor} text-white text-xs font-bold uppercase`}>
+            {player?.rank?.displayName || 'Unranked'}
+          </span>
         </div>
 
         {/* Ready status */}
