@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LogoLink } from '@/components/LogoLink';
 import { MFAEnroll } from '@/components/MFAEnroll';
 import { MFAVerify } from '@/components/MFAVerify';
+import { EmailVerify } from '@/components/EmailVerify';
 import { ArrowLeft, Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
@@ -18,7 +19,7 @@ import { cn } from '@/lib/utils';
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
-type AuthStep = 'email' | 'mfa-verify' | 'mfa-enroll' | 'complete';
+type AuthStep = 'email' | 'email-verify' | 'mfa-verify' | 'mfa-enroll' | 'complete';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -166,18 +167,19 @@ export default function Auth() {
         }
 
         if (signUpData?.session) {
-          // User has a session - proceed to MFA enrollment
+          // User has a session (email confirmation disabled?) - proceed to MFA enrollment
           toast({
             title: 'Account created!',
             description: 'Now set up two-factor authentication to secure your account.',
           });
           setStep('mfa-enroll');
         } else {
-          // Email confirmation required
+          // Email confirmation required - show OTP code entry screen
           toast({
-            title: 'Account created!',
-            description: 'Please check your email to confirm your account, then sign in to set up 2FA.',
+            title: 'Check your email!',
+            description: 'We sent a 6-digit verification code to your email.',
           });
+          setStep('email-verify');
         }
       }
     } catch (error: unknown) {
@@ -212,6 +214,15 @@ export default function Auth() {
       });
       setGoogleLoading(false);
     }
+  };
+
+  // Email verification success handler
+  const handleEmailVerified = () => {
+    toast({
+      title: 'Email verified!',
+      description: 'Now set up two-factor authentication to secure your account.',
+    });
+    setStep('mfa-enroll');
   };
 
   // MFA verify success handler
@@ -396,6 +407,19 @@ export default function Auth() {
                   <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>
                 </p>
               </>
+            )}
+
+            {/* Step: Email Verification (after signup) */}
+            {step === 'email-verify' && (
+              <EmailVerify
+                email={email}
+                password={password}
+                onVerified={handleEmailVerified}
+                onBack={() => {
+                  setStep('email');
+                  setErrors({});
+                }}
+              />
             )}
 
             {/* Step: MFA Verify (login with existing factor) */}
