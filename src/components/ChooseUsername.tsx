@@ -136,7 +136,7 @@ export function ChooseUsername({ userId, onComplete }: ChooseUsernameProps) {
       const { error } = await supabase
         .from('profiles')
         .upsert(
-          { user_id: userId, display_name: trimmed },
+          { user_id: userId, display_name: trimmed, display_name_changed_at: new Date().toISOString() },
           { onConflict: 'user_id' }
         );
 
