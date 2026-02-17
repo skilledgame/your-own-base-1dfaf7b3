@@ -299,7 +299,7 @@ const HowItWorks = () => {
               <div className="relative">
                 <div className="absolute -inset-8 bg-primary/20 rounded-full blur-3xl" />
                 <div className="relative grid grid-cols-2 gap-4">
-                  {['♟️', '🎮', '🧠', '🏆'].map((emoji, i) => (
+                  {['♟\uFE0E', '🎮', '🧠', '🏆'].map((emoji, i) => (
                     <div 
                       key={i}
                       className="w-32 h-32 rounded-2xl bg-background border border-border flex items-center justify-center text-5xl hover-lift"

@@ -66,7 +66,7 @@ export default function ChessHome() {
 
   // Animated tab title with cycling chess pieces
   useEffect(() => {
-    const pieces = ['♟', '♞', '♝', '♜', '♛', '♚'];
+    const pieces = ['♟\uFE0E', '♞\uFE0E', '♝\uFE0E', '♜\uFE0E', '♛\uFE0E', '♚\uFE0E'];
     let index = 0;
     const originalTitle = document.title;
     

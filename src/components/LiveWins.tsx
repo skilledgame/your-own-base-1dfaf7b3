@@ -132,7 +132,7 @@ export const LiveWins = () => {
           playerName: displayName,
           amount: game.wager,
           game: 'Chess',
-          gameIcon: '♟️',
+          gameIcon: '♟\uFE0E',
           timestamp: new Date(timestampSource),
           gradientFrom: '#5B3E99',
           gradientTo: '#3d2766',

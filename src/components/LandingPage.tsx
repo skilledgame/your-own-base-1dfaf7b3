@@ -33,7 +33,7 @@ interface LandingPageProps {
 // Game data - Only Skilled Originals with Chess + 3 coming soon (muted colors)
 const skilledOriginals = [{
   name: 'Chess',
-  image: '♟️',
+  image: '♟\uFE0E',
   gradientFrom: '#1e3a5f',
   gradientTo: '#0d1b2a',
   isLive: true,
@@ -361,7 +361,7 @@ export const LandingPage = ({
                       {/* Chess piece */}
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-[140px] sm:text-[160px] drop-shadow-2xl transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-2">
-                          ♟️
+                          ♟︎
                         </span>
                       </div>
                       
@@ -369,7 +369,7 @@ export const LandingPage = ({
                       <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-cyan-900/90 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">♟️</span>
+                          <span className="text-2xl">♟︎</span>
                           <span className="text-white font-bold text-xl">Chess</span>
                         </div>
                         <ArrowRight className="w-5 h-5 text-white/70 group-hover:translate-x-1 transition-transform" />

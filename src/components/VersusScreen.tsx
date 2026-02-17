@@ -127,6 +127,8 @@ export function VersusScreen({
               ? '0 0 20px rgba(255,255,255,0.4), 2px 2px 4px rgba(0,0,0,0.8)'
               : '0 0 20px rgba(80,80,255,0.3), 2px 2px 4px rgba(0,0,0,0.8)',
             filter: !isWhite ? 'brightness(1.5)' : undefined,
+            fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif',
+            fontVariantEmoji: 'text' as never,
           }}
         >
           {playerKing}
@@ -201,6 +203,8 @@ export function VersusScreen({
               ? '0 0 20px rgba(80,80,255,0.3), 2px 2px 4px rgba(0,0,0,0.8)'
               : '0 0 20px rgba(255,255,255,0.4), 2px 2px 4px rgba(0,0,0,0.8)',
             filter: isWhite ? 'brightness(1.5)' : undefined,
+            fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif',
+            fontVariantEmoji: 'text' as never,
           }}
         >
           {opponentKing}

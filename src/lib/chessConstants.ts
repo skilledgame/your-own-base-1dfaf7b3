@@ -26,14 +26,15 @@ export const PIECE_VALUES: Record<string, number> = {
 } as const;
 
 // ============ Piece Symbols ============
+// \uFE0E (VS15) forces text presentation – prevents emoji/colorful skins on mobile & some OS
 export const PIECE_SYMBOLS: Record<string, string> = {
-  'wp': '♙', 'wn': '♘', 'wb': '♗', 'wr': '♖', 'wq': '♕', 'wk': '♔',
-  'bp': '♟', 'bn': '♞', 'bb': '♝', 'br': '♜', 'bq': '♛', 'bk': '♚',
+  'wp': '♙\uFE0E', 'wn': '♘\uFE0E', 'wb': '♗\uFE0E', 'wr': '♖\uFE0E', 'wq': '♕\uFE0E', 'wk': '♔\uFE0E',
+  'bp': '♟\uFE0E', 'bn': '♞\uFE0E', 'bb': '♝\uFE0E', 'br': '♜\uFE0E', 'bq': '♛\uFE0E', 'bk': '♚\uFE0E',
 } as const;
 
 // Small piece symbols for captured pieces display
 export const PIECE_SYMBOLS_SMALL: Record<string, string> = {
-  p: '♟', n: '♞', b: '♝', r: '♜', q: '♛',
+  p: '♟\uFE0E', n: '♞\uFE0E', b: '♝\uFE0E', r: '♜\uFE0E', q: '♛\uFE0E',
 } as const;
 
 // ============ Board Constants ============

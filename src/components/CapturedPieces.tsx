@@ -30,6 +30,10 @@ export const CapturedPieces = memo(({ pieces, color, materialAdvantage }: Captur
               color === 'white' ? "text-foreground/80" : "text-muted-foreground"
             )}
             title={getPieceName(piece)}
+            style={{
+              fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif',
+              fontVariantEmoji: 'text' as never,
+            }}
           >
             {PIECE_SYMBOLS_SMALL[piece]}
           </span>
