@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: your-own-base
+    name: Skilled
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
