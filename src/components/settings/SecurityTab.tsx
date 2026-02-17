@@ -2,17 +2,26 @@
  * Security Tab - Password, 2FA, Sessions
  */
 
-import { useState } from 'react';
-import { Lock, Shield, Smartphone, LogOut, Eye, EyeOff, Loader2, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Lock, Shield, Smartphone, LogOut, Eye, EyeOff, Loader2, AlertTriangle, Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { MFAEnroll } from '@/components/MFAEnroll';
+
+type MFAStatus = 'loading' | 'not-enrolled' | 'enrolled' | 'enrolling';
+
+interface MFAFactor {
+  id: string;
+  friendly_name: string;
+  factor_type: string;
+  status: string;
+}
 
 export function SecurityTab() {
   const { signOut } = useAuth();
@@ -22,7 +31,39 @@ export function SecurityTab() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  
+  // MFA state
+  const [mfaStatus, setMfaStatus] = useState<MFAStatus>('loading');
+  const [mfaFactors, setMfaFactors] = useState<MFAFactor[]>([]);
+  const [unenrolling, setUnenrolling] = useState(false);
+
+  // Load MFA factors on mount
+  useEffect(() => {
+    loadMFAFactors();
+  }, []);
+
+  const loadMFAFactors = async () => {
+    setMfaStatus('loading');
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) {
+        console.error('Failed to list MFA factors:', error);
+        setMfaStatus('not-enrolled');
+        return;
+      }
+
+      const verifiedFactors = data.totp.filter(f => f.status === 'verified');
+      setMfaFactors(verifiedFactors.map(f => ({
+        id: f.id,
+        friendly_name: f.friendly_name ?? 'Authenticator App',
+        factor_type: f.factor_type,
+        status: f.status,
+      })));
+      setMfaStatus(verifiedFactors.length > 0 ? 'enrolled' : 'not-enrolled');
+    } catch {
+      setMfaStatus('not-enrolled');
+    }
+  };
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
@@ -46,6 +87,32 @@ export function SecurityTab() {
       setConfirmPassword('');
     }
     setChangingPassword(false);
+  };
+
+  const handleUnenrollFactor = async (factorId: string) => {
+    setUnenrolling(true);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success('Two-factor authentication disabled');
+      // Refresh session to update AAL level
+      await supabase.auth.refreshSession();
+      await loadMFAFactors();
+    } catch {
+      toast.error('Failed to disable 2FA');
+    } finally {
+      setUnenrolling(false);
+    }
+  };
+
+  const handleMFAEnrolled = async () => {
+    toast.success('Two-factor authentication enabled!');
+    setMfaStatus('enrolled');
+    await loadMFAFactors();
   };
 
   const handleSignOutAllDevices = async () => {
@@ -140,28 +207,95 @@ export function SecurityTab() {
             </div>
             <div className="flex-1">
               <CardTitle className="text-lg font-semibold">Two-Factor Authentication</CardTitle>
-              <CardDescription>Add an extra layer of security</CardDescription>
+              <CardDescription>Add an extra layer of security to your account</CardDescription>
             </div>
-            <Badge variant="secondary" className="bg-muted text-muted-foreground">
-              Coming Soon
-            </Badge>
+            {mfaStatus === 'enrolled' && (
+              <Badge className="bg-green-500/20 text-green-400 border-0">
+                <Check className="w-3 h-3 mr-1" />
+                Enabled
+              </Badge>
+            )}
+            {mfaStatus === 'not-enrolled' && (
+              <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-0">
+                Not Set Up
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border">
-            <div className="flex items-center gap-3">
-              <Shield className="w-5 h-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium text-sm">Authenticator App</p>
-                <p className="text-xs text-muted-foreground">Use Google Authenticator or Authy</p>
+          {mfaStatus === 'loading' && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {mfaStatus === 'enrolled' && (
+            <div className="space-y-4">
+              {mfaFactors.map((factor) => (
+                <div
+                  key={factor.id}
+                  className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border"
+                >
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-5 h-5 text-green-400" />
+                    <div>
+                      <p className="font-medium text-sm">{factor.friendly_name}</p>
+                      <p className="text-xs text-muted-foreground">Authenticator App (TOTP)</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                    onClick={() => handleUnenrollFactor(factor.id)}
+                    disabled={unenrolling}
+                  >
+                    {unenrolling ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <>
+                        <X className="w-3 h-3 mr-1" />
+                        Remove
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {mfaStatus === 'not-enrolled' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium text-sm">Authenticator App</p>
+                    <p className="text-xs text-muted-foreground">Use Google Authenticator, Authy, or 1Password</p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setMfaStatus('enrolling')}
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                >
+                  Set Up
+                </Button>
               </div>
             </div>
-            <Switch 
-              checked={twoFactorEnabled}
-              onCheckedChange={setTwoFactorEnabled}
-              disabled
-            />
-          </div>
+          )}
+
+          {mfaStatus === 'enrolling' && (
+            <div className="py-2">
+              <MFAEnroll
+                onEnrolled={handleMFAEnrolled}
+                onSkipped={() => setMfaStatus('not-enrolled')}
+                allowSkip={true}
+                title="Set Up Authenticator"
+                description="Scan the QR code below with your authenticator app"
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
