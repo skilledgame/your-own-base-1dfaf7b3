@@ -82,8 +82,11 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // MFA enforcement: redirect to /auth if user needs MFA verification or enrollment
-  // Skips MFA for OAuth (Google) users — they are already verified by their provider
+  // MFA enforcement: redirect to /auth if user needs MFA verification
+  // - TOTP users: enforced via AAL level (aal1 -> aal2)
+  // - Email 2FA users: enforced via sessionStorage flag
+  // - No 2FA users: allowed through (2FA is optional)
+  // - OAuth users (Google): always skip
   useEffect(() => {
     if (!isAuthReady || !isAuthenticated) {
       setMfaChecked(true);
@@ -97,7 +100,7 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Skip MFA for OAuth users (Google, etc.) — they don't need TOTP 2FA
+    // Skip MFA for OAuth users (Google, etc.) — they don't need 2FA
     const provider = user?.app_metadata?.provider;
     if (provider && provider !== 'email') {
       setMfaChecked(true);
@@ -112,17 +115,23 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // If user has MFA factors but hasn't verified yet (aal1 -> aal2 needed)
+        // If user has TOTP MFA factors but hasn't verified yet (aal1 -> aal2 needed)
         if (data.currentLevel === 'aal1' && data.nextLevel === 'aal2') {
           navigate('/auth', { replace: true });
           return;
         }
 
-        // If user has NO MFA factors enrolled, redirect to auth for enrollment
-        if (data.currentLevel === 'aal1' && data.nextLevel === 'aal1') {
-          navigate('/auth', { replace: true });
-          return;
+        // Check for email-based 2FA preference
+        const mfaMethod = user?.user_metadata?.mfa_method;
+        if (mfaMethod === 'email') {
+          const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
+          if (!emailMfaVerified) {
+            navigate('/auth', { replace: true });
+            return;
+          }
         }
+
+        // No 2FA enrolled or already verified — allow through
       } catch {
         // If MFA check fails, don't block the user
       } finally {
