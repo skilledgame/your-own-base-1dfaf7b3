@@ -284,38 +284,30 @@ serve(async (req) => {
 
     console.log('[payment-webhook] Transaction updated successfully');
 
-    // Credit user's account if payment confirmed
+    // Credit user's account if payment confirmed (atomic, race-condition-proof)
     if (newStatus === 'confirmed' && skilledCoinsToCredit > 0) {
-      console.log('[payment-webhook] Crediting user account:', {
+      console.log('[payment-webhook] Crediting user account (atomic):', {
         user_id: transaction.user_id,
         coins: skilledCoinsToCredit
       });
       
-      // Get current balance
-      const { data: profile, error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .select('skilled_coins')
-        .eq('user_id', transaction.user_id)
+      const { data: creditResult, error: creditError } = await supabaseAdmin
+        .rpc('atomic_credit_balance', {
+          p_user_id: transaction.user_id,
+          p_amount: skilledCoinsToCredit,
+        })
         .single();
 
-      if (profileError) {
-        console.error('[payment-webhook] Failed to get user profile:', profileError);
-      } else if (profile) {
-        const newBalance = profile.skilled_coins + skilledCoinsToCredit;
-        console.log('[payment-webhook] Updating balance:', profile.skilled_coins, '->', newBalance);
-        
-        const { error: creditError } = await supabaseAdmin
-          .from('profiles')
-          .update({ skilled_coins: newBalance })
-          .eq('user_id', transaction.user_id);
-          
-        if (creditError) {
-          console.error('[payment-webhook] Failed to credit coins:', creditError);
-        } else {
-          console.log('[payment-webhook] Successfully credited coins to user');
-        }
+      if (creditError) {
+        console.error('[payment-webhook] atomic_credit_balance RPC error:', creditError);
+      } else if (creditResult && creditResult.success) {
+        console.log('[payment-webhook] Successfully credited coins:', {
+          old_balance: creditResult.old_balance,
+          new_balance: creditResult.new_balance,
+          credited: skilledCoinsToCredit
+        });
       } else {
-        console.error('[payment-webhook] User profile not found for user_id:', transaction.user_id);
+        console.error('[payment-webhook] atomic_credit_balance returned failure:', creditResult);
       }
     }
 

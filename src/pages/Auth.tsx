@@ -77,6 +77,18 @@ export default function Auth() {
         return;
       }
 
+      // Check email 2FA status FIRST — if already verified this session,
+      // user is good (even if they also have TOTP enrolled).
+      // Email 2FA is a valid alternative to TOTP, not an addition.
+      const mfaMethod = session.user.user_metadata?.mfa_method;
+      const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
+
+      if (mfaMethod === 'email' && emailMfaVerified) {
+        // Email 2FA already verified this session — go home
+        navigate('/');
+        return;
+      }
+
       // Check TOTP MFA status
       const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (!aalData) return;
@@ -89,22 +101,20 @@ export default function Auth() {
 
       if (aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
         // Has TOTP factor enrolled but needs to verify — show challenge
+        // Also check if email 2FA is available so user can switch
+        setHasTotpFactor(true);
+        if (mfaMethod === 'email') {
+          setEmail(session.user.email || '');
+        }
         setStep('mfa-verify');
         return;
       }
 
       // No TOTP enrolled — check for email-based 2FA preference
-      const mfaMethod = session.user.user_metadata?.mfa_method;
-      if (mfaMethod === 'email') {
-        const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
-        if (emailMfaVerified) {
-          // Already verified email 2FA this session
-          navigate('/');
-        } else {
-          // Need to verify email 2FA
-          setEmail(session.user.email || '');
-          setStep('email-2fa-verify');
-        }
+      if (mfaMethod === 'email' && !emailMfaVerified) {
+        // Need to verify email 2FA
+        setEmail(session.user.email || '');
+        setStep('email-2fa-verify');
         return;
       }
 
@@ -182,24 +192,22 @@ export default function Auth() {
           return;
         }
 
+        const loginMfaMethod = signInData.user?.user_metadata?.mfa_method;
+
         if (aalData.nextLevel === 'aal2' && aalData.currentLevel === 'aal1') {
           // User has TOTP MFA enrolled — show TOTP verification screen
           setHasTotpFactor(true);
           setStep('mfa-verify');
+        } else if (loginMfaMethod === 'email') {
+          // No TOTP but has email 2FA — send OTP and show verification
+          setStep('email-2fa-verify');
         } else {
-          // No TOTP enrolled — check for email-based 2FA
-          const mfaMethod = signInData.user?.user_metadata?.mfa_method;
-          if (mfaMethod === 'email') {
-            // Email 2FA — send OTP and show verification
-            setStep('email-2fa-verify');
-          } else {
-            // No 2FA at all — go home
-            toast({
-              title: 'Welcome back!',
-              description: 'You have successfully signed in.',
-            });
-            navigate('/');
-          }
+          // No 2FA at all — go home
+          toast({
+            title: 'Welcome back!',
+            description: 'You have successfully signed in.',
+          });
+          navigate('/');
         }
       } else {
         // ── Signup flow ──
@@ -558,7 +566,7 @@ export default function Auth() {
             {step === 'mfa-enroll' && (
               <MFAEnroll
                 onEnrolled={handleMFAEnrolled}
-                onSkipped={handleSkip2FA}
+                onSkipped={handleSkipAuthenticator}
                 allowSkip={true}
               />
             )}

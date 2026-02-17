@@ -114,6 +114,17 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
 
     const checkMFA = async () => {
       try {
+        // Check email-based 2FA first — if verified this session, user is good
+        // (even if they also have TOTP enrolled, email 2FA is a valid alternative)
+        const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
+        const mfaMethod = user?.user_metadata?.mfa_method;
+
+        if (mfaMethod === 'email' && emailMfaVerified) {
+          // Email 2FA already verified this session — allow through
+          setMfaChecked(true);
+          return;
+        }
+
         const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         if (error) {
           setMfaChecked(true);
@@ -126,14 +137,10 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Check for email-based 2FA preference
-        const mfaMethod = user?.user_metadata?.mfa_method;
-        if (mfaMethod === 'email') {
-          const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
-          if (!emailMfaVerified) {
-            navigate('/auth', { replace: true });
-            return;
-          }
+        // Check for email-based 2FA preference (not yet verified)
+        if (mfaMethod === 'email' && !emailMfaVerified) {
+          navigate('/auth', { replace: true });
+          return;
         }
 
         // No 2FA enrolled or already verified — allow through
