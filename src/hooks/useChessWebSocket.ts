@@ -143,6 +143,19 @@ function initializeGlobalMessageHandler(): void {
         break;
       }
       
+      case "queue_estimate": {
+        const payload = msg as any;
+        store.setQueueEstimate({
+          estimatedSeconds: payload.estimatedSeconds,
+          estimatedLabel: payload.estimatedLabel,
+          queuePosition: payload.queuePosition,
+          queueSize: payload.queueSize,
+          onlinePlayers: payload.onlinePlayers,
+          inGamePlayers: payload.inGamePlayers,
+        });
+        break;
+      }
+      
       case "match_found": {
         const payload = msg as unknown as MatchFoundMessage;
         const store = useChessStore.getState();

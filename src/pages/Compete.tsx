@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { useChessStore } from '@/stores/chessStore';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import skilledLogo from '@/assets/skilled-logo.png';
@@ -33,6 +34,7 @@ export default function Compete() {
   const [isInQueue, setIsInQueue] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const { queueEstimate } = useChessStore();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -182,7 +184,18 @@ export default function Compete() {
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">Finding Opponent...</p>
-                  <p className="text-sm text-muted-foreground">You're in the matchmaking queue</p>
+                  {queueEstimate ? (
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium text-primary">
+                        Est. wait: {queueEstimate.estimatedLabel}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {queueEstimate.onlinePlayers} online &middot; {queueEstimate.inGamePlayers} in game
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">You're in the matchmaking queue</p>
+                  )}
                 </div>
               </div>
             </CardContent>
