@@ -784,6 +784,23 @@ serve(async (req) => {
             payout: settleResult.payout
           });
           
+          // Update ELO ratings + daily streak (non-blocking, best-effort)
+          if (!settleResult.already_settled) {
+            try {
+              const { data: eloResult, error: eloError } = await supabase.rpc('update_elo_after_game', {
+                p_game_id: gameId,
+                p_winner_user_id: resolvedWinnerUserId
+              });
+              if (eloError) {
+                console.error("end_game: update_elo_after_game RPC error (non-fatal):", eloError);
+              } else {
+                console.log("end_game: ELO updated", eloResult);
+              }
+            } catch (eloErr) {
+              console.error("end_game: update_elo_after_game exception (non-fatal):", eloErr);
+            }
+          }
+          
           // Return the result from settle_match() RPC
           return new Response(
             JSON.stringify({
