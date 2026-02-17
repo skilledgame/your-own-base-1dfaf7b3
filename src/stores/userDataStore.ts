@@ -154,7 +154,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             total_wagered_sc: data.total_wagered_sc ?? 0,
             display_name: data.display_name,
             email: data.email,
-            chess_elo: data.chess_elo ?? 1200,
+            chess_elo: data.chess_elo ?? 800,
             daily_play_streak: data.daily_play_streak ?? 0,
           };
           
@@ -219,7 +219,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             total_wagered_sc: data.total_wagered_sc ?? 0,
             display_name: data.display_name,
             email: data.email,
-            chess_elo: data.chess_elo ?? 1200,
+            chess_elo: data.chess_elo ?? 800,
             daily_play_streak: data.daily_play_streak ?? 0,
           };
           
@@ -360,7 +360,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
               total_wagered_sc: data.total_wagered_sc ?? 0,
               display_name: data.display_name,
               email: data.email,
-              chess_elo: data.chess_elo ?? 1200,
+              chess_elo: data.chess_elo ?? 800,
               daily_play_streak: data.daily_play_streak ?? 0,
             };
             

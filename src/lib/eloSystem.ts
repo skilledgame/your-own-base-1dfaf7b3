@@ -82,10 +82,10 @@ export function getEloTitle(elo: number): EloTitleInfo {
  * Format ELO for display — just the number.
  */
 export function formatElo(elo: number | null | undefined): string {
-  return String(elo ?? 1200);
+  return String(elo ?? 800);
 }
 
 /**
  * Default starting ELO.
  */
-export const DEFAULT_ELO = 1200;
+export const DEFAULT_ELO = 800;
