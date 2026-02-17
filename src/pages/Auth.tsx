@@ -11,6 +11,7 @@ import { MFAVerify } from '@/components/MFAVerify';
 import { MFAChoice } from '@/components/MFAChoice';
 import { EmailVerify } from '@/components/EmailVerify';
 import { EmailMFAVerify } from '@/components/EmailMFAVerify';
+import { ChooseUsername } from '@/components/ChooseUsername';
 import { ArrowLeft, Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
@@ -22,11 +23,12 @@ const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
 type AuthStep =
-  | 'email'          // Login/signup form
-  | 'email-verify'   // Signup email confirmation (OTP)
-  | 'mfa-choice'     // Choose 2FA method after signup
-  | 'mfa-enroll'     // TOTP authenticator enrollment
-  | 'mfa-verify'     // TOTP challenge on login
+  | 'email'            // Login/signup form
+  | 'email-verify'     // Signup email confirmation (OTP)
+  | 'choose-username'  // Choose unique username after signup
+  | 'mfa-choice'       // Choose 2FA method after signup
+  | 'mfa-enroll'       // TOTP authenticator enrollment
+  | 'mfa-verify'       // TOTP challenge on login
   | 'email-2fa-verify' // Email-based 2FA challenge on login
   | 'complete';
 
@@ -38,6 +40,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [userId, setUserId] = useState<string | null>(null);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -47,6 +50,8 @@ export default function Auth() {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
+
+      setUserId(session.user.id);
 
       // OAuth users (Google, etc.) skip MFA entirely — send them home
       const provider = session.user.app_metadata?.provider;
@@ -199,12 +204,13 @@ export default function Auth() {
         }
 
         if (signUpData?.session) {
-          // User has a session immediately (email confirmation disabled) — go to 2FA choice
+          // User has a session immediately (email confirmation disabled) — choose username
+          setUserId(signUpData.session.user.id);
           toast({
             title: 'Account created!',
-            description: 'Would you like to set up two-factor authentication?',
+            description: 'Now choose your username.',
           });
-          setStep('mfa-choice');
+          setStep('choose-username');
         } else {
           // Email confirmation required — show OTP code entry screen
           toast({
@@ -249,10 +255,24 @@ export default function Auth() {
 
   // ── Step handlers ──
 
-  // Email verification success (signup) → show 2FA choice
-  const handleEmailVerified = () => {
+  // Email verification success (signup) → choose username
+  const handleEmailVerified = async () => {
+    // Get userId from the now-active session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      setUserId(session.user.id);
+    }
     toast({
       title: 'Email verified!',
+      description: 'Now choose your username.',
+    });
+    setStep('choose-username');
+  };
+
+  // Username chosen → show 2FA choice
+  const handleUsernameChosen = (_username: string) => {
+    toast({
+      title: 'Username saved!',
       description: 'Would you like to set up two-factor authentication?',
     });
     setStep('mfa-choice');
@@ -508,7 +528,12 @@ export default function Auth() {
               />
             )}
 
-            {/* Step: 2FA Method Choice (after signup email verify) */}
+            {/* Step: Choose Username (after signup email verify) */}
+            {step === 'choose-username' && userId && (
+              <ChooseUsername userId={userId} onComplete={handleUsernameChosen} />
+            )}
+
+            {/* Step: 2FA Method Choice (after choosing username) */}
             {step === 'mfa-choice' && (
               <MFAChoice
                 onChooseAuthenticator={handleChooseAuthenticator}
