@@ -21,6 +21,7 @@ const DEFAULT_TIERS: RankTier[] = [
   { id: '', tier_name: 'gold', display_name: 'Gold', threshold: DEFAULT_THRESHOLDS.gold, perks: DEFAULT_PERKS.gold, rakeback_percentage: 8, sort_order: 3, updated_at: null },
   { id: '', tier_name: 'platinum', display_name: 'Platinum', threshold: DEFAULT_THRESHOLDS.platinum, perks: DEFAULT_PERKS.platinum, rakeback_percentage: 12, sort_order: 4, updated_at: null },
   { id: '', tier_name: 'diamond', display_name: 'Diamond', threshold: DEFAULT_THRESHOLDS.diamond, perks: DEFAULT_PERKS.diamond, rakeback_percentage: 15, sort_order: 5, updated_at: null },
+  { id: '', tier_name: 'goat', display_name: 'GOAT', threshold: DEFAULT_THRESHOLDS.goat, perks: DEFAULT_PERKS.goat, rakeback_percentage: 20, sort_order: 7, updated_at: null },
 ];
 
 /**

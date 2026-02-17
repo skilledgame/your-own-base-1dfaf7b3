@@ -21,6 +21,7 @@ export const RANK_THRESHOLDS = {
   gold: 50_000,
   platinum: 100_000,
   diamond: 1_000_000,
+  goat: 10_000_000,
 } as const;
 
 // Perks per tier
@@ -31,6 +32,7 @@ export const RANK_PERKS: Record<string, string[]> = {
   gold: ["VIP badge", "Monthly bonus drops (coming soon)"],
   platinum: ["Lower house fee (coming soon)", "VIP support (coming soon)"],
   diamond: ["Best fee tier (coming soon)", "Early access features (coming soon)"],
+  goat: ["GOAT status", "Exclusive GOAT badge", "Best possible perks (coming soon)"],
 };
 
 /**
@@ -39,12 +41,22 @@ export const RANK_PERKS: Record<string, string[]> = {
 export function getRankFromTotalWagered(totalWageredSc: number | null | undefined): RankInfo {
   const wagered = totalWageredSc ?? 0;
 
+  if (wagered >= RANK_THRESHOLDS.goat) {
+    return {
+      tierName: "goat",
+      displayName: "GOAT",
+      currentMin: RANK_THRESHOLDS.goat,
+      nextMin: null,
+      perks: RANK_PERKS.goat,
+    };
+  }
+
   if (wagered >= RANK_THRESHOLDS.diamond) {
     return {
       tierName: "diamond",
       displayName: "Diamond",
       currentMin: RANK_THRESHOLDS.diamond,
-      nextMin: null,
+      nextMin: RANK_THRESHOLDS.goat,
       perks: RANK_PERKS.diamond,
     };
   }
@@ -151,6 +163,9 @@ export const RANK_IMAGES: Record<string, string> = {
   bronze: '/ranks/bronze.png',
   silver: '/ranks/silver.png',
   gold: '/ranks/gold.png',
+  platinum: '/ranks/platinum.png',
+  diamond: '/ranks/diamond.png',
+  goat: '/ranks/goat.png',
 };
 
 export function getRankImage(tierName: string): string | null {

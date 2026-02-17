@@ -24,6 +24,7 @@ const TIER_ICON_MAP: Record<string, LucideIcon> = {
   gold: Crown,
   platinum: Sparkles,
   diamond: Trophy,
+  goat: Trophy,
 };
 
 // VIP Reward tiers with cooldowns
@@ -76,6 +77,7 @@ const VIP_REWARDS = [
 
 const getRankColor = (tier: string) => {
   switch (tier) {
+    case 'goat': return 'from-purple-400 to-violet-600';
     case 'diamond': return 'from-cyan-400 to-blue-500';
     case 'platinum': return 'from-slate-300 to-slate-500';
     case 'gold': return 'from-yellow-400 to-amber-500';
@@ -87,6 +89,7 @@ const getRankColor = (tier: string) => {
 
 const getRankBgColor = (tier: string) => {
   switch (tier) {
+    case 'goat': return 'bg-purple-500/10';
     case 'diamond': return 'bg-cyan-500/10';
     case 'platinum': return 'bg-slate-400/10';
     case 'gold': return 'bg-yellow-500/10';
@@ -163,6 +166,7 @@ export default function VIP() {
         {/* Current Rank Hero Card */}
         <Card className={cn(
           "overflow-hidden border-2",
+          rankInfo.tierName === 'goat' ? 'border-purple-500/30' :
           rankInfo.tierName === 'diamond' ? 'border-cyan-500/30' :
           rankInfo.tierName === 'platinum' ? 'border-slate-400/30' :
           rankInfo.tierName === 'gold' ? 'border-yellow-500/30' :

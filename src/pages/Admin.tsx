@@ -832,6 +832,7 @@ export default function Admin() {
 
   const getRankTierColor = (tier: string) => {
     switch (tier) {
+      case 'goat': return 'text-purple-400 border-purple-500/30 bg-purple-500/10';
       case 'diamond': return 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10';
       case 'platinum': return 'text-slate-300 border-slate-400/30 bg-slate-400/10';
       case 'gold': return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';

@@ -26,6 +26,7 @@ const LABEL_SIZE_MAP = {
 
 function getRankTextColor(tierName: string): string {
   switch (tierName) {
+    case 'goat': return 'text-purple-400';
     case 'diamond': return 'text-cyan-400';
     case 'platinum': return 'text-slate-300';
     case 'gold': return 'text-yellow-400';
@@ -60,7 +61,7 @@ export function RankBadge({ rank, size = 'sm', showLabel = false, className = ''
     );
   }
 
-  // Fallback for tiers without custom images (unranked, platinum, diamond)
+  // Fallback for tiers without custom images (unranked)
   return (
     <span className={`inline-flex items-center gap-1 ${className}`}>
       <span className={`font-medium ${LABEL_SIZE_MAP[size]} px-1.5 py-0.5 rounded ${colorClass}`}>
