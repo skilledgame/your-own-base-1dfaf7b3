@@ -53,7 +53,7 @@ const GAMES: Record<string, GameInfo> = {
     name: 'Chess',
     slug: 'chess',
     description: 'The ultimate game of strategy. Compete head-to-head in timed matches where every move counts.',
-    image: '♟\uFE0E',
+    image: '♟️',
     gradientFrom: '#1e3a5f',
     gradientTo: '#0d1b2a',
     isLive: true,
@@ -582,7 +582,7 @@ export default function GameStart() {
             </p>
 
             {/* Large Chess Icon */}
-            <div className="text-8xl mt-2 filter drop-shadow-[0_0_30px_rgba(59,130,246,0.5)]">♟︎</div>
+            <div className="text-8xl mt-2 filter drop-shadow-[0_0_30px_rgba(59,130,246,0.5)]">♟️</div>
           </div>
 
           {/* How It Works - Quick */}

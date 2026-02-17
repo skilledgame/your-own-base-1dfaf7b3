@@ -10,14 +10,14 @@ import skilledLogo from '@/assets/skilled-logo.png';
 const categories = [
   { id: 'all', label: 'All Games', icon: '🎮' },
   { id: 'skilled', label: 'Skilled Originals', icon: '⭐' },
-  { id: 'strategy', label: 'Strategy', icon: '♟\uFE0E' },
+  { id: 'strategy', label: 'Strategy', icon: '♟️' },
   { id: 'action', label: 'Action', icon: '🎯' },
   { id: 'popular', label: 'Popular Games', icon: '🔥' },
 ];
 
 // Games matching Skilled Originals from LandingPage
 const games = [
-  { id: 'chess', name: 'Chess', provider: 'Skilled', category: 'skilled', image: '♟\uFE0E', isLive: true },
+  { id: 'chess', name: 'Chess', provider: 'Skilled', category: 'skilled', image: '♟️', isLive: true },
   { id: 'game2', name: 'Coming Soon', provider: 'Skilled', category: 'skilled', image: '🎯', comingSoon: true },
   { id: 'game3', name: 'Coming Soon', provider: 'Skilled', category: 'skilled', image: '🎮', comingSoon: true },
   { id: 'game4', name: 'Coming Soon', provider: 'Skilled', category: 'skilled', image: '🏆', comingSoon: true },
