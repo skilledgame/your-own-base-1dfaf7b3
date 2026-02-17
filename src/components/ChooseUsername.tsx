@@ -43,7 +43,7 @@ export function ChooseUsername({ userId, onComplete }: ChooseUsernameProps) {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
-  // Debounced username availability check
+  // Debounced username availability check using a secure DB function
   const checkAvailability = useCallback(
     async (name: string) => {
       if (!name || name.length < 3) {
@@ -66,12 +66,11 @@ export function ChooseUsername({ userId, onComplete }: ChooseUsernameProps) {
       setIsChecking(true);
 
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id')
-          .ilike('display_name', name)
-          .neq('user_id', userId)
-          .limit(1);
+        // Use SECURITY DEFINER RPC to reliably check across all profiles
+        const { data, error } = await supabase.rpc('check_username_available', {
+          desired_name: name,
+          for_user_id: userId,
+        });
 
         if (error) {
           console.error('Error checking username:', error);
@@ -79,7 +78,7 @@ export function ChooseUsername({ userId, onComplete }: ChooseUsernameProps) {
           return;
         }
 
-        setIsAvailable(data.length === 0);
+        setIsAvailable(data === true);
       } catch {
         setIsAvailable(null);
       } finally {
@@ -120,11 +119,26 @@ export function ChooseUsername({ userId, onComplete }: ChooseUsernameProps) {
     setSubmitError(null);
 
     try {
-      // Update profile
+      // Double-check availability right before saving (prevent race conditions)
+      const { data: stillAvailable } = await supabase.rpc('check_username_available', {
+        desired_name: trimmed,
+        for_user_id: userId,
+      });
+
+      if (!stillAvailable) {
+        setSubmitError('That username was just taken! Please try another.');
+        setIsAvailable(false);
+        return;
+      }
+
+      // Update profile — use upsert to handle race with ensure-user
+      // (profile may not exist yet if ensure-user hasn't completed)
       const { error } = await supabase
         .from('profiles')
-        .update({ display_name: trimmed })
-        .eq('user_id', userId);
+        .upsert(
+          { user_id: userId, display_name: trimmed },
+          { onConflict: 'user_id' }
+        );
 
       if (error) {
         if (error.message.includes('idx_profiles_display_name_unique') || error.message.includes('duplicate')) {
