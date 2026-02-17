@@ -217,7 +217,7 @@ export default function Compete() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <span className="text-xl">{match.isWhite ? '♔\uFE0E' : '♚\uFE0E'}</span>
+                          <span className="text-xl">{match.isWhite ? '♔' : '♚'}</span>
                         </div>
                         <div>
                           <p className="font-semibold text-foreground">vs {match.opponentName}</p>

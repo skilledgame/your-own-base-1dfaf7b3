@@ -71,7 +71,7 @@ export const VIPProgressSection = () => {
                 {/* Chess piece */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-[64px] drop-shadow-2xl transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
-                    ♟︎
+                    ♟️
                   </span>
                 </div>
                 
@@ -79,7 +79,7 @@ export const VIPProgressSection = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-cyan-900/90 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <span className="text-sm">♟︎</span>
+                    <span className="text-sm">♟️</span>
                     <span className="text-white font-bold text-xs">Chess</span>
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 text-white/70 group-hover:translate-x-1 transition-transform" />
