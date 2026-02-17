@@ -509,7 +509,9 @@ const ChessBoardComponent = ({
                       color: piece.color === 'w' ? '#FFFFFF' : '#1a1a1a',
                       textShadow: piece.color === 'w' 
                         ? '1px 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.4)' 
-                        : '1px 1px 2px rgba(255,255,255,0.3), 0 0 4px rgba(0,0,0,0.4)'
+                        : '1px 1px 2px rgba(255,255,255,0.3), 0 0 4px rgba(0,0,0,0.4)',
+                      fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif',
+                      fontVariantEmoji: 'text' as never,
                     }}
                   >
                     {PIECE_SYMBOLS[`${piece.color}${piece.type}`]}

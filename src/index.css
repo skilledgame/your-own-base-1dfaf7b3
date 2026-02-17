@@ -26,6 +26,13 @@
   animation: rainbow-wave 3s linear infinite;
 }
 
+/* Force text presentation for all chess piece Unicode characters – prevents
+   colorful emoji "skins" that appear randomly across different devices/OS */
+.chess-piece-text {
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif;
+  font-variant-emoji: text;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
