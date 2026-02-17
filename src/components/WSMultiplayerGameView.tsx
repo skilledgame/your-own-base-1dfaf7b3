@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { User, LogOut, Crown, Shield, Search, MessageCircle, Flame, UserPlus } from 'lucide-react';
+import { User, LogOut, Crown, Shield, Search, Flame, UserPlus } from 'lucide-react';
 import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -36,6 +36,7 @@ import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { LogoLink } from '@/components/LogoLink';
 import { UserDropdown } from '@/components/UserDropdown';
+import { FriendsButton } from '@/components/FriendsButton';
 import { BalanceDepositPill } from '@/components/BalanceDepositPill';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
@@ -475,10 +476,10 @@ export const WSMultiplayerGameView = ({
                   <div className="hidden sm:flex items-center">
                     <UserDropdown />
                   </div>
-                  {/* Chat icon */}
-                  <Button variant="ghost" size="icon" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => window.voiceflow?.chat?.open()}>
-                    <MessageCircle className="w-5 h-5" />
-                  </Button>
+                  {/* Friends button */}
+                  <div className="hidden sm:flex">
+                    <FriendsButton />
+                  </div>
                   <div className="sm:hidden">
                     <button onClick={() => openWallet('deposit')}>
                       <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />

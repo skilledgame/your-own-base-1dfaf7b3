@@ -19,6 +19,7 @@ import { BattleRoyaleModeCard } from '@/components/chess/BattleRoyaleModeCard';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { UserDropdown } from '@/components/UserDropdown';
+import { FriendsButton } from '@/components/FriendsButton';
 import { BalanceDepositPill } from '@/components/BalanceDepositPill';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
@@ -33,8 +34,7 @@ import {
   Globe,
   UserPlus,
   Shield,
-  Search,
-  MessageCircle
+  Search
 } from 'lucide-react';
 
 type GameMode = 'private' | 'online' | 'battle-royale';
@@ -176,10 +176,10 @@ export default function ChessHome() {
                   <div className="hidden sm:flex items-center">
                     <UserDropdown />
                   </div>
-                  {/* Chat icon */}
-                  <Button variant="ghost" size="icon" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => window.voiceflow?.chat?.open()}>
-                    <MessageCircle className="w-5 h-5" />
-                  </Button>
+                  {/* Friends button */}
+                  <div className="hidden sm:flex">
+                    <FriendsButton />
+                  </div>
                   {/* Mobile: Show balance pill */}
                   <div className="sm:hidden">
                     <button onClick={() => openWallet('deposit')}>
