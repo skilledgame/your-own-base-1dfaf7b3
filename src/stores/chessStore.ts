@@ -68,6 +68,16 @@ export interface GameEndResult {
   creditsChange?: number;  // How much credits changed (+ or -)
 }
 
+// Queue time estimate received from the server
+export interface QueueEstimate {
+  estimatedSeconds: number;
+  estimatedLabel: string;
+  queuePosition: number;
+  queueSize: number;
+  onlinePlayers: number;
+  inGamePlayers: number;
+}
+
 // Premove state - stored at store level for persistence
 export interface PremoveState {
   from: string;
@@ -87,6 +97,7 @@ interface ChessStore {
   timerSnapshot: TimerSnapshot | null;  // Server-authoritative timer snapshot
   premove: PremoveState | null;  // Queued premove (only one at a time)
   versusScreenPending: boolean;  // True when match_found fires — consumed once by LiveGame
+  queueEstimate: QueueEstimate | null;  // Server-provided queue time estimate
   
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -137,6 +148,10 @@ interface ChessStore {
   setPremove: (premove: PremoveState | null) => void;
   clearPremove: () => void;
   
+  // Queue estimate
+  setQueueEstimate: (est: QueueEstimate) => void;
+  clearQueueEstimate: () => void;
+  
   // Versus screen
   consumeVersusScreen: () => void;
 }
@@ -160,6 +175,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   timerSnapshot: null,
   premove: null,
   versusScreenPending: false,
+  queueEstimate: null,
   
   // Actions
   setPhase: (phase) => {
@@ -210,6 +226,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       timerSnapshot: null,
       premove: null,  // Clear premove on reset
       versusScreenPending: false,
+      queueEstimate: null,
       matchmaking: {
         status: "idle",
         wager: null,
@@ -258,6 +275,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   
   resetMatchmaking: () => {
     set({
+      queueEstimate: null,
       matchmaking: {
         status: "idle",
         wager: null,
@@ -285,6 +303,14 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     set({ premove: null });
   },
   
+  setQueueEstimate: (queueEstimate) => {
+    set({ queueEstimate });
+  },
+  
+  clearQueueEstimate: () => {
+    set({ queueEstimate: null });
+  },
+  
   consumeVersusScreen: () => {
     set({ versusScreenPending: false });
   },
@@ -300,6 +326,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     set({
       phase: "in_game",
       gameEndResult: null,  // Clear previous game result
+      queueEstimate: null,  // No longer in queue
       gameState: {
         gameId,
         dbGameId,

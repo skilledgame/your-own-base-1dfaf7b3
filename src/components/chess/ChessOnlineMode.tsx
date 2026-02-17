@@ -76,7 +76,7 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
   const navigate = useNavigate();
   const { isAuthenticated, isAuthReady, isPrivileged, user } = useAuth();
   const { balance } = useBalance();
-  const { phase, setSelectedWager, selectedWager } = useChessStore();
+  const { phase, setSelectedWager, selectedWager, queueEstimate } = useChessStore();
   const { displayName } = useProfile();
   const { status, findMatch, cancelSearch, isAuthenticated: wsAuth } = useChessWebSocket();
   const { openWallet } = useWalletModal();
@@ -296,7 +296,25 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
 
                   <div className="space-y-3">
                     <h2 className="text-3xl font-bold text-white">Finding Opponent</h2>
-                    <p className="text-white/60">Searching for a player...</p>
+                    {queueEstimate ? (
+                      <div className="space-y-2">
+                        <p className="text-lg text-cyan-300 font-semibold">
+                          Est. wait: {queueEstimate.estimatedLabel}
+                        </p>
+                        <div className="flex items-center justify-center gap-4 text-sm text-white/50">
+                          <span>{queueEstimate.onlinePlayers} online</span>
+                          <span className="w-1 h-1 rounded-full bg-white/30" />
+                          <span>{queueEstimate.inGamePlayers} in game</span>
+                        </div>
+                        {queueEstimate.queuePosition > 0 && (
+                          <p className="text-xs text-white/40">
+                            Queue position: {queueEstimate.queuePosition}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-white/60">Searching for a player...</p>
+                    )}
                     <div className="flex items-center justify-center gap-2 mt-4">
                       <Coins className="w-6 h-6 text-yellow-500" />
                       <span className="text-2xl font-bold text-yellow-400">{selectedOption} SC</span>
