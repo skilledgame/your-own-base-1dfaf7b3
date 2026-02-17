@@ -166,12 +166,12 @@ export default function VIP() {
         {/* Current Rank Hero Card */}
         <Card className={cn(
           "overflow-hidden border-2",
-          rankInfo.tierName === 'goat' ? 'border-purple-500/30' :
-          rankInfo.tierName === 'diamond' ? 'border-cyan-500/30' :
-          rankInfo.tierName === 'platinum' ? 'border-slate-400/30' :
-          rankInfo.tierName === 'gold' ? 'border-yellow-500/30' :
-          rankInfo.tierName === 'silver' ? 'border-gray-300/30' :
-          rankInfo.tierName === 'bronze' ? 'border-orange-600/30' :
+          rankInfo.tierName === 'goat' ? 'border-purple-500/60' :
+          rankInfo.tierName === 'diamond' ? 'border-sky-400/60' :
+          rankInfo.tierName === 'platinum' ? 'border-teal-300/60' :
+          rankInfo.tierName === 'gold' ? 'border-yellow-500/60' :
+          rankInfo.tierName === 'silver' ? 'border-gray-400/60' :
+          rankInfo.tierName === 'bronze' ? 'border-amber-700/60' :
           'border-border'
         )}>
           <div className={cn(
@@ -399,7 +399,15 @@ export default function VIP() {
                   className={cn(
                     "overflow-hidden transition-all",
                     isCurrentRank 
-                      ? "border-2 border-primary bg-primary/5" 
+                      ? cn("border-2",
+                          rank.tier === 'goat' ? 'border-purple-500/70 bg-purple-500/5' :
+                          rank.tier === 'diamond' ? 'border-sky-400/70 bg-sky-400/5' :
+                          rank.tier === 'platinum' ? 'border-teal-300/70 bg-teal-300/5' :
+                          rank.tier === 'gold' ? 'border-yellow-500/70 bg-yellow-500/5' :
+                          rank.tier === 'silver' ? 'border-gray-400/70 bg-gray-400/5' :
+                          rank.tier === 'bronze' ? 'border-amber-700/70 bg-amber-700/5' :
+                          'border-primary bg-primary/5'
+                        )
                       : isUnlocked 
                         ? "border-border bg-card" 
                         : "border-border/50 bg-muted/20 opacity-70"
@@ -427,7 +435,15 @@ export default function VIP() {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-bold text-foreground">{rank.name}</h3>
                           {isCurrentRank && (
-                            <Badge variant="secondary" className="text-xs bg-primary/20 text-primary">
+                            <Badge variant="secondary" className={cn("text-xs",
+                              rank.tier === 'goat' ? 'bg-purple-500/20 text-purple-400' :
+                              rank.tier === 'diamond' ? 'bg-sky-400/20 text-sky-400' :
+                              rank.tier === 'platinum' ? 'bg-teal-300/20 text-teal-300' :
+                              rank.tier === 'gold' ? 'bg-yellow-500/20 text-yellow-500' :
+                              rank.tier === 'silver' ? 'bg-gray-400/20 text-gray-300' :
+                              rank.tier === 'bronze' ? 'bg-amber-700/20 text-amber-600' :
+                              'bg-primary/20 text-primary'
+                            )}>
                               Current
                             </Badge>
                           )}
