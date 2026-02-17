@@ -8,7 +8,9 @@ import { useToast } from '@/hooks/use-toast';
 import { LogoLink } from '@/components/LogoLink';
 import { MFAEnroll } from '@/components/MFAEnroll';
 import { MFAVerify } from '@/components/MFAVerify';
+import { MFAChoice } from '@/components/MFAChoice';
 import { EmailVerify } from '@/components/EmailVerify';
+import { EmailMFAVerify } from '@/components/EmailMFAVerify';
 import { ArrowLeft, Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
@@ -19,7 +21,14 @@ import { cn } from '@/lib/utils';
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
-type AuthStep = 'email' | 'email-verify' | 'mfa-verify' | 'mfa-enroll' | 'complete';
+type AuthStep =
+  | 'email'          // Login/signup form
+  | 'email-verify'   // Signup email confirmation (OTP)
+  | 'mfa-choice'     // Choose 2FA method after signup
+  | 'mfa-enroll'     // TOTP authenticator enrollment
+  | 'mfa-verify'     // TOTP challenge on login
+  | 'email-2fa-verify' // Email-based 2FA challenge on login
+  | 'complete';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -46,20 +55,39 @@ export default function Auth() {
         return;
       }
 
-      // Check MFA status for email/password users
+      // Check TOTP MFA status
       const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (!aalData) return;
 
       if (aalData.currentLevel === 'aal2') {
-        // Already fully verified with 2FA
+        // Already fully verified with TOTP 2FA
         navigate('/');
-      } else if (aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
-        // Has MFA factor but needs to verify — show challenge
-        setStep('mfa-verify');
-      } else if (aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal1') {
-        // No MFA factor — show enrollment
-        setStep('mfa-enroll');
+        return;
       }
+
+      if (aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
+        // Has TOTP factor enrolled but needs to verify — show challenge
+        setStep('mfa-verify');
+        return;
+      }
+
+      // No TOTP enrolled — check for email-based 2FA preference
+      const mfaMethod = session.user.user_metadata?.mfa_method;
+      if (mfaMethod === 'email') {
+        const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
+        if (emailMfaVerified) {
+          // Already verified email 2FA this session
+          navigate('/');
+        } else {
+          // Need to verify email 2FA
+          setEmail(session.user.email || '');
+          setStep('email-2fa-verify');
+        }
+        return;
+      }
+
+      // No 2FA configured — just go home (2FA is optional now)
+      navigate('/');
     };
 
     checkAuth();
@@ -103,8 +131,8 @@ export default function Auth() {
 
     try {
       if (isLogin) {
-        // Login flow
-        const { error } = await supabase.auth.signInWithPassword({
+        // ── Login flow ──
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -119,7 +147,7 @@ export default function Auth() {
           throw error;
         }
 
-        // Check if user has MFA enrolled
+        // Check if user has TOTP MFA enrolled
         const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         
         if (aalError) {
@@ -133,21 +161,25 @@ export default function Auth() {
         }
 
         if (aalData.nextLevel === 'aal2' && aalData.currentLevel === 'aal1') {
-          // User has MFA enrolled - show verification screen
+          // User has TOTP MFA enrolled — show TOTP verification screen
           setStep('mfa-verify');
-        } else if (aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal1') {
-          // User has NO MFA enrolled - redirect to enrollment
-          setStep('mfa-enroll');
         } else {
-          // Already at aal2 somehow
-          toast({
-            title: 'Welcome back!',
-            description: 'You have successfully signed in.',
-          });
-          navigate('/');
+          // No TOTP enrolled — check for email-based 2FA
+          const mfaMethod = signInData.user?.user_metadata?.mfa_method;
+          if (mfaMethod === 'email') {
+            // Email 2FA — send OTP and show verification
+            setStep('email-2fa-verify');
+          } else {
+            // No 2FA at all — go home
+            toast({
+              title: 'Welcome back!',
+              description: 'You have successfully signed in.',
+            });
+            navigate('/');
+          }
         }
       } else {
-        // Signup flow
+        // ── Signup flow ──
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -167,14 +199,14 @@ export default function Auth() {
         }
 
         if (signUpData?.session) {
-          // User has a session (email confirmation disabled?) - proceed to MFA enrollment
+          // User has a session immediately (email confirmation disabled) — go to 2FA choice
           toast({
             title: 'Account created!',
-            description: 'Now set up two-factor authentication to secure your account.',
+            description: 'Would you like to set up two-factor authentication?',
           });
-          setStep('mfa-enroll');
+          setStep('mfa-choice');
         } else {
-          // Email confirmation required - show OTP code entry screen
+          // Email confirmation required — show OTP code entry screen
           toast({
             title: 'Check your email!',
             description: 'We sent a 6-digit verification code to your email.',
@@ -204,7 +236,6 @@ export default function Auth() {
         },
       });
       if (error) throw error;
-      // After OAuth redirect, the AppWithAuth guard will handle MFA enrollment
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An error occurred';
       toast({
@@ -216,16 +247,54 @@ export default function Auth() {
     }
   };
 
-  // Email verification success handler
+  // ── Step handlers ──
+
+  // Email verification success (signup) → show 2FA choice
   const handleEmailVerified = () => {
     toast({
       title: 'Email verified!',
-      description: 'Now set up two-factor authentication to secure your account.',
+      description: 'Would you like to set up two-factor authentication?',
     });
+    setStep('mfa-choice');
+  };
+
+  // User chose authenticator app → show TOTP enrollment
+  const handleChooseAuthenticator = () => {
     setStep('mfa-enroll');
   };
 
-  // MFA verify success handler
+  // User chose email 2FA → save preference and go home
+  const handleChooseEmail = async () => {
+    try {
+      await supabase.auth.updateUser({
+        data: { mfa_method: 'email' },
+      });
+      // They're already authenticated from signup, mark as verified for this session
+      sessionStorage.setItem('email_2fa_verified', 'true');
+      toast({
+        title: 'Email 2FA enabled!',
+        description: 'You\'ll receive a verification code via email each time you log in.',
+      });
+      navigate('/');
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to enable email 2FA. Please try again.',
+      });
+    }
+  };
+
+  // User chose "Maybe Later" → skip 2FA
+  const handleSkip2FA = () => {
+    toast({
+      title: 'You can set up 2FA later',
+      description: 'Go to Settings → Security to enable two-factor authentication.',
+    });
+    navigate('/');
+  };
+
+  // TOTP MFA verify success (login)
   const handleMFAVerified = () => {
     toast({
       title: 'Welcome back!',
@@ -234,11 +303,28 @@ export default function Auth() {
     navigate('/');
   };
 
-  // MFA enroll success handler
-  const handleMFAEnrolled = () => {
+  // TOTP MFA enroll success (signup)
+  const handleMFAEnrolled = async () => {
+    // Save the preference in user metadata
+    try {
+      await supabase.auth.updateUser({
+        data: { mfa_method: 'totp' },
+      });
+    } catch {
+      // Non-critical — the TOTP factor is already enrolled in Supabase MFA
+    }
     toast({
       title: '2FA Enabled!',
       description: 'Your account is now protected with two-factor authentication.',
+    });
+    navigate('/');
+  };
+
+  // Email 2FA verify success (login)
+  const handleEmail2FAVerified = () => {
+    toast({
+      title: 'Welcome back!',
+      description: 'Email verification successful.',
     });
     navigate('/');
   };
@@ -422,7 +508,16 @@ export default function Auth() {
               />
             )}
 
-            {/* Step: MFA Verify (login with existing factor) */}
+            {/* Step: 2FA Method Choice (after signup email verify) */}
+            {step === 'mfa-choice' && (
+              <MFAChoice
+                onChooseAuthenticator={handleChooseAuthenticator}
+                onChooseEmail={handleChooseEmail}
+                onSkip={handleSkip2FA}
+              />
+            )}
+
+            {/* Step: TOTP MFA Verify (login with existing factor) */}
             {step === 'mfa-verify' && (
               <MFAVerify
                 onVerified={handleMFAVerified}
@@ -430,11 +525,21 @@ export default function Auth() {
               />
             )}
 
-            {/* Step: MFA Enroll (new factor setup) */}
+            {/* Step: TOTP MFA Enroll (new factor setup after choosing authenticator) */}
             {step === 'mfa-enroll' && (
               <MFAEnroll
                 onEnrolled={handleMFAEnrolled}
-                allowSkip={false}
+                onSkipped={handleSkip2FA}
+                allowSkip={true}
+              />
+            )}
+
+            {/* Step: Email 2FA Verify (login with email code) */}
+            {step === 'email-2fa-verify' && (
+              <EmailMFAVerify
+                email={email}
+                onVerified={handleEmail2FAVerified}
+                onBack={goBackToEmail}
               />
             )}
           </div>

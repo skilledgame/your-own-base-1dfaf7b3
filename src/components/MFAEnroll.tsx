@@ -46,12 +46,25 @@ export function MFAEnroll({
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Start enrollment on mount
+  // Start enrollment on mount — clean up any leftover unverified factors first
   useEffect(() => {
     let cancelled = false;
 
     const startEnroll = async () => {
       try {
+        // Clean up any existing unverified TOTP factors to prevent
+        // "A factor with the friendly name '' for this user already exists" errors
+        const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+        if (existingFactors?.totp) {
+          for (const factor of existingFactors.totp) {
+            if (factor.status === 'unverified') {
+              await supabase.auth.mfa.unenroll({ factorId: factor.id });
+            }
+          }
+        }
+
+        if (cancelled) return;
+
         const { data, error } = await supabase.auth.mfa.enroll({
           factorType: 'totp',
         });
