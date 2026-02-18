@@ -634,14 +634,22 @@ export default function VIP() {
 
 /* ───────────────────── Streak Modal ───────────────────── */
 
-const STREAK_MILESTONES = [
-  { days: 1, reward: 10, label: 'Day 1', icon: Flame },
-  { days: 3, reward: 25, label: '3 Days', icon: Zap },
-  { days: 5, reward: 50, label: '5 Days', icon: Gift },
-  { days: 7, reward: 100, label: '7 Days', icon: Sparkles },
-  { days: 14, reward: 250, label: '14 Days', icon: Crown },
-  { days: 30, reward: 750, label: '30 Days', icon: Trophy },
-];
+function getStreakMilestones(currentStreak: number) {
+  const fixed = [
+    { days: 7, reward: 10, label: '7 Days', icon: Zap },
+    { days: 14, reward: 25, label: '14 Days', icon: Gift },
+    { days: 30, reward: 100, label: '30 Days', icon: Sparkles },
+  ];
+
+  const monthly: typeof fixed = [];
+  let d = 60;
+  while (d <= Math.max(currentStreak + 30, 90)) {
+    monthly.push({ days: d, reward: 150, label: `${d} Days`, icon: d % 60 === 0 ? Crown : Trophy });
+    d += 30;
+  }
+
+  return [...fixed, ...monthly];
+}
 
 function StreakModal({ currentStreak, onClose }: { currentStreak: number; onClose: () => void }) {
   const [calendarOffset, setCalendarOffset] = useState(0);
@@ -672,7 +680,8 @@ function StreakModal({ currentStreak, onClose }: { currentStreak: number; onClos
     viewDate.getMonth() === today.getMonth() &&
     day === today.getDate();
 
-  const nextMilestone = STREAK_MILESTONES.find(m => m.days > currentStreak);
+  const milestones = getStreakMilestones(currentStreak);
+  const nextMilestone = milestones.find(m => m.days > currentStreak);
   const longestStreak = currentStreak;
   const weekProgress = ((currentStreak % 7) / 7) * 100 || (currentStreak > 0 && currentStreak % 7 === 0 ? 100 : 0);
 
@@ -720,7 +729,7 @@ function StreakModal({ currentStreak, onClose }: { currentStreak: number; onClos
               <span className="text-sm font-semibold text-foreground">Weekly Goal</span>
               <div className="flex items-center gap-1">
                 <Coins className="w-3.5 h-3.5 text-yellow-500" />
-                <span className="text-sm font-bold text-yellow-500">100 SC at Day 7</span>
+                <span className="text-sm font-bold text-yellow-500">10 SC at Day 7</span>
               </div>
             </div>
             <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-secondary">
@@ -728,9 +737,8 @@ function StreakModal({ currentStreak, onClose }: { currentStreak: number; onClos
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${weekProgress}%`,
-                  background: 'linear-gradient(90deg, #f97316, #ef4444, #f97316)',
-                  backgroundSize: '200% 100%',
-                  animation: 'rankWave 2s ease-in-out infinite',
+                  background: 'linear-gradient(90deg, #8b5cf6, #a855f7, #c026d3, #e11d48, #ef4444)',
+                  boxShadow: '0 0 10px rgba(168,85,247,0.3)',
                 }}
               />
             </div>
@@ -839,7 +847,7 @@ function StreakModal({ currentStreak, onClose }: { currentStreak: number; onClos
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Streak Rewards</h3>
             <div className="space-y-2">
-              {STREAK_MILESTONES.map((m) => {
+              {milestones.map((m) => {
                 const unlocked = currentStreak >= m.days;
                 const MIcon = m.icon;
                 return (
