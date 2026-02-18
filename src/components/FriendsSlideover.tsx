@@ -295,7 +295,7 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
       {/* Panel - slides up from bottom, right side, no backdrop */}
       <div
         className={cn(
-          "fixed right-4 bottom-4 w-[310px] h-[520px] z-[61]",
+          "fixed right-4 bottom-4 w-[310px] h-[400px] z-[61]",
           "bg-[#0f1923]",
           "border border-slate-500/25",
           "rounded-2xl",

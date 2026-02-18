@@ -32,7 +32,10 @@ interface FriendStore {
   loading: boolean;
   error: string | null;
   subscription: RealtimeChannel | null;
+  panelOpen: boolean;
 
+  togglePanel: () => void;
+  closePanel: () => void;
   fetchFriends: () => Promise<void>;
   fetchPendingRequests: () => Promise<void>;
   sendRequest: (targetUserId: string) => Promise<void>;
@@ -50,6 +53,10 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   loading: false,
   error: null,
   subscription: null,
+  panelOpen: false,
+
+  togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
+  closePanel: () => set({ panelOpen: false }),
 
   fetchFriends: async () => {
     set({ loading: true, error: null });
