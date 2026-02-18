@@ -32,13 +32,15 @@ type AuthStep =
   | 'email-2fa-verify' // Email-based 2FA challenge on login
   | 'complete';
 
-// Steps that indicate the user is actively in a multi-step signup flow.
+// Steps that indicate the user is actively in a multi-step auth flow.
 // checkAuth should NOT override these by navigating away.
 const ACTIVE_FLOW_STEPS: AuthStep[] = [
   'email-verify',
   'choose-username',
   'mfa-choice',
   'mfa-enroll',
+  'mfa-verify',
+  'email-2fa-verify',
 ];
 
 export default function Auth() {
@@ -80,10 +82,12 @@ export default function Auth() {
       // Check email 2FA status FIRST — if already verified this session,
       // user is good (even if they also have TOTP enrolled).
       // Email 2FA is a valid alternative to TOTP, not an addition.
+      // Check regardless of mfa_method because a TOTP user can choose to
+      // verify via email code instead — the sessionStorage flag proves they did.
       const mfaMethod = session.user.user_metadata?.mfa_method;
       const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
 
-      if (mfaMethod === 'email' && emailMfaVerified) {
+      if (emailMfaVerified) {
         // Email 2FA already verified this session — go home
         navigate('/');
         return;
@@ -103,9 +107,7 @@ export default function Auth() {
         // Has TOTP factor enrolled but needs to verify — show challenge
         // Also check if email 2FA is available so user can switch
         setHasTotpFactor(true);
-        if (mfaMethod === 'email') {
-          setEmail(session.user.email || '');
-        }
+        setEmail(session.user.email || '');
         setStep('mfa-verify');
         return;
       }
