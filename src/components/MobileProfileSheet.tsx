@@ -70,7 +70,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
 
   const menuItems = [
     { icon: Wallet, label: 'Wallet', onClick: handleOpenCashier, color: 'text-emerald-400' },
-    { icon: Trophy, label: 'VIP Rewards', path: '/vip', color: 'text-yellow-400' },
+    { icon: Trophy, label: 'Ranks & Rewards', path: '/vip', color: 'text-yellow-400' },
     { icon: BarChart3, label: 'Stats', path: '/stats', color: 'text-blue-400' },
     { icon: History, label: 'Game History', path: '/game-history', color: 'text-orange-400' },
     { icon: Users, label: 'Refer & Earn', path: '/affiliate', color: 'text-red-400' },

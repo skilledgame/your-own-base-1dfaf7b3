@@ -115,7 +115,7 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
         <DropdownMenuItem asChild className="focus:bg-slate-700 cursor-pointer">
           <Link to="/vip" className="flex items-center gap-3 px-3 py-2.5">
             <Trophy className="w-4 h-4 text-yellow-400" />
-            <span className="text-slate-200">VIP Rewards</span>
+            <span className="text-slate-200">Ranks & Rewards</span>
           </Link>
         </DropdownMenuItem>
 
