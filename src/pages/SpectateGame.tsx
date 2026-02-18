@@ -178,20 +178,26 @@ export default function SpectateGame() {
           <GameTimer timeLeft={displayBlackSec} isActive={gameState.turn === 'b' && !isGameOver} />
         </div>
 
-        {/* Chess Board with red border */}
+        {/* Chess Board with red vignette on both sides */}
         <div className="relative w-fit max-w-full">
-          <div className="border-4 border-red-500 rounded-lg overflow-hidden">
-            <ChessBoard
-              game={chess}
-              onMove={noopMove}
-              isPlayerTurn={false}
-              lastMove={lastMove}
-              isCheck={chess.isCheck()}
-              flipped={false}
-              isGameOver={isGameOver}
-              enablePremove={false}
-            />
-          </div>
+          <ChessBoard
+            game={chess}
+            onMove={noopMove}
+            isPlayerTurn={false}
+            lastMove={null}
+            isCheck={chess.isCheck()}
+            flipped={false}
+            isGameOver={isGameOver}
+            enablePremove={false}
+          />
+          {/* Left red vignette */}
+          <div className="absolute inset-y-0 left-0 w-16 pointer-events-none rounded-l-lg"
+            style={{ background: 'linear-gradient(to right, rgba(239,68,68,0.45), transparent)' }}
+          />
+          {/* Right red vignette */}
+          <div className="absolute inset-y-0 right-0 w-16 pointer-events-none rounded-r-lg"
+            style={{ background: 'linear-gradient(to left, rgba(239,68,68,0.45), transparent)' }}
+          />
         </div>
 
         {/* White player info (bottom) */}

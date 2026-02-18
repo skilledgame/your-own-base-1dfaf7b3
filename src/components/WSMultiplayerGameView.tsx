@@ -520,25 +520,6 @@ export const WSMultiplayerGameView = ({
           <div className="max-w-4xl mx-auto">
             {/* Game Area */}
             <div className="flex flex-col items-center gap-4">
-              {/* Resign / Leave button above the board area */}
-              <div className="flex justify-end w-full max-w-md">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    if (isGameOver) {
-                      onBack();
-                    } else {
-                      setShowResignDialog(true);
-                    }
-                  }} 
-                  className={`gap-1.5 ${isGameOver ? '' : 'text-destructive hover:text-destructive border-destructive/30'}`}
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  {isGameOver ? 'Leave' : 'Resign'}
-                </Button>
-              </div>
-
               {/* Opponent Info Bar */}
               <div className="flex items-center justify-between w-full max-w-md">
                 <div className="flex items-center gap-3 px-3 py-2.5 bg-secondary/80 border border-white/5 rounded-xl">
@@ -597,7 +578,24 @@ export const WSMultiplayerGameView = ({
                     />
                   </div>
                 </div>
-                <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
+                <div className="flex items-center gap-2">
+                  <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => {
+                      if (isGameOver) {
+                        onBack();
+                      } else {
+                        setShowResignDialog(true);
+                      }
+                    }} 
+                    className={`h-9 w-9 shrink-0 ${isGameOver ? '' : 'text-destructive hover:text-destructive border-destructive/30'}`}
+                    title={isGameOver ? 'Leave' : 'Resign'}
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* Chess Board with sound callbacks - only show opponent's last move */}
@@ -623,14 +621,8 @@ export const WSMultiplayerGameView = ({
                     size="md"
                   />
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    {/* Row 1: Name + ELO + Rank + Badges + Streak + Spectators */}
+                    {/* Row 1: Name + ELO + Rank + Badges + Streak */}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {spectatorCount > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-white/60 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded">
-                          <Eye className="w-3 h-3" />
-                          {spectatorCount}
-                        </span>
-                      )}
                       <span className="font-semibold text-sm truncate max-w-[120px]">{playerName}</span>
                       {(() => {
                         const eloInfo = getEloTitle(playerElo);
@@ -657,7 +649,15 @@ export const WSMultiplayerGameView = ({
                     />
                   </div>
                 </div>
-                <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} />
+                <div className="flex items-center gap-2">
+                  <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} />
+                  {spectatorCount > 0 && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-white/60 bg-white/5 border border-white/10 px-2 py-1 rounded-lg">
+                      <Eye className="w-3.5 h-3.5" />
+                      {spectatorCount}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
