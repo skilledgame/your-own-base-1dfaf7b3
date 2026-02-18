@@ -1,8 +1,8 @@
 /**
- * FriendsSlideover - Popup panel with Friends/Clan tabs and inline DM chat.
+ * FriendsSlideover - Popup panel with Friends/Clan tabs, inline profile, and DM chat.
  *
- * Clicking the message icon on a friend opens a phone-style DM view
- * inside the same popup -- back button, name header, message bubbles, input.
+ * Click a friend row → profile screen (Duolingo-style).
+ * From profile, tap Chat → DM view. Tap message icon directly → DM.
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -19,11 +19,18 @@ import {
   ChevronDown,
   ArrowLeft,
   Send,
+  BarChart3,
+  Eye,
+  UserMinus,
+  Trophy,
+  Flame,
+  Calendar,
 } from "lucide-react";
 import { useFriendStore, type Friend } from "@/stores/friendStore";
 import { useClanStore } from "@/stores/clanStore";
 import { usePresenceStore, type UserStatus } from "@/stores/presenceStore";
 import { useChatStore, getDmChannelId } from "@/stores/chatStore";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -53,11 +60,17 @@ function FriendAvatar({
 }: {
   name: string;
   status: UserStatus;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   const initial = name.charAt(0).toUpperCase();
-  const dim = size === "sm" ? "w-8 h-8" : "w-10 h-10";
-  const text = size === "sm" ? "text-xs" : "text-sm";
+  const dim =
+    size === "sm" ? "w-8 h-8" : size === "lg" ? "w-16 h-16" : "w-10 h-10";
+  const text =
+    size === "sm" ? "text-xs" : size === "lg" ? "text-2xl" : "text-sm";
+  const dotSize =
+    size === "lg"
+      ? "w-3.5 h-3.5 border-[3px]"
+      : "w-2.5 h-2.5 border-2";
   return (
     <div className="relative flex-shrink-0">
       <div
@@ -68,7 +81,15 @@ function FriendAvatar({
       >
         <span className={cn("text-white font-bold", text)}>{initial}</span>
       </div>
-      <StatusDot status={status} />
+      <span
+        className={cn(
+          "absolute bottom-0 right-0 rounded-full border-[#0f1923]",
+          dotSize,
+          status === "online" && "bg-emerald-400",
+          status === "in_game" && "bg-amber-400",
+          status === "offline" && "bg-slate-600",
+        )}
+      />
     </div>
   );
 }
@@ -77,13 +98,18 @@ function FriendRow({
   friend,
   status,
   onMessage,
+  onClickRow,
 }: {
   friend: Friend;
   status: UserStatus;
   onMessage: () => void;
+  onClickRow: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.04] transition-colors group">
+    <div
+      onClick={onClickRow}
+      className="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.04] transition-colors group cursor-pointer"
+    >
       <FriendAvatar name={friend.display_name} status={status} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white truncate">
@@ -107,6 +133,204 @@ function FriendRow({
       >
         <MessageCircle className="w-4 h-4" />
       </button>
+    </div>
+  );
+}
+
+/* ── Friend Profile View (Duolingo-inspired) ── */
+
+interface FriendProfile {
+  chess_elo: number;
+  daily_play_streak: number;
+  skilled_coins: number;
+  total_wagered_sc: number;
+  created_at: string;
+  clan_id: string | null;
+}
+
+function FriendProfileView({
+  friend,
+  onBack,
+  onChat,
+}: {
+  friend: Friend;
+  onBack: () => void;
+  onChat: () => void;
+}) {
+  const navigate = useNavigate();
+  const status = usePresenceStore((s) => s.getStatus)(friend.friend_user_id);
+  const removeFriend = useFriendStore((s) => s.removeFriend);
+  const [profile, setProfile] = useState<FriendProfile | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("profiles")
+      .select("chess_elo, daily_play_streak, skilled_coins, total_wagered_sc, created_at, clan_id")
+      .eq("user_id", friend.friend_user_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setProfile(data as FriendProfile);
+      });
+  }, [friend.friend_user_id]);
+
+  const statusLabel =
+    status === "in_game"
+      ? "In Game"
+      : status === "online"
+        ? "Online"
+        : "Offline";
+
+  const statusColor =
+    status === "online"
+      ? "text-emerald-400"
+      : status === "in_game"
+        ? "text-amber-400"
+        : "text-slate-500";
+
+  const memberSince = profile
+    ? new Date(profile.created_at).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      })
+    : "...";
+
+  const handleRemove = async () => {
+    setRemoving(true);
+    try {
+      await removeFriend(friend.friend_user_id);
+      onBack();
+    } catch {
+      setRemoving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center px-3 py-2.5 border-b border-slate-700/25 flex-shrink-0">
+        <button
+          onClick={onBack}
+          className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <span className="ml-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+          Profile
+        </span>
+      </div>
+
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="flex flex-col items-center pt-5 pb-4 px-4">
+          {/* Avatar */}
+          <FriendAvatar
+            name={friend.display_name}
+            status={status}
+            size="lg"
+          />
+
+          {/* Name */}
+          <p className="mt-3 text-base font-bold text-white">
+            {friend.display_name}
+          </p>
+
+          {/* Status pill */}
+          <div className="flex items-center gap-1.5 mt-1">
+            <span
+              className={cn(
+                "w-2 h-2 rounded-full",
+                status === "online" && "bg-emerald-400",
+                status === "in_game" && "bg-amber-400",
+                status === "offline" && "bg-slate-600",
+              )}
+            />
+            <span className={cn("text-xs font-medium", statusColor)}>
+              {statusLabel}
+            </span>
+          </div>
+
+          {/* Member since */}
+          <div className="flex items-center gap-1 mt-2">
+            <Calendar className="w-3 h-3 text-slate-500" />
+            <span className="text-[11px] text-slate-500">
+              Member since {memberSince}
+            </span>
+          </div>
+
+          {/* Clan badge */}
+          {friend.clan_name && (
+            <div className="flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full bg-white/[0.04] border border-slate-700/25">
+              <Shield className="w-3 h-3 text-amber-400" />
+              <span className="text-[11px] font-medium text-slate-300">
+                {friend.clan_name}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-2 mx-4 mb-4">
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-slate-700/20">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <div>
+              <p className="text-xs font-bold text-white">
+                {profile?.chess_elo ?? friend.chess_elo}
+              </p>
+              <p className="text-[10px] text-slate-500">ELO</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-slate-700/20">
+            <Flame className="w-4 h-4 text-orange-400" />
+            <div>
+              <p className="text-xs font-bold text-white">
+                {profile?.daily_play_streak ?? 0}
+              </p>
+              <p className="text-[10px] text-slate-500">Day Streak</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex flex-col gap-1.5 mx-4 mb-4">
+          <button
+            onClick={onChat}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-slate-700/20 transition-colors"
+          >
+            <MessageCircle className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-medium text-slate-200">Chat</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/stats")}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-slate-700/20 transition-colors"
+          >
+            <BarChart3 className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-medium text-slate-200">Stats</span>
+          </button>
+
+          {status === "in_game" && (
+            <button
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 transition-colors"
+            >
+              <Eye className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-medium text-amber-200">
+                Spectate
+              </span>
+            </button>
+          )}
+
+          <button
+            onClick={handleRemove}
+            disabled={removing}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.02] hover:bg-red-500/10 border border-slate-700/20 hover:border-red-500/20 transition-colors group"
+          >
+            <UserMinus className="w-4 h-4 text-slate-500 group-hover:text-red-400 transition-colors" />
+            <span className="text-sm font-medium text-slate-400 group-hover:text-red-400 transition-colors">
+              {removing ? "Removing..." : "Remove Friend"}
+            </span>
+          </button>
+        </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -156,7 +380,6 @@ function DmChatView({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Phone-style header */}
       <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-slate-700/25 flex-shrink-0">
         <button
           onClick={onBack}
@@ -184,7 +407,6 @@ function DmChatView({
         </div>
       </div>
 
-      {/* Messages area */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex flex-col gap-1.5 p-3">
           {loading && messages.length === 0 && (
@@ -192,13 +414,11 @@ function DmChatView({
               Loading messages...
             </p>
           )}
-
           {!loading && messages.length === 0 && (
             <p className="text-xs text-slate-500 text-center py-8">
               No messages yet. Say hi!
             </p>
           )}
-
           {messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
             return (
@@ -223,7 +443,6 @@ function DmChatView({
         </div>
       </ScrollArea>
 
-      {/* Input bar */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-t border-slate-700/25 flex-shrink-0">
         <input
           type="text"
@@ -254,8 +473,10 @@ function DmChatView({
 
 function FriendsTabContent({
   onOpenDm,
+  onOpenProfile,
 }: {
   onOpenDm: (friend: Friend) => void;
+  onOpenProfile: (friend: Friend) => void;
 }) {
   const navigate = useNavigate();
   const friends = useFriendStore((state) => state.friends);
@@ -306,6 +527,7 @@ function FriendsTabContent({
               friend={friend}
               status={getStatus(friend.friend_user_id)}
               onMessage={() => onOpenDm(friend)}
+              onClickRow={() => onOpenProfile(friend)}
             />
           ))}
         </div>
@@ -322,6 +544,7 @@ function FriendsTabContent({
               friend={friend}
               status="offline"
               onMessage={() => onOpenDm(friend)}
+              onClickRow={() => onOpenProfile(friend)}
             />
           ))}
         </div>
@@ -444,14 +667,36 @@ function ClanTabContent() {
 
 /* ── Main Slideover ── */
 
+type View =
+  | { screen: "list" }
+  | { screen: "profile"; friend: Friend }
+  | { screen: "dm"; friend: Friend };
+
 export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
   const [activeTab, setActiveTab] = useState<"friends" | "clan">("friends");
-  const [dmFriend, setDmFriend] = useState<Friend | null>(null);
+  const [view, setView] = useState<View>({ screen: "list" });
   const navigate = useNavigate();
 
-  const handleBack = () => {
-    setDmFriend(null);
+  const goToList = () => {
+    setView({ screen: "list" });
     useChatStore.getState().reset();
+  };
+
+  const goToProfile = (friend: Friend) => {
+    setView({ screen: "profile", friend });
+  };
+
+  const goToDm = (friend: Friend) => {
+    setView({ screen: "dm", friend });
+  };
+
+  const goBackFromDm = () => {
+    useChatStore.getState().reset();
+    if (view.screen === "dm") {
+      setView({ screen: "profile", friend: view.friend });
+    } else {
+      setView({ screen: "list" });
+    }
   };
 
   return (
@@ -469,9 +714,14 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
           : "translate-y-8 opacity-0 pointer-events-none",
       )}
     >
-      {/* If chatting with a friend, show DM view */}
-      {dmFriend ? (
-        <DmChatView friend={dmFriend} onBack={handleBack} />
+      {view.screen === "dm" ? (
+        <DmChatView friend={view.friend} onBack={goBackFromDm} />
+      ) : view.screen === "profile" ? (
+        <FriendProfileView
+          friend={view.friend}
+          onBack={goToList}
+          onChat={() => goToDm(view.friend)}
+        />
       ) : (
         <>
           {/* Close arrow bar */}
@@ -514,24 +764,24 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
             </button>
           </div>
 
-          {/* Thin separator */}
           <div className="mx-3 mt-2.5 border-t border-slate-700/25" />
 
-          {/* Scrollable content */}
           <ScrollArea className="flex-1 min-h-0">
             {activeTab === "friends" ? (
-              <FriendsTabContent onOpenDm={setDmFriend} />
+              <FriendsTabContent
+                onOpenDm={goToDm}
+                onOpenProfile={goToProfile}
+              />
             ) : (
               <ClanTabContent />
             )}
           </ScrollArea>
 
-          {/* Bottom button */}
           <div className="flex-shrink-0 p-3 border-t border-slate-700/25">
             <button
-              onClick={() => {
-                navigate(activeTab === "friends" ? "/friends" : "/clan");
-              }}
+              onClick={() =>
+                navigate(activeTab === "friends" ? "/friends" : "/clan")
+              }
               className={cn(
                 "w-full flex items-center justify-center gap-2 py-2.5 rounded-full",
                 "border border-slate-500/25 hover:border-slate-400/35",
