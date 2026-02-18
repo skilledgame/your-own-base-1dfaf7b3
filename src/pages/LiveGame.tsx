@@ -429,13 +429,17 @@ export default function LiveGame() {
   // Only re-run when game ID changes (new game) or opponent info becomes available
   }, [gameState?.gameId, gameState?.dbGameId, isPrivateGame, matchmaking.opponentUserId, totalWageredSc, playerDisplayName, user?.id, setGameState]);
 
-  // Update presence to "in_game" while on this page
+  // Update presence to "in_game" while on this page, including game metadata
   useEffect(() => {
-    usePresenceStore.getState().setStatus('in_game');
+    const dbGameId = gameState?.dbGameId || gameId || undefined;
+    usePresenceStore.getState().setStatus('in_game', {
+      gameStartedAt: Date.now(),
+      dbGameId,
+    });
     return () => {
       usePresenceStore.getState().setStatus('online');
     };
-  }, []);
+  }, [gameState?.dbGameId, gameId]);
 
   // Sync game on visibility change, focus, and reconnect (only for WebSocket games)
   useEffect(() => {

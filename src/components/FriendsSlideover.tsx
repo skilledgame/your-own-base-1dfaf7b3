@@ -19,10 +19,11 @@ import {
   ChevronDown,
   ArrowLeft,
   Send,
+  Eye,
 } from "lucide-react";
 import { useFriendStore, type Friend } from "@/stores/friendStore";
 import { useClanStore } from "@/stores/clanStore";
-import { usePresenceStore, type UserStatus } from "@/stores/presenceStore";
+import { usePresenceStore, type UserStatus, type PresenceInfo } from "@/stores/presenceStore";
 import { useChatStore, getDmChannelId } from "@/stores/chatStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -73,15 +74,34 @@ function FriendAvatar({
   );
 }
 
+function ElapsedTime({ startedAt }: { startedAt: number }) {
+  const [elapsed, setElapsed] = useState("");
+  useEffect(() => {
+    const update = () => {
+      const diff = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+      const m = Math.floor(diff / 60);
+      const s = diff % 60;
+      setElapsed(`${m}:${s.toString().padStart(2, "0")}`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+  return <span>{elapsed}</span>;
+}
+
 function FriendRow({
   friend,
   status,
+  presenceInfo,
   onMessage,
 }: {
   friend: Friend;
   status: UserStatus;
+  presenceInfo?: PresenceInfo;
   onMessage: () => void;
 }) {
+  const navigate = useNavigate();
   return (
     <div className="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.04] transition-colors group">
       <FriendAvatar name={friend.display_name} status={status} />
@@ -90,23 +110,44 @@ function FriendRow({
           {friend.display_name}
         </p>
         <p className="text-xs text-slate-500 truncate">
-          {status === "in_game"
-            ? "In Game"
-            : status === "online"
-              ? "Online"
-              : "Offline"}
+          {status === "in_game" ? (
+            <span className="text-amber-400">
+              In Game{" "}
+              {presenceInfo?.game_started_at && (
+                <ElapsedTime startedAt={presenceInfo.game_started_at} />
+              )}
+            </span>
+          ) : status === "online" ? (
+            "Online"
+          ) : (
+            "Offline"
+          )}
         </p>
       </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onMessage();
-        }}
-        className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-white transition-all"
-        title="Message"
-      >
-        <MessageCircle className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-1">
+        {status === "in_game" && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/game/spectate/${friend.friend_user_id}`);
+            }}
+            className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 transition-all"
+            title="Spectate"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onMessage();
+          }}
+          className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-white transition-all"
+          title="Message"
+        >
+          <MessageCircle className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -261,6 +302,7 @@ function FriendsTabContent({
   const friends = useFriendStore((state) => state.friends);
   const pendingRequests = useFriendStore((state) => state.pendingRequests);
   const getStatus = usePresenceStore((state) => state.getStatus);
+  const getPresenceInfo = usePresenceStore((state) => state.getPresenceInfo);
   const { user } = useAuth();
 
   const onlineFriends = friends.filter(
@@ -305,6 +347,7 @@ function FriendsTabContent({
               key={friend.friend_user_id}
               friend={friend}
               status={getStatus(friend.friend_user_id)}
+              presenceInfo={getPresenceInfo(friend.friend_user_id)}
               onMessage={() => onOpenDm(friend)}
             />
           ))}

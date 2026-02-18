@@ -755,6 +755,13 @@ function initializeGlobalMessageHandler(): void {
         break;
       }
 
+      case "spectator_count_update": {
+        const payload = msg as any;
+        const count = typeof payload.count === 'number' ? payload.count : 0;
+        store.setSpectatorCount(count);
+        break;
+      }
+
       case "game_reconnected": {
         // Server sent full game state after reconnecting within grace period
         const payload = msg as any;

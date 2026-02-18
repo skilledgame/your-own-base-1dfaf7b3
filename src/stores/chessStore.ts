@@ -98,6 +98,7 @@ interface ChessStore {
   premove: PremoveState | null;  // Queued premove (only one at a time)
   versusScreenPending: boolean;  // True when match_found fires — consumed once by LiveGame
   queueEstimate: QueueEstimate | null;  // Server-provided queue time estimate
+  spectatorCount: number;  // Number of spectators watching this game
   
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -152,6 +153,9 @@ interface ChessStore {
   setQueueEstimate: (est: QueueEstimate) => void;
   clearQueueEstimate: () => void;
   
+  // Spectator count
+  setSpectatorCount: (count: number) => void;
+  
   // Versus screen
   consumeVersusScreen: () => void;
 }
@@ -176,6 +180,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   premove: null,
   versusScreenPending: false,
   queueEstimate: null,
+  spectatorCount: 0,
   
   // Actions
   setPhase: (phase) => {
@@ -227,6 +232,7 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       premove: null,  // Clear premove on reset
       versusScreenPending: false,
       queueEstimate: null,
+      spectatorCount: 0,
       matchmaking: {
         status: "idle",
         wager: null,
@@ -309,6 +315,10 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   
   clearQueueEstimate: () => {
     set({ queueEstimate: null });
+  },
+  
+  setSpectatorCount: (spectatorCount: number) => {
+    set({ spectatorCount });
   },
   
   consumeVersusScreen: () => {

@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { User, LogOut, Crown, Shield, Search, Flame, UserPlus } from 'lucide-react';
+import { User, LogOut, Crown, Shield, Search, Flame, UserPlus, Eye } from 'lucide-react';
 import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -138,6 +138,7 @@ export const WSMultiplayerGameView = ({
   
   // Get timer snapshot from store (server-authoritative for WebSocket games)
   const timerSnapshot = useChessStore((state) => state.timerSnapshot);
+  const spectatorCount = useChessStore((state) => state.spectatorCount);
   // Premove from store (used for execution logic in useChessWebSocket)
   // const premove = useChessStore((state) => state.premove);
   
@@ -589,18 +590,28 @@ export const WSMultiplayerGameView = ({
               </div>
 
               {/* Chess Board with sound callbacks - only show opponent's last move */}
-              <ChessBoard
-                game={chess}
-                onMove={handleMove}
-                isPlayerTurn={isMyTurn && !isGameOver}
-                lastMove={opponentLastMove}
-                isCheck={chess.isCheck()}
-                flipped={!isWhite}
-                isGameOver={isGameOver}
-                onMoveSound={playMove}
-                onCaptureSound={playCapture}
-                onCheckSound={playCheck}
-              />
+              <div className="relative">
+                <ChessBoard
+                  game={chess}
+                  onMove={handleMove}
+                  isPlayerTurn={isMyTurn && !isGameOver}
+                  lastMove={opponentLastMove}
+                  isCheck={chess.isCheck()}
+                  flipped={!isWhite}
+                  isGameOver={isGameOver}
+                  onMoveSound={playMove}
+                  onCaptureSound={playCapture}
+                  onCheckSound={playCheck}
+                />
+
+                {/* Spectator count badge - bottom right corner */}
+                {spectatorCount > 0 && (
+                  <div className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 py-1 bg-black/70 backdrop-blur-sm rounded-full text-white/80 text-xs font-medium border border-white/10 z-10">
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{spectatorCount} watching</span>
+                  </div>
+                )}
+              </div>
 
               {/* Player Info Bar */}
               <div className="flex items-center justify-between w-full max-w-md">

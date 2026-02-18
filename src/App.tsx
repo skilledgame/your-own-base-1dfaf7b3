@@ -39,6 +39,7 @@ import VIP from "./pages/VIP";
 import Friends from "./pages/Friends";
 import Clan from "./pages/Clan";
 import ClanLeaderboard from "./pages/ClanLeaderboard";
+import SpectateGame from "./pages/SpectateGame";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { useEffect, useState } from "react";
@@ -233,6 +234,7 @@ const App = () => (
                       <Route path="/friends" element={<Friends />} />
                       <Route path="/clan" element={<Clan />} />
                       <Route path="/clan/leaderboard" element={<ClanLeaderboard />} />
+                      <Route path="/game/spectate/:targetUserId" element={<SpectateGame />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
