@@ -14,7 +14,7 @@ import { ChessBoard } from '@/components/ChessBoard';
 import { GameTimer } from '@/components/GameTimer';
 import { CapturedPieces } from '@/components/CapturedPieces';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Eye, User, Loader2 } from 'lucide-react';
+import { ArrowLeft, Eye, Loader2 } from 'lucide-react';
 import { useSpectate } from '@/hooks/useSpectate';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
@@ -145,9 +145,16 @@ export default function SpectateGame() {
   const isGameOver = gameState.isGameOver;
 
   return (
-    <div className="min-h-screen bg-[#0a0f1a] flex flex-col items-center">
+    <div className="min-h-screen bg-[#0a0f1a] flex flex-col items-center relative overflow-hidden">
+      {/* Full-screen red vignette — edges of viewport */}
+      <div className="fixed inset-0 pointer-events-none z-10"
+        style={{
+          boxShadow: 'inset 0 0 120px 40px rgba(220, 38, 38, 0.25), inset 0 0 300px 80px rgba(220, 38, 38, 0.10)',
+        }}
+      />
+
       {/* Top Bar */}
-      <div className="w-full max-w-lg flex items-center justify-between px-4 py-3">
+      <div className="w-full max-w-lg flex items-center justify-between px-4 py-3 relative z-20">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-slate-400 hover:text-white">
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back
@@ -162,24 +169,21 @@ export default function SpectateGame() {
         <div className="w-16" /> {/* Spacer for balance */}
       </div>
 
-      {/* Game area */}
-      <div className="flex flex-col items-center gap-3 px-4 w-full max-w-lg">
-        {/* Black player info (top) */}
+      {/* Game area — pushed down with top margin for breathing room */}
+      <div className="flex flex-col items-center gap-2.5 px-4 w-full max-w-lg mt-6 sm:mt-10 relative z-20">
+        {/* Black player info (top) — compact row matching timer height */}
         <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-              <User className="w-4 h-4 text-slate-300" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">{blackName}</p>
-              <CapturedPieces pieces={capturedPieces.black} color="black" materialAdvantage={blackAdvantage} />
-            </div>
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-secondary border-2 border-border rounded-xl">
+            <span className="font-semibold text-sm text-muted-foreground truncate max-w-[160px]">{blackName}</span>
+            <CapturedPieces pieces={capturedPieces.black} color="black" materialAdvantage={blackAdvantage} />
           </div>
           <GameTimer timeLeft={displayBlackSec} isActive={gameState.turn === 'b' && !isGameOver} />
         </div>
 
-        {/* Chess Board with red vignette on both sides */}
-        <div className="relative w-fit max-w-full">
+        {/* Chess Board with blue glow */}
+        <div className="relative w-fit max-w-full rounded-lg"
+          style={{ boxShadow: '0 0 30px 6px rgba(59, 130, 246, 0.25), 0 0 60px 15px rgba(59, 130, 246, 0.10)' }}
+        >
           <ChessBoard
             game={chess}
             onMove={noopMove}
@@ -190,33 +194,20 @@ export default function SpectateGame() {
             isGameOver={isGameOver}
             enablePremove={false}
           />
-          {/* Left red vignette */}
-          <div className="absolute inset-y-0 left-0 w-16 pointer-events-none rounded-l-lg"
-            style={{ background: 'linear-gradient(to right, rgba(239,68,68,0.45), transparent)' }}
-          />
-          {/* Right red vignette */}
-          <div className="absolute inset-y-0 right-0 w-16 pointer-events-none rounded-r-lg"
-            style={{ background: 'linear-gradient(to left, rgba(239,68,68,0.45), transparent)' }}
-          />
         </div>
 
-        {/* White player info (bottom) */}
+        {/* White player info (bottom) — compact row matching timer height */}
         <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center">
-              <User className="w-4 h-4 text-slate-700" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">{whiteName}</p>
-              <CapturedPieces pieces={capturedPieces.white} color="white" materialAdvantage={whiteAdvantage} />
-            </div>
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-secondary border-2 border-border rounded-xl">
+            <span className="font-semibold text-sm text-muted-foreground truncate max-w-[160px]">{whiteName}</span>
+            <CapturedPieces pieces={capturedPieces.white} color="white" materialAdvantage={whiteAdvantage} />
           </div>
           <GameTimer timeLeft={displayWhiteSec} isActive={gameState.turn === 'w' && !isGameOver} />
         </div>
 
         {/* Wager display */}
         {gameState.wager > 0 && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full text-slate-400 text-xs">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full text-slate-400 text-xs mt-1">
             <span>Wager: {gameState.wager} SC</span>
           </div>
         )}
