@@ -441,7 +441,7 @@ const ChessBoardComponent = ({
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, row, col)}
                 className={cn(
-                  "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center cursor-pointer relative transition-all duration-150",
+                  "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center cursor-pointer relative",
                   // Base square color
                   isLightSquare(row, col) ? "chess-square-light" : "chess-square-dark",
                   // --- Highlight priority (lowest → highest): ---
@@ -465,12 +465,12 @@ const ChessBoardComponent = ({
               >
                 {/* ── Normal turn: valid move indicator (non-capture dot) ── */}
                 {isValidMove && !piece && !isCaptureMove && (
-                  <div className="absolute w-4 h-4 rounded-full bg-primary/40 animate-pulse" />
+                  <div className="absolute w-4 h-4 rounded-full bg-primary/40" />
                 )}
                 
                 {/* Normal turn: valid move indicator for squares with pieces */}
                 {isValidMove && piece && !isCaptureMove && (
-                  <div className="absolute inset-1 rounded-full border-4 border-primary/50 animate-pulse" />
+                  <div className="absolute inset-1 rounded-full border-4 border-primary/50" />
                 )}
                 
                 {/* Normal turn: capture indicator - Red X overlay */}
@@ -499,7 +499,7 @@ const ChessBoardComponent = ({
                     onDragStart={(e) => handleDragStart(e, square)}
                     onDragEnd={handleDragEnd}
                     className={cn(
-                      "text-4xl sm:text-5xl md:text-6xl select-none transition-transform duration-200 z-30 drop-shadow-lg",
+                      "text-4xl sm:text-5xl md:text-6xl select-none z-30 drop-shadow-lg",
                       isSelected && "scale-110",
                       isCapturing && "animate-bounce-in",
                       // While being dragged, fade the source piece
