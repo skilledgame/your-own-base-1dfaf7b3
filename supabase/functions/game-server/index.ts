@@ -580,6 +580,8 @@ serve(async (req) => {
           // winnerId can be either auth user ID or player ID - we'll resolve it below
           const winnerIdParam = params.winnerId || params.winner_id || null;
           const reason = params.reason || "unknown";
+          // PGN move history (sent by chess server at game end)
+          const pgn = typeof params.pgn === "string" ? params.pgn : null;
           
           if (!gameId) {
             console.error("end_game missing gameId/dbGameId, received keys:", Object.keys(params));
@@ -798,6 +800,23 @@ serve(async (req) => {
               }
             } catch (eloErr) {
               console.error("end_game: update_elo_after_game exception (non-fatal):", eloErr);
+            }
+          }
+
+          // Save PGN move history (non-blocking, best-effort)
+          if (pgn) {
+            try {
+              const { error: pgnError } = await supabase
+                .from("games")
+                .update({ pgn })
+                .eq("id", gameId);
+              if (pgnError) {
+                console.error("end_game: PGN save error (non-fatal):", pgnError);
+              } else {
+                console.log("end_game: PGN saved", { gameId, pgnLength: pgn.length });
+              }
+            } catch (pgnErr) {
+              console.error("end_game: PGN save exception (non-fatal):", pgnErr);
             }
           }
           

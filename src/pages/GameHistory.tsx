@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { History, ArrowLeft, Loader2, Trophy, XCircle, Minus, Coins } from 'lucide-react';
+import { History, ArrowLeft, Loader2, Trophy, XCircle, Minus, Coins, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LogoLink } from '@/components/LogoLink';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +13,7 @@ interface GameHistoryEntry {
   wagerAmount: number;
   result: 'win' | 'loss' | 'draw' | 'pending';
   wagerLockedAt: string;
+  hasPgn: boolean;
 }
 
 const GameHistory = () => {
@@ -43,12 +44,28 @@ const GameHistory = () => {
           return;
         }
 
+        // Get the game IDs to check PGN availability
+        const gameIds = (data || []).map((row) => row.game_id).filter(Boolean);
+        let pgnMap: Record<string, boolean> = {};
+        if (gameIds.length > 0) {
+          const { data: pgnData } = await supabase
+            .from('games')
+            .select('id, pgn')
+            .in('id', gameIds);
+          if (pgnData) {
+            pgnMap = Object.fromEntries(
+              pgnData.map((g) => [g.id, !!g.pgn])
+            );
+          }
+        }
+
         const entries: GameHistoryEntry[] = (data || []).map((row) => ({
           id: row.id || '',
           gameId: row.game_id || '',
           wagerAmount: Number(row.wager_amount) || 0,
           result: row.result as 'win' | 'loss' | 'draw' | 'pending',
           wagerLockedAt: row.wager_locked_at || '',
+          hasPgn: pgnMap[row.game_id] || false,
         }));
 
         setGames(entries);
@@ -161,8 +178,9 @@ const GameHistory = () => {
               <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-secondary/50 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 <div className="col-span-2">Result</div>
                 <div className="col-span-3">Date</div>
-                <div className="col-span-3 text-center">Wager</div>
-                <div className="col-span-4 text-right">Payout</div>
+                <div className="col-span-2 text-center">Wager</div>
+                <div className="col-span-3 text-right">Payout</div>
+                <div className="col-span-2 text-center">Replay</div>
               </div>
 
               {/* Loading State */}
@@ -202,12 +220,29 @@ const GameHistory = () => {
                           : 'Unknown'
                         }
                       </div>
-                      <div className="col-span-3 text-center flex items-center justify-center gap-1">
+                      <div className="col-span-2 text-center flex items-center justify-center gap-1">
                         <Coins className="w-4 h-4 text-yellow-400" />
                         <span className="font-medium">{game.wagerAmount} SC</span>
                       </div>
-                      <div className="col-span-4 text-right font-bold">
+                      <div className="col-span-3 text-right font-bold">
                         {getPayout(game.result, game.wagerAmount)}
+                      </div>
+                      <div className="col-span-2 flex justify-center">
+                        {game.hasPgn && game.result !== 'pending' ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="gap-1.5 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                          >
+                            <Link to={`/game/replay/${game.gameId}`}>
+                              <Film className="w-4 h-4" />
+                              <span className="hidden sm:inline text-xs">Replay</span>
+                            </Link>
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/40">—</span>
+                        )}
                       </div>
                     </div>
                   ))}

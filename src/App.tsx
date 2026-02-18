@@ -29,6 +29,7 @@ import Search from "./pages/Search";
 import Withdraw from "./pages/Withdraw";
 import Leaderboard from "./pages/Leaderboard";
 import GameHistory from "./pages/GameHistory";
+import GameReplay from "./pages/GameReplay";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import LiveGame from "./pages/LiveGame";
@@ -217,6 +218,7 @@ const App = () => (
                       <Route path="/search" element={<Search />} />
                       <Route path="/leaderboard" element={<Leaderboard />} />
                       <Route path="/game-history" element={<GameHistory />} />
+                      <Route path="/game/replay/:gameId" element={<GameReplay />} />
                       <Route path="/admin" element={<Admin />} />
                       <Route path="/game/lobby/:roomId" element={<PrivateGameLobby />} />
                       <Route path="/game/live/:gameId" element={
