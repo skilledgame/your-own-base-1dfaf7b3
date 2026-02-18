@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Crown, Trophy, Sparkles, ArrowLeft, Check, Gift, Lock, 
-  Coins, Star, Zap, Clock, ChevronRight, Award, Gem
+  Crown, Trophy, Sparkles, ArrowLeft, Check, Lock, 
+  Coins, Star, ChevronRight, Award, Gem, Swords, Target, Flame, Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,53 +26,50 @@ const TIER_ICON_MAP: Record<string, LucideIcon> = {
   goat: Trophy,
 };
 
-// VIP Reward tiers with cooldowns
-const VIP_REWARDS = [
+const RANK_CHALLENGES = [
   { 
-    id: 'daily', 
-    title: 'Daily Bonus', 
-    description: 'Claim once every 24 hours',
-    icon: Coins, 
-    reward: 25,
-    cooldown: null,
-    requiredRank: 'unranked',
-    available: true,
-    frequency: 'daily'
-  },
-  { 
-    id: 'weekly', 
-    title: 'Weekly Bonus', 
-    description: 'Exclusive weekly reward',
-    icon: Gift, 
-    reward: 200,
-    cooldown: '5d 12h',
+    id: 'bronze_challenge', 
+    title: 'Bronze Challenge', 
+    description: 'Win 10 wager matches at 500 SC or higher',
+    icon: Swords, 
+    reward: 500,
     requiredRank: 'bronze',
-    available: false,
-    frequency: 'weekly'
   },
   { 
-    id: 'monthly', 
-    title: 'Monthly Bonus', 
-    description: 'Premium monthly reward',
-    icon: Crown, 
-    reward: 1000,
-    cooldown: '23d',
+    id: 'silver_challenge', 
+    title: 'Silver Challenge', 
+    description: 'Win 25 wager matches at 1,000 SC',
+    icon: Target, 
+    reward: 1500,
     requiredRank: 'silver',
-    available: false,
-    frequency: 'monthly'
   },
   { 
-    id: 'vip', 
-    title: 'VIP Exclusive', 
-    description: 'Gold+ members only',
-    icon: Sparkles, 
-    reward: 2500,
-    cooldown: null,
+    id: 'gold_challenge', 
+    title: 'Gold Challenge', 
+    description: 'Win 50 wager matches with a 60%+ win rate',
+    icon: Flame, 
+    reward: 5000,
     requiredRank: 'gold',
-    available: true,
-    frequency: 'special'
+  },
+  { 
+    id: 'platinum_challenge', 
+    title: 'Platinum Challenge', 
+    description: 'Win 100 wager matches and maintain a 10-game streak',
+    icon: Shield, 
+    reward: 15000,
+    requiredRank: 'platinum',
   },
 ];
+
+const RANK_UNLOCKS: Record<string, string[]> = {
+  unranked: ['100 SC wager games'],
+  bronze: ['500 & 1,000 SC wager games', 'Bronze badge', 'Bronze skin'],
+  silver: ['Silver badge', 'Silver skin'],
+  gold: ['Gold badge', 'Gold skin'],
+  platinum: ['Platinum badge', 'Platinum skin'],
+  diamond: ['Diamond badge', 'Diamond skin'],
+  goat: ['GOAT badge', 'GOAT skin'],
+};
 
 const getRankColor = (tier: string) => {
   switch (tier) {
@@ -99,23 +96,11 @@ const getRankBarColors = (tier: string): [string, string, string] => {
   }
 };
 
-const getRankBgColor = (tier: string) => {
-  switch (tier) {
-    case 'goat': return 'bg-purple-500/10';
-    case 'diamond': return 'bg-cyan-500/10';
-    case 'platinum': return 'bg-slate-400/10';
-    case 'gold': return 'bg-yellow-500/10';
-    case 'silver': return 'bg-gray-300/10';
-    case 'bronze': return 'bg-orange-600/10';
-    default: return 'bg-gray-500/10';
-  }
-};
-
 export default function VIP() {
   const navigate = useNavigate();
   const { totalWageredSc, displayName, isLoading } = useProfile();
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
-  const { tiers, rakebackTiers, perks: rankPerks, loading: rankConfigLoading } = useRankConfig();
+  const { tiers, loading: rankConfigLoading } = useRankConfig();
 
   // Build dynamic rank ladder & order from DB config
   const RANK_LADDER = useMemo(() => tiers.map(t => ({
@@ -138,8 +123,6 @@ export default function VIP() {
     const requiredIndex = RANK_ORDER.indexOf(requiredRank);
     return currentRankIndex >= requiredIndex;
   };
-
-  const currentRakeback = rakebackTiers.find(r => r.rank === rankInfo.tierName)?.percentage || 0;
 
   const handleClaimReward = (rewardId: string) => {
     // TODO: Implement reward claiming logic
@@ -267,38 +250,34 @@ export default function VIP() {
           </CardContent>
         </Card>
 
-        {/* VIP Rewards Grid */}
+        {/* Challenges Grid */}
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <Gift className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-foreground">Claimable Rewards</h2>
+            <Target className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold text-foreground">Challenges</h2>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            {VIP_REWARDS.map((reward) => {
-              const RewardIcon = reward.icon;
-              const hasRank = checkRankRequirement(reward.requiredRank);
-              const isAvailable = reward.available && hasRank;
+            {RANK_CHALLENGES.map((challenge) => {
+              const ChallengeIcon = challenge.icon;
+              const hasRank = checkRankRequirement(challenge.requiredRank);
               
               return (
                 <Card 
-                  key={reward.id}
+                  key={challenge.id}
                   className={cn(
                     "relative overflow-hidden transition-all",
-                    isAvailable 
+                    hasRank 
                       ? "bg-gradient-to-br from-primary/5 to-primary/10 border-primary/30 hover:border-primary/50" 
-                      : hasRank 
-                        ? "bg-card border-border" 
-                        : "bg-muted/20 border-border/50"
+                      : "bg-muted/20 border-border/50"
                   )}
                 >
-                  {/* Lock overlay */}
                   {!hasRank && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm">
                       <div className="text-center">
                         <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
                         <span className="text-sm font-medium text-muted-foreground capitalize">
-                          Requires {reward.requiredRank}
+                          Unlocks at {challenge.requiredRank}
                         </span>
                       </div>
                     </div>
@@ -308,39 +287,39 @@ export default function VIP() {
                     <div className="flex items-start justify-between mb-4">
                       <div className={cn(
                         "w-12 h-12 rounded-xl flex items-center justify-center",
-                        isAvailable ? "bg-primary/20" : "bg-muted"
+                        hasRank ? "bg-primary/20" : "bg-muted"
                       )}>
-                        <RewardIcon className={cn(
+                        <ChallengeIcon className={cn(
                           "w-6 h-6",
-                          isAvailable ? "text-primary" : "text-muted-foreground"
+                          hasRank ? "text-primary" : "text-muted-foreground"
                         )} />
                       </div>
-                      {reward.cooldown && hasRank && (
-                        <Badge variant="outline" className="text-xs gap-1">
-                          <Clock className="w-3 h-3" />
-                          {reward.cooldown}
-                        </Badge>
-                      )}
+                      <Badge variant="outline" className={cn(
+                        "text-xs capitalize",
+                        hasRank ? "border-primary/40 text-primary" : ""
+                      )}>
+                        {challenge.requiredRank}
+                      </Badge>
                     </div>
                     
-                    <h3 className="font-bold text-foreground mb-1">{reward.title}</h3>
-                    <p className="text-xs text-muted-foreground mb-4">{reward.description}</p>
+                    <h3 className="font-bold text-foreground mb-1">{challenge.title}</h3>
+                    <p className="text-xs text-muted-foreground mb-4">{challenge.description}</p>
                     
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         <Coins className="w-4 h-4 text-yellow-500" />
-                        <span className="font-bold text-yellow-500">+{formatSkilledCoins(reward.reward)}</span>
+                        <span className="font-bold text-yellow-500">+{formatSkilledCoins(challenge.reward)}</span>
                       </div>
                       <Button 
                         size="sm"
                         className={cn(
                           "h-8",
-                          !isAvailable && "bg-muted text-muted-foreground cursor-not-allowed"
+                          !hasRank && "bg-muted text-muted-foreground cursor-not-allowed"
                         )}
-                        disabled={!isAvailable}
-                        onClick={() => handleClaimReward(reward.id)}
+                        disabled={!hasRank}
+                        onClick={() => handleClaimReward(challenge.id)}
                       >
-                        {isAvailable ? 'Claim' : hasRank ? 'Claimed' : 'Locked'}
+                        {hasRank ? 'Start' : 'Locked'}
                       </Button>
                     </div>
                   </CardContent>
@@ -349,59 +328,6 @@ export default function VIP() {
             })}
           </div>
         </div>
-
-        {/* Rakeback Section */}
-        <Card className="bg-gradient-to-br from-card via-card to-emerald-500/5 border-border">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-emerald-500" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-foreground">Rakeback</h3>
-                  <p className="text-sm text-muted-foreground">Earn back on every wager</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-black text-emerald-500">{currentRakeback}%</p>
-                <p className="text-xs text-muted-foreground">Current rate</p>
-              </div>
-            </div>
-
-            {/* Rakeback tiers */}
-            <div className="grid grid-cols-6 gap-2">
-              {rakebackTiers.map((tier, idx) => {
-                const isActive = tier.rank === rankInfo.tierName;
-                const isUnlocked = idx <= currentRankIndex;
-                
-                return (
-                  <div 
-                    key={tier.rank}
-                    className={cn(
-                      "rounded-xl p-3 text-center transition-all border-2",
-                      isActive 
-                        ? "bg-emerald-500/10 border-emerald-500" 
-                        : isUnlocked 
-                          ? getRankBgColor(tier.rank) + " border-transparent"
-                          : "bg-muted/30 border-border/50"
-                    )}
-                  >
-                    <p className={cn(
-                      "text-lg font-bold mb-1",
-                      isActive ? "text-emerald-500" : isUnlocked ? "text-foreground" : "text-muted-foreground"
-                    )}>
-                      {tier.percentage}%
-                    </p>
-                    <p className="text-[10px] text-muted-foreground capitalize truncate">
-                      {tier.rank === 'unranked' ? 'New' : tier.rank}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Rank Ladder */}
         <div>
@@ -515,21 +441,28 @@ export default function VIP() {
                       </div>
                     </div>
 
-                    {/* Perks Preview */}
-                    {isCurrentRank && (
+                    {/* Rank Unlocks */}
+                    {RANK_UNLOCKS[rank.tier] && (
                       <div className="mt-4 pt-4 border-t border-border/50">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                          Your Perks
+                          {isUnlocked ? 'Unlocked' : 'Unlocks'}
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {(rankPerks[rank.tier] || []).slice(0, 3).map((perk, perkIndex) => (
+                          {RANK_UNLOCKS[rank.tier].map((unlock, unlockIndex) => (
                             <Badge 
-                              key={perkIndex} 
+                              key={unlockIndex} 
                               variant="secondary" 
-                              className="text-xs bg-muted/50"
+                              className={cn(
+                                "text-xs",
+                                isUnlocked ? "bg-muted/50" : "bg-muted/30 text-muted-foreground"
+                              )}
                             >
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              {perk}
+                              {isUnlocked ? (
+                                <Check className="w-3 h-3 mr-1 text-emerald-500" />
+                              ) : (
+                                <Lock className="w-3 h-3 mr-1" />
+                              )}
+                              {unlock}
                             </Badge>
                           ))}
                         </div>
