@@ -30,6 +30,8 @@ export interface UserProfile {
   email: string | null;
   chess_elo: number;
   daily_play_streak: number;
+  skin_color: string;
+  skin_icon: string;
 }
 
 interface CachedUserData {
@@ -138,7 +140,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         
         const { data, error } = await supabase
           .from('profiles')
-          .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak')
+          .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak, skin_color, skin_icon')
           .eq('user_id', userId)
           .maybeSingle();
         
@@ -156,6 +158,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             email: data.email,
             chess_elo: data.chess_elo ?? 800,
             daily_play_streak: data.daily_play_streak ?? 0,
+            skin_color: data.skin_color ?? 'purple',
+            skin_icon: data.skin_icon ?? 'cat',
           };
           
           // Cache for next session
@@ -203,7 +207,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
         
         const { data, error } = await supabase
           .from('profiles')
-          .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak')
+          .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak, skin_color, skin_icon')
           .eq('user_id', state.userId)
           .maybeSingle();
         
@@ -221,6 +225,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             email: data.email,
             chess_elo: data.chess_elo ?? 800,
             daily_play_streak: data.daily_play_streak ?? 0,
+            skin_color: data.skin_color ?? 'purple',
+            skin_icon: data.skin_icon ?? 'cat',
           };
           
           setCachedData({
@@ -345,7 +351,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
           
           const { data, error } = await supabase
             .from('profiles')
-            .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak')
+            .select('user_id, skilled_coins, total_wagered_sc, display_name, email, chess_elo, daily_play_streak, skin_color, skin_icon')
             .eq('user_id', userId)
             .maybeSingle();
           
@@ -362,6 +368,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
               email: data.email,
               chess_elo: data.chess_elo ?? 800,
               daily_play_streak: data.daily_play_streak ?? 0,
+              skin_color: data.skin_color ?? 'purple',
+              skin_icon: data.skin_icon ?? 'cat',
             };
             
             setCachedData({
@@ -420,6 +428,8 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
               email: newData.email ?? currentProfile.email,
               chess_elo: newData.chess_elo ?? currentProfile.chess_elo,
               daily_play_streak: newData.daily_play_streak ?? currentProfile.daily_play_streak,
+              skin_color: newData.skin_color ?? currentProfile.skin_color,
+              skin_icon: newData.skin_icon ?? currentProfile.skin_icon,
             };
             
             // Update cache

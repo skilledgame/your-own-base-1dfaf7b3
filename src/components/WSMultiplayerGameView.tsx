@@ -22,7 +22,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { User, LogOut, Crown, Shield, Search, Flame, UserPlus, Eye } from 'lucide-react';
+import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye } from 'lucide-react';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { useProfile } from '@/hooks/useProfile';
 import { UserBadges } from '@/components/UserBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
@@ -127,6 +129,7 @@ export const WSMultiplayerGameView = ({
   });
   const { isAuthenticated, isPrivileged } = useAuth();
   const { openWallet } = useWalletModal();
+  const { skinColor, skinIcon } = useProfile();
 
   // Local chess instance for move validation
   const [chess] = useState(() => new Chess(currentFen || initialFen));
@@ -533,10 +536,10 @@ export const WSMultiplayerGameView = ({
               {/* Opponent Info Bar */}
               <div className="flex items-center justify-between w-full max-w-md">
                 <div className="flex items-center gap-3 px-3 py-2.5 bg-secondary/80 border border-white/5 rounded-xl">
-                  {/* Avatar placeholder (skin slot) */}
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <User className="w-5 h-5 text-muted-foreground" />
-                  </div>
+                  <PlayerAvatar
+                    size="md"
+                    fallbackInitial={opponentName || "O"}
+                  />
                   <div className="flex flex-col gap-0.5 min-w-0">
                     {/* Row 1: Name + ELO + Rank + Badges + Streak */}
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -616,10 +619,11 @@ export const WSMultiplayerGameView = ({
               {/* Player Info Bar */}
               <div className="flex items-center justify-between w-full max-w-md">
                 <div className="flex items-center gap-3 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-xl">
-                  {/* Avatar placeholder (skin slot) */}
-                  <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
-                    <User className="w-5 h-5 text-primary" />
-                  </div>
+                  <PlayerAvatar
+                    skinColor={skinColor}
+                    skinIcon={skinIcon}
+                    size="md"
+                  />
                   <div className="flex flex-col gap-0.5 min-w-0">
                     {/* Row 1: Name + ELO + Rank + Badges + Streak */}
                     <div className="flex items-center gap-1.5 flex-wrap">

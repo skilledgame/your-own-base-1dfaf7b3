@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PlayerAvatar } from "@/components/PlayerAvatar";
 
 interface FriendsSlideoverProps {
   isOpen: boolean;
@@ -57,41 +58,24 @@ function StatusDot({ status }: { status: UserStatus }) {
 function FriendAvatar({
   name,
   status,
+  skinColor,
+  skinIcon,
   size = "md",
 }: {
   name: string;
   status: UserStatus;
+  skinColor?: string | null;
+  skinIcon?: string | null;
   size?: "sm" | "md" | "lg";
 }) {
-  const initial = name.charAt(0).toUpperCase();
-  const dim =
-    size === "sm" ? "w-8 h-8" : size === "lg" ? "w-16 h-16" : "w-10 h-10";
-  const text =
-    size === "sm" ? "text-xs" : size === "lg" ? "text-2xl" : "text-sm";
-  const dotSize =
-    size === "lg"
-      ? "w-3.5 h-3.5 border-[3px]"
-      : "w-2.5 h-2.5 border-2";
   return (
-    <div className="relative flex-shrink-0">
-      <div
-        className={cn(
-          dim,
-          "rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center",
-        )}
-      >
-        <span className={cn("text-white font-bold", text)}>{initial}</span>
-      </div>
-      <span
-        className={cn(
-          "absolute bottom-0 right-0 rounded-full border-[#0f1923]",
-          dotSize,
-          status === "online" && "bg-emerald-400",
-          status === "in_game" && "bg-amber-400",
-          status === "offline" && "bg-slate-600",
-        )}
-      />
-    </div>
+    <PlayerAvatar
+      skinColor={skinColor}
+      skinIcon={skinIcon}
+      size={size}
+      status={status}
+      fallbackInitial={name}
+    />
   );
 }
 
@@ -187,6 +171,8 @@ interface FriendProfile {
   total_wagered_sc: number;
   created_at: string;
   clan_id: string | null;
+  skin_color: string | null;
+  skin_icon: string | null;
 }
 
 function FriendProfileView({
@@ -207,7 +193,7 @@ function FriendProfileView({
   useEffect(() => {
     supabase
       .from("profiles")
-      .select("chess_elo, daily_play_streak, skilled_coins, total_wagered_sc, created_at, clan_id")
+      .select("chess_elo, daily_play_streak, skilled_coins, total_wagered_sc, created_at, clan_id, skin_color, skin_icon")
       .eq("user_id", friend.friend_user_id)
       .maybeSingle()
       .then(({ data }) => {
@@ -267,6 +253,8 @@ function FriendProfileView({
           <FriendAvatar
             name={friend.display_name}
             status={status}
+            skinColor={profile?.skin_color}
+            skinIcon={profile?.skin_icon}
             size="lg"
           />
 

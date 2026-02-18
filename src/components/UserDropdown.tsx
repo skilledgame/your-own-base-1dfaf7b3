@@ -4,13 +4,11 @@
  * Shows username with arrow, expands to show menu options
  */
 
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWalletModal } from "@/contexts/WalletModalContext";
-import { supabase } from "@/integrations/supabase/client";
 import {
-  User,
   ChevronDown,
   ChevronUp,
   Wallet,
@@ -18,12 +16,13 @@ import {
   Trophy,
   History,
   Users,
-  HelpCircle,
   LogOut,
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PlayerAvatar } from "@/components/PlayerAvatar";
+import { useProfile } from "@/hooks/useProfile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,37 +39,8 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
   const { user, isAuthenticated, isAuthReady, signOut } = useAuth();
   const { openWallet } = useWalletModal();
   const navigate = useNavigate();
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { displayName, skinColor, skinIcon, isLoading: loading } = useProfile();
   const [isOpen, setIsOpen] = useState(false);
-
-  // Fetch display name from profile
-  useEffect(() => {
-    const fetchDisplayName = async () => {
-      if (!user?.id) {
-        setDisplayName(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle();
-
-        if (data?.display_name) {
-          setDisplayName(data.display_name);
-        } else {
-          setDisplayName(user.email?.split("@")[0] || null);
-        }
-      } catch (error) {
-        console.error("[UserDropdown] Error fetching display name:", error);
-        setDisplayName(user.email?.split("@")[0] || null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDisplayName();
-  }, [user?.id, user?.email]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -96,7 +66,7 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
     return null;
   }
 
-  const name = displayName || user.email?.split("@")[0] || "User";
+  const name = displayName || user?.email?.split("@")[0] || "User";
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -111,10 +81,7 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
             className,
           )}
         >
-          {/* User avatar circle */}
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
+          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="xs" />
 
           {/* Username */}
           {loading ? (
