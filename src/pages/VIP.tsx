@@ -13,6 +13,7 @@ import { useRankConfig } from '@/hooks/useRankConfig';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DailyStreakCard } from '@/components/stats/DailyStreakCard';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 
@@ -59,6 +60,22 @@ const RANK_CHALLENGES = [
     reward: 15000,
     requiredRank: 'platinum',
   },
+  { 
+    id: 'diamond_challenge', 
+    title: 'Diamond Challenge', 
+    description: 'Win 250 wager matches with a 65%+ win rate',
+    icon: Gem, 
+    reward: 50000,
+    requiredRank: 'diamond',
+  },
+  { 
+    id: 'goat_challenge', 
+    title: 'GOAT Challenge', 
+    description: 'Win 500 wager matches and reach a 25-game win streak',
+    icon: Crown, 
+    reward: 200000,
+    requiredRank: 'goat',
+  },
 ];
 
 const RANK_UNLOCKS: Record<string, string[]> = {
@@ -98,7 +115,7 @@ const getRankBarColors = (tier: string): [string, string, string] => {
 
 export default function VIP() {
   const navigate = useNavigate();
-  const { totalWageredSc, displayName, isLoading } = useProfile();
+  const { totalWageredSc, displayName, isLoading, dailyPlayStreak } = useProfile();
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const { tiers, loading: rankConfigLoading } = useRankConfig();
 
@@ -249,6 +266,9 @@ export default function VIP() {
             )}
           </CardContent>
         </Card>
+
+        {/* Daily Streak */}
+        <DailyStreakCard currentStreak={dailyPlayStreak} />
 
         {/* Challenges Grid */}
         <div>
