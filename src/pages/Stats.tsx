@@ -18,7 +18,6 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
-import { DailyStreakCard } from '@/components/stats/DailyStreakCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { formatSkilledCoins } from '@/lib/rankSystem';
@@ -308,9 +307,6 @@ export default function Stats() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
-        {/* Daily Streak Section */}
-        <DailyStreakCard currentStreak={stats.dailyPlayStreak} />
 
         {/* Main Stats - Two Big Cards */}
         <div className="grid grid-cols-2 gap-4">
