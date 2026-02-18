@@ -1,11 +1,13 @@
 /**
- * FriendsButton - Header button that matches UserDropdown style.
+ * FriendsButton - Header button matching UserDropdown style.
  *
- * Shows friend icon + count. Click toggles a full-height FriendsSlideover
- * panel from the right with Friends and Clan tabs.
+ * Click toggles a full-height FriendsSlideover panel.
+ * The panel is portaled to document.body to escape the header's
+ * backdrop-blur stacking context.
  */
 
 import { useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Users } from "lucide-react";
 import { useFriendStore } from "@/stores/friendStore";
 import { cn } from "@/lib/utils";
@@ -43,7 +45,10 @@ export function FriendsButton({ className }: FriendsButtonProps) {
         <span className="text-sm font-semibold tabular-nums">{friendCount}</span>
       </button>
 
-      <FriendsSlideover isOpen={isOpen} onClose={close} />
+      {createPortal(
+        <FriendsSlideover isOpen={isOpen} onClose={close} />,
+        document.body,
+      )}
     </>
   );
 }

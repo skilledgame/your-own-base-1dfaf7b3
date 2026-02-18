@@ -1,12 +1,12 @@
 /**
  * FriendsSlideover - Full-height slide-out panel on the right side.
  *
- * Two tabs: Friends and Clan (inspired by Fortnite friend panel).
- * Opens/closes on click. Heavy backdrop so background is barely visible.
- * Uses z-[39] so header (z-40) and sidebar (z-50) stay on top.
+ * Portaled to document.body so it escapes the header's stacking context.
+ * Starts below the header, stretches to the bottom of the viewport.
+ * Heavy backdrop dims the page behind it.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MessageCircle,
@@ -289,30 +289,42 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
   const [activeTab, setActiveTab] = useState<"friends" | "clan">("friends");
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
   return (
     <>
-      {/* Backdrop - heavy opacity so background is barely visible */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[38] bg-black/80 transition-opacity duration-300"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Panel - full height, top to bottom */}
+      {/* Backdrop - covers everything below the header, click to close */}
       <div
         className={cn(
-          "fixed top-0 right-0 bottom-0 w-[360px] z-[39]",
-          "bg-[#0f1923] border-l border-white/[0.06]",
-          "shadow-[-8px_0_32px_rgba(0,0,0,0.6)]",
+          "fixed inset-0 z-[60] bg-black/85 transition-opacity duration-300",
+          isOpen
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none",
+        )}
+        onClick={onClose}
+      />
+
+      {/* Panel - below header, full height to bottom, on top of backdrop */}
+      <div
+        className={cn(
+          "fixed top-[80px] right-0 bottom-0 w-[360px] z-[61]",
+          "bg-[#0f1923]",
+          "border-l border-white/[0.06]",
+          "shadow-[-8px_0_32px_rgba(0,0,0,0.7)]",
           "flex flex-col",
           "transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
           isOpen ? "translate-x-0" : "translate-x-full",
         )}
       >
-        {/* Spacer so content starts below the fixed header */}
-        <div className="flex-shrink-0 h-20" />
-
         {/* Tabs */}
         <div className="flex flex-shrink-0 border-b border-white/[0.06]">
           <button
@@ -339,17 +351,18 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
           </button>
         </div>
 
-        {/* Scrollable content */}
+        {/* Scrollable content - takes all remaining space */}
         <ScrollArea className="flex-1 min-h-0">
           {activeTab === "friends" ? <FriendsTabContent /> : <ClanTabContent />}
         </ScrollArea>
 
-        {/* Bottom "SEE ALL FRIENDS" / "VIEW CLAN" button */}
+        {/* Bottom button - pinned to the very bottom */}
         <div className="flex-shrink-0 p-5 border-t border-white/[0.06]">
           <button
-            onClick={() =>
-              navigate(activeTab === "friends" ? "/friends" : "/clan")
-            }
+            onClick={() => {
+              navigate(activeTab === "friends" ? "/friends" : "/clan");
+              onClose();
+            }}
             className={cn(
               "w-full flex items-center justify-center gap-2.5 py-3.5 rounded-full",
               "border border-slate-500/30 hover:border-slate-400/40",
