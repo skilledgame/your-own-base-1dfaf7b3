@@ -666,10 +666,13 @@ export type Database = {
           created_at: string
           daily_play_streak: number
           display_name: string | null
+          display_name_changed_at: string | null
           email: string | null
           id: string
           last_played_date: string | null
           skilled_coins: number
+          skin_color: string
+          skin_icon: string
           total_wagered_sc: number
           updated_at: string
           user_id: string
@@ -680,10 +683,13 @@ export type Database = {
           created_at?: string
           daily_play_streak?: number
           display_name?: string | null
+          display_name_changed_at?: string | null
           email?: string | null
           id?: string
           last_played_date?: string | null
           skilled_coins?: number
+          skin_color?: string
+          skin_icon?: string
           total_wagered_sc?: number
           updated_at?: string
           user_id: string
@@ -694,10 +700,13 @@ export type Database = {
           created_at?: string
           daily_play_streak?: number
           display_name?: string | null
+          display_name_changed_at?: string | null
           email?: string | null
           id?: string
           last_played_date?: string | null
           skilled_coins?: number
+          skin_color?: string
+          skin_icon?: string
           total_wagered_sc?: number
           updated_at?: string
           user_id?: string

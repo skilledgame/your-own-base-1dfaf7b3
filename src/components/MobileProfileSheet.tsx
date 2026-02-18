@@ -10,11 +10,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWalletModal } from '@/contexts/WalletModalContext';
 import { useUserDataStore } from '@/stores/userDataStore';
 import { 
-  User, Wallet, Settings, 
+  Wallet, Settings, 
   Trophy, History, Users, LogOut, BarChart3, X
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 interface MobileProfileSheetProps {
   isOpen: boolean;
@@ -26,9 +27,9 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
   const { openWallet } = useWalletModal();
   const navigate = useNavigate();
   
-  // Use centralized store - no direct Supabase calls
-  // Use separate selectors to avoid creating new objects on every render
   const displayName = useUserDataStore(state => state.profile?.display_name ?? null);
+  const skinColor = useUserDataStore(state => state.profile?.skin_color ?? 'purple');
+  const skinIcon = useUserDataStore(state => state.profile?.skin_icon ?? 'cat');
   const loading = useUserDataStore(state => state.loading);
 
   // Prevent body scroll when sheet is open
@@ -100,10 +101,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
-            {/* User avatar circle */}
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
-            </div>
+            <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="md" />
             
             {/* Username */}
             {loading ? (

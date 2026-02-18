@@ -23,6 +23,8 @@ export function useProfile() {
   const displayName = profile?.display_name ?? null;
   const chessElo = profile?.chess_elo ?? 800;
   const dailyPlayStreak = profile?.daily_play_streak ?? 0;
+  const skinColor = profile?.skin_color ?? 'purple';
+  const skinIcon = profile?.skin_icon ?? 'cat';
   
   return {
     profile,
@@ -31,6 +33,8 @@ export function useProfile() {
     displayName,
     chessElo,
     dailyPlayStreak,
+    skinColor,
+    skinIcon,
     isLoading: loading && profile === null,
     isReady: profile !== null,
     error,
