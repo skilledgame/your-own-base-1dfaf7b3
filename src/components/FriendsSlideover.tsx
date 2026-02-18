@@ -297,6 +297,7 @@ function FriendProfileView({
   const navigate = useNavigate();
   const status: UserStatus = usePresenceStore((s) => s.statusMap[friend.friend_user_id] || 'offline');
   const removeFriend = useFriendStore((s) => s.removeFriend);
+  const closePanel = useFriendStore((s) => s.closePanel);
   const [profile, setProfile] = useState<FriendProfile | null>(null);
   const [removing, setRemoving] = useState(false);
 
@@ -434,7 +435,13 @@ function FriendProfileView({
             <span className="text-sm font-medium text-slate-200">Stats</span>
           </button>
           {status === "in_game" && (
-            <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 transition-colors">
+            <button
+              onClick={() => {
+                closePanel();
+                navigate(`/game/spectate/${friend.friend_user_id}`);
+              }}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 transition-colors"
+            >
               <Eye className="w-4 h-4 text-amber-400" />
               <span className="text-sm font-medium text-amber-200">
                 Spectate
