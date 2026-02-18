@@ -295,7 +295,7 @@ function FriendProfileView({
   onChat: () => void;
 }) {
   const navigate = useNavigate();
-  const status = usePresenceStore((s) => s.getStatus)(friend.friend_user_id);
+  const status: UserStatus = usePresenceStore((s) => s.statusMap[friend.friend_user_id] || 'offline');
   const removeFriend = useFriendStore((s) => s.removeFriend);
   const [profile, setProfile] = useState<FriendProfile | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -467,7 +467,7 @@ function DmChatView({
   onBack: () => void;
 }) {
   const { user } = useAuth();
-  const status = usePresenceStore((s) => s.getStatus)(friend.friend_user_id);
+  const status: UserStatus = usePresenceStore((s) => s.statusMap[friend.friend_user_id] || 'offline');
   const messages = useChatStore((s) => s.messages);
   const loading = useChatStore((s) => s.loading);
   const setActiveChannel = useChatStore((s) => s.setActiveChannel);
