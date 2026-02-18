@@ -29,6 +29,7 @@ import {
 import { useFriendStore, type Friend } from "@/stores/friendStore";
 import { useClanStore } from "@/stores/clanStore";
 import { usePresenceStore, type UserStatus, type PresenceInfo } from "@/stores/presenceStore";
+import { usePresence } from "@/hooks/usePresence";
 import { useChatStore, getDmChannelId } from "@/stores/chatStore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -198,7 +199,7 @@ function FriendProfileView({
   onChat: () => void;
 }) {
   const navigate = useNavigate();
-  const status = usePresenceStore((s) => s.getStatus)(friend.friend_user_id);
+  const status: UserStatus = usePresenceStore((s) => s.statusMap[friend.friend_user_id] || 'offline');
   const removeFriend = useFriendStore((s) => s.removeFriend);
   const [profile, setProfile] = useState<FriendProfile | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -386,7 +387,7 @@ function DmChatView({
   onBack: () => void;
 }) {
   const { user } = useAuth();
-  const status = usePresenceStore((s) => s.getStatus)(friend.friend_user_id);
+  const status: UserStatus = usePresenceStore((s) => s.statusMap[friend.friend_user_id] || 'offline');
   const messages = useChatStore((s) => s.messages);
   const loading = useChatStore((s) => s.loading);
   const setActiveChannel = useChatStore((s) => s.setActiveChannel);
@@ -522,8 +523,8 @@ function FriendsTabContent({
   const navigate = useNavigate();
   const friends = useFriendStore((state) => state.friends);
   const pendingRequests = useFriendStore((state) => state.pendingRequests);
-  const getStatus = usePresenceStore((state) => state.getStatus);
-  const getPresenceInfo = usePresenceStore((state) => state.getPresenceInfo);
+  // Subscribe to the actual data maps so component re-renders when status changes
+  const { getStatus, getPresenceInfo } = usePresence();
   const { user } = useAuth();
 
   const onlineFriends = friends.filter(
@@ -620,7 +621,8 @@ function ClanTabContent() {
   const navigate = useNavigate();
   const clan = useClanStore((state) => state.clan);
   const members = useClanStore((state) => state.members);
-  const getStatus = usePresenceStore((state) => state.getStatus);
+  // Subscribe to statusMap so component re-renders when member status changes
+  const statusMap = usePresenceStore((state) => state.statusMap);
 
   if (!clan) {
     return (
@@ -643,6 +645,8 @@ function ClanTabContent() {
       </div>
     );
   }
+
+  const getStatus = (userId: string): UserStatus => statusMap[userId] || 'offline';
 
   const onlineMembers = members.filter(
     (m) => getStatus(m.user_id) !== "offline",
