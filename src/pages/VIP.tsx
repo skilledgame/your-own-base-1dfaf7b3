@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Crown, Trophy, Sparkles, ArrowLeft, Check, Lock, X,
-  Coins, Star, ChevronRight, Award, Gem, Swords, Target, Flame, Shield, LayoutGrid
+  Coins, Star, ChevronLeft, ChevronRight, Award, Gem, Swords, Target, Flame, Shield, LayoutGrid, Zap, Gift, Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -118,6 +118,7 @@ export default function VIP() {
   const { totalWageredSc, displayName, isLoading, dailyPlayStreak } = useProfile();
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [showAllChallenges, setShowAllChallenges] = useState(false);
+  const [showStreakModal, setShowStreakModal] = useState(false);
   const { tiers, loading: rankConfigLoading } = useRankConfig();
 
   // Build dynamic rank ladder & order from DB config
@@ -179,6 +180,9 @@ export default function VIP() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-6 mt-16 space-y-6">
+        {/* Daily Streak Bar */}
+        <DailyStreakCard currentStreak={dailyPlayStreak} onClick={() => setShowStreakModal(true)} />
+
         {/* Current Rank Hero Card */}
         <Card className={cn(
           "overflow-hidden border-2",
@@ -270,9 +274,6 @@ export default function VIP() {
             )}
           </CardContent>
         </Card>
-
-        {/* Daily Streak */}
-        <DailyStreakCard currentStreak={dailyPlayStreak} />
 
         {/* Challenges - Current Rank + Show All */}
         <div>
@@ -623,7 +624,261 @@ export default function VIP() {
         </div>
       )}
 
+      {/* Streak Detail Modal */}
+      {showStreakModal && <StreakModal currentStreak={dailyPlayStreak} onClose={() => setShowStreakModal(false)} />}
+
       <MobileBottomNav />
+    </div>
+  );
+}
+
+/* ───────────────────── Streak Modal ───────────────────── */
+
+const STREAK_MILESTONES = [
+  { days: 1, reward: 10, label: 'Day 1', icon: Flame },
+  { days: 3, reward: 25, label: '3 Days', icon: Zap },
+  { days: 5, reward: 50, label: '5 Days', icon: Gift },
+  { days: 7, reward: 100, label: '7 Days', icon: Sparkles },
+  { days: 14, reward: 250, label: '14 Days', icon: Crown },
+  { days: 30, reward: 750, label: '30 Days', icon: Trophy },
+];
+
+function StreakModal({ currentStreak, onClose }: { currentStreak: number; onClose: () => void }) {
+  const [calendarOffset, setCalendarOffset] = useState(0);
+
+  const today = new Date();
+  const viewDate = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1);
+  const monthName = viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+  const firstDow = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+
+  const streakDates = new Set<string>();
+  for (let i = 0; i < currentStreak; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    streakDates.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+  }
+
+  const calendarCells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) calendarCells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
+
+  const isStreakDay = (day: number) =>
+    streakDates.has(`${viewDate.getFullYear()}-${viewDate.getMonth()}-${day}`);
+
+  const isToday = (day: number) =>
+    viewDate.getFullYear() === today.getFullYear() &&
+    viewDate.getMonth() === today.getMonth() &&
+    day === today.getDate();
+
+  const nextMilestone = STREAK_MILESTONES.find(m => m.days > currentStreak);
+  const longestStreak = currentStreak;
+  const weekProgress = ((currentStreak % 7) / 7) * 100 || (currentStreak > 0 && currentStreak % 7 === 0 ? 100 : 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={onClose}
+      />
+
+      <div className="relative z-10 w-full max-w-md mx-auto max-h-[90vh] flex flex-col bg-background border border-border/60 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Flame className="w-5 h-5 text-orange-500" />
+            <h2 className="text-lg font-bold text-foreground">Daily Streak</h2>
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Big streak hero */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-xl shadow-orange-500/30 mb-3">
+              <Flame className="w-10 h-10 text-white" />
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-5xl font-black text-orange-500">{currentStreak}</span>
+              <span className="text-lg font-semibold text-muted-foreground">day streak</span>
+            </div>
+            {nextMilestone && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {nextMilestone.days - currentStreak} more day{nextMilestone.days - currentStreak !== 1 ? 's' : ''} until
+                <span className="text-yellow-500 font-semibold"> +{nextMilestone.reward} SC</span>
+              </p>
+            )}
+          </div>
+
+          {/* Weekly progress ring */}
+          <div className="bg-muted/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-foreground">Weekly Goal</span>
+              <div className="flex items-center gap-1">
+                <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                <span className="text-sm font-bold text-yellow-500">100 SC at Day 7</span>
+              </div>
+            </div>
+            <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${weekProgress}%`,
+                  background: 'linear-gradient(90deg, #f97316, #ef4444, #f97316)',
+                  backgroundSize: '200% 100%',
+                  animation: 'rankWave 2s ease-in-out infinite',
+                }}
+              />
+            </div>
+            <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
+              <span>Day {currentStreak % 7 || (currentStreak > 0 ? 7 : 0)} of 7</span>
+              <span>{Math.max(0, 7 - (currentStreak % 7 || (currentStreak > 0 ? 7 : 0)))} days left</span>
+            </div>
+          </div>
+
+          {/* Calendar */}
+          <div className="bg-muted/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-4">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCalendarOffset(o => o - 1)}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-semibold text-foreground">{monthName}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                disabled={calendarOffset >= 0}
+                onClick={() => setCalendarOffset(o => o + 1)}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Day-of-week labels */}
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {calendarCells.map((day, i) => {
+                if (day === null) {
+                  return <div key={`e-${i}`} className="aspect-square" />;
+                }
+
+                const streak = isStreakDay(day);
+                const todayMark = isToday(day);
+                const isFuture =
+                  viewDate.getFullYear() === today.getFullYear() &&
+                  viewDate.getMonth() === today.getMonth() &&
+                  day > today.getDate();
+
+                return (
+                  <div
+                    key={day}
+                    className={cn(
+                      "aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all",
+                      streak && todayMark
+                        ? "bg-orange-500 text-white shadow-md shadow-orange-500/30 ring-2 ring-orange-400/50"
+                        : streak
+                          ? "bg-orange-500 text-white shadow-sm shadow-orange-500/20"
+                          : todayMark
+                            ? "bg-primary/15 text-primary ring-2 ring-primary/30"
+                            : isFuture
+                              ? "text-muted-foreground/30"
+                              : "text-muted-foreground/70 hover:bg-muted/40"
+                    )}
+                  >
+                    {streak && !todayMark ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      day
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-4 mt-3 justify-center">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-orange-500" />
+                <span className="text-[10px] text-muted-foreground">Played</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-primary/15 ring-1 ring-primary/30" />
+                <span className="text-[10px] text-muted-foreground">Today</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-muted/20 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-orange-500">{currentStreak}</p>
+              <p className="text-[11px] text-muted-foreground">Current Streak</p>
+            </div>
+            <div className="bg-muted/20 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-foreground">{longestStreak}</p>
+              <p className="text-[11px] text-muted-foreground">Longest Streak</p>
+            </div>
+          </div>
+
+          {/* Milestones */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Streak Rewards</h3>
+            <div className="space-y-2">
+              {STREAK_MILESTONES.map((m) => {
+                const unlocked = currentStreak >= m.days;
+                const MIcon = m.icon;
+                return (
+                  <div
+                    key={m.days}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg p-2.5 border transition-all",
+                      unlocked
+                        ? "border-orange-500/30 bg-orange-500/5"
+                        : "border-border/40 bg-muted/10 opacity-60"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+                      unlocked ? "bg-orange-500/20 text-orange-500" : "bg-muted text-muted-foreground"
+                    )}>
+                      {unlocked ? <Check className="w-4 h-4" /> : <MIcon className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{m.label}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                      <span className={cn("text-sm font-bold", unlocked ? "text-yellow-500" : "text-muted-foreground")}>
+                        +{m.reward}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border/50">
+          <Button className="w-full" onClick={onClose}>Close</Button>
+        </div>
+      </div>
     </div>
   );
 }
