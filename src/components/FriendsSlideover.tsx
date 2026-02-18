@@ -17,6 +17,7 @@ import {
   Swords,
   ChevronRight,
   SmilePlus,
+  PanelRightClose,
 } from "lucide-react";
 import { useFriendStore, type Friend } from "@/stores/friendStore";
 import { useClanStore } from "@/stores/clanStore";
@@ -226,7 +227,7 @@ function ClanTabContent() {
   return (
     <div className="flex flex-col">
       {/* Clan header card */}
-      <div className="mx-4 mt-4 px-4 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+      <div className="mx-4 mt-4 px-4 py-4 rounded-xl bg-white/[0.03] border border-slate-700/30">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
             <Shield className="w-5 h-5 text-white" />
@@ -302,7 +303,7 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
 
   return (
     <>
-      {/* Backdrop - covers everything below the header, click to close */}
+      {/* Backdrop */}
       <div
         className={cn(
           "fixed inset-0 z-[60] bg-black/85 transition-opacity duration-300",
@@ -313,26 +314,40 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
         onClick={onClose}
       />
 
-      {/* Panel - below header, full height to bottom, on top of backdrop */}
+      {/* Panel */}
       <div
         className={cn(
           "fixed top-[80px] right-0 bottom-0 w-[360px] z-[61]",
           "bg-[#0f1923]",
-          "border-l border-white/[0.06]",
-          "shadow-[-8px_0_32px_rgba(0,0,0,0.7)]",
+          "border-l border-slate-700/40",
+          "shadow-[-4px_0_24px_rgba(0,0,0,0.5)]",
           "flex flex-col",
           "transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
           isOpen ? "translate-x-0" : "translate-x-full",
         )}
       >
+        {/* Close arrow bar */}
+        <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+            {activeTab === "friends" ? "Friends" : "Clan"}
+          </span>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+            title="Close"
+          >
+            <PanelRightClose className="w-5 h-5" />
+          </button>
+        </div>
+
         {/* Tabs */}
-        <div className="flex flex-shrink-0 border-b border-white/[0.06]">
+        <div className="flex flex-shrink-0 mx-4 rounded-lg bg-white/[0.04] p-0.5">
           <button
             onClick={() => setActiveTab("friends")}
             className={cn(
-              "flex-1 py-4 text-xs font-bold tracking-widest uppercase transition-all duration-200",
+              "flex-1 py-2.5 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
               activeTab === "friends"
-                ? "text-white border-b-2 border-purple-500"
+                ? "bg-white/[0.08] text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-300",
             )}
           >
@@ -341,9 +356,9 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
           <button
             onClick={() => setActiveTab("clan")}
             className={cn(
-              "flex-1 py-4 text-xs font-bold tracking-widest uppercase transition-all duration-200",
+              "flex-1 py-2.5 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
               activeTab === "clan"
-                ? "text-white border-b-2 border-purple-500"
+                ? "bg-white/[0.08] text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-300",
             )}
           >
@@ -351,27 +366,30 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
           </button>
         </div>
 
-        {/* Scrollable content - takes all remaining space */}
+        {/* Thin separator */}
+        <div className="mx-4 mt-3 border-t border-slate-700/30" />
+
+        {/* Scrollable content */}
         <ScrollArea className="flex-1 min-h-0">
           {activeTab === "friends" ? <FriendsTabContent /> : <ClanTabContent />}
         </ScrollArea>
 
-        {/* Bottom button - pinned to the very bottom */}
-        <div className="flex-shrink-0 p-5 border-t border-white/[0.06]">
+        {/* Bottom button */}
+        <div className="flex-shrink-0 p-4 border-t border-slate-700/30">
           <button
             onClick={() => {
               navigate(activeTab === "friends" ? "/friends" : "/clan");
               onClose();
             }}
             className={cn(
-              "w-full flex items-center justify-center gap-2.5 py-3.5 rounded-full",
-              "border border-slate-500/30 hover:border-slate-400/40",
-              "bg-slate-800/60 hover:bg-slate-700/60",
+              "w-full flex items-center justify-center gap-2.5 py-3 rounded-full",
+              "border border-slate-600/30 hover:border-slate-500/40",
+              "bg-white/[0.04] hover:bg-white/[0.07]",
               "text-white text-sm font-bold tracking-wide",
               "transition-all duration-200",
             )}
           >
-            <SmilePlus className="w-5 h-5" />
+            <SmilePlus className="w-4 h-4" />
             {activeTab === "friends" ? "SEE ALL FRIENDS" : "VIEW CLAN"}
           </button>
         </div>
