@@ -536,6 +536,7 @@ function initializeGlobalMessageHandler(): void {
         const isOpponentLeft = payload.reason === "disconnect" || 
                                payload.reason === "opponent_disconnect" ||
                                payload.reason === "opponent_resigned" ||
+                               payload.reason === "abort" ||
                                (payload.reason === "resign" && payload.winnerColor === myColor);
         
         // Clear timer snapshot on game end

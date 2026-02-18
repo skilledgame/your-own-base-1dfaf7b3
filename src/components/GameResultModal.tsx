@@ -26,6 +26,7 @@ const formatReason = (reason: string): string => {
     'disconnect': 'Disconnect',
     'opponent_resigned': 'Opponent Resigned',
     'opponent_left': 'Opponent Left',
+    'abort': 'Game Cancelled',
     'stalemate': 'Stalemate',
     'draw': 'Draw',
   };
@@ -167,10 +168,13 @@ export const GameResultModal = memo(({
   onGoHome,
 }: GameResultModalProps) => {
   // Guard: Ensure all props have defaults and are valid
-  const safeIsWin = Boolean(isWin);
   const safeCoinsChange = typeof coinsChange === 'number' ? coinsChange : 0;
   const safeNewBalance = typeof newBalance === 'number' && newBalance >= 0 ? newBalance : 0;
   const safeReason = typeof reason === 'string' && reason.length > 0 ? reason : "Game ended";
+  
+  // Detect abort/cancelled games (no moves made, no credits lost)
+  const isAbort = safeReason.toLowerCase().includes('abort') || safeReason.toLowerCase().includes('no moves');
+  const safeIsWin = isAbort ? false : Boolean(isWin);
   
   // Guard: Ensure callbacks are functions
   const safeOnPlayAgain = typeof onPlayAgain === 'function' ? onPlayAgain : () => {};
@@ -317,21 +321,25 @@ export const GameResultModal = memo(({
             <h2
               className={cn(
                 "text-4xl sm:text-5xl font-bold text-center mb-2 tracking-tight",
-                safeIsWin 
-                  ? "text-emerald-400 drop-shadow-[0_0_20px_rgba(34,197,94,0.5)]" 
-                  : "text-slate-300"
+                isAbort
+                  ? "text-amber-300"
+                  : safeIsWin 
+                    ? "text-emerald-400 drop-shadow-[0_0_20px_rgba(34,197,94,0.5)]" 
+                    : "text-slate-300"
               )}
               style={{ fontFamily: 'Space Grotesk, sans-serif' }}
             >
-              {safeIsWin ? "VICTORY" : "DEFEAT"}
+              {isAbort ? "CANCELLED" : safeIsWin ? "VICTORY" : "DEFEAT"}
             </h2>
 
             {/* Subtext */}
             <p className={cn(
               "text-center mb-6 text-sm",
-              safeIsWin ? "text-emerald-300/70" : "text-slate-400"
+              isAbort
+                ? "text-amber-200/70"
+                : safeIsWin ? "text-emerald-300/70" : "text-slate-400"
             )}>
-              {safeIsWin ? `You won by ${formattedReason}` : `You lost by ${formattedReason}`}
+              {isAbort ? "Opponent left — no moves were made" : safeIsWin ? `You won by ${formattedReason}` : `You lost by ${formattedReason}`}
             </p>
 
             {/* Stats chips */}

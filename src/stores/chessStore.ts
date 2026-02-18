@@ -383,7 +383,9 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     
     // Format message safely
     let message = reason || "Game ended";
-    if (isOpponentLeft) {
+    if (reason === "abort") {
+      message = "Opponent left — no moves were made";
+    } else if (isOpponentLeft) {
       message = "Opponent left the game - you win!";
     } else if (isDraw) {
       message = `Draw: ${message}`;

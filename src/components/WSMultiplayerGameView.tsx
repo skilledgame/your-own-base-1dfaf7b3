@@ -515,68 +515,61 @@ export const WSMultiplayerGameView = ({
           </div>
         </header>
 
-        {/* Game Content */}
+        {/* Game Content — pushed down for breathing room between header and game */}
         <div className="pt-16 p-4 sm:p-8 sm:pt-20">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto mt-4 sm:mt-8">
             {/* Game Area */}
-            <div className="flex flex-col items-center gap-4">
-              {/* Opponent Info Bar */}
+            <div className="flex flex-col items-center gap-2.5">
+              {/* Opponent Info Row — compact name box + badges outside + timer + resign */}
               <div className="flex items-center justify-between w-full max-w-md">
-                <div className="flex items-center gap-3 px-3 py-2.5 bg-secondary/80 border border-white/5 rounded-xl">
-                  <PlayerAvatar
-                    skinColor={opponentSkinColor}
-                    skinIcon={opponentSkinIcon}
-                    size="md"
-                    fallbackInitial={opponentName || "O"}
-                  />
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    {/* Row 1: Name + ELO + Rank + Badges + Streak */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-sm truncate max-w-[120px]">{opponentName || "Opponent"}</span>
-                      {(() => {
-                        const eloInfo = getEloTitle(opponentElo);
-                        return (
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${eloInfo.bgClass} ${eloInfo.colorClass} ${eloInfo.borderClass}`}>
-                            {opponentElo}
-                          </span>
-                        );
-                      })()}
-                      <RankBadge rank={opponentRank} size="xs" />
-                      {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
-                      {opponentStreak > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
-                          <Flame className="w-3 h-3" />
-                          {opponentStreak}
-                        </span>
-                      )}
-                      <button
-                        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded transition-colors"
-                        title="Add Friend"
-                        onClick={async () => {
-                          try {
-                            const matchmaking = useChessStore.getState().matchmaking;
-                            const opponentUserId = matchmaking.opponentUserId;
-                            if (opponentUserId) {
-                              await useFriendStore.getState().sendRequest(opponentUserId);
-                              toast.success('Friend request sent!');
-                            } else {
-                              toast.error('Could not identify opponent');
-                            }
-                          } catch (error: any) {
-                            toast.error(error.message || 'Failed to send request');
-                          }
-                        }}
-                      >
-                        <UserPlus className="w-3 h-3" />
-                      </button>
-                    </div>
-                    {/* Row 2: Captured pieces */}
-                    <CapturedPieces 
-                      pieces={opponentCaptured} 
-                      color={isWhite ? "black" : "white"}
-                      materialAdvantage={opponentMaterialAdvantage > 0 ? opponentMaterialAdvantage : undefined}
+                <div className="flex items-center gap-2">
+                  {/* Compact name box matching timer height */}
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-secondary border-2 border-border rounded-xl">
+                    <PlayerAvatar
+                      skinColor={opponentSkinColor}
+                      skinIcon={opponentSkinIcon}
+                      size="sm"
+                      fallbackInitial={opponentName || "O"}
                     />
+                    <span className="font-semibold text-sm truncate max-w-[120px]">{opponentName || "Opponent"}</span>
                   </div>
+                  {/* Badges outside the name box */}
+                  {(() => {
+                    const eloInfo = getEloTitle(opponentElo);
+                    return (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${eloInfo.bgClass} ${eloInfo.colorClass} ${eloInfo.borderClass}`}>
+                        {opponentElo}
+                      </span>
+                    );
+                  })()}
+                  <RankBadge rank={opponentRank} size="xs" />
+                  {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
+                  {opponentStreak > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
+                      <Flame className="w-3 h-3" />
+                      {opponentStreak}
+                    </span>
+                  )}
+                  <button
+                    className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded transition-colors"
+                    title="Add Friend"
+                    onClick={async () => {
+                      try {
+                        const matchmaking = useChessStore.getState().matchmaking;
+                        const opponentUserId = matchmaking.opponentUserId;
+                        if (opponentUserId) {
+                          await useFriendStore.getState().sendRequest(opponentUserId);
+                          toast.success('Friend request sent!');
+                        } else {
+                          toast.error('Could not identify opponent');
+                        }
+                      } catch (error: any) {
+                        toast.error(error.message || 'Failed to send request');
+                      }
+                    }}
+                  >
+                    <UserPlus className="w-3 h-3" />
+                  </button>
                 </div>
                 <div className="flex items-center gap-2">
                   <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
@@ -598,6 +591,15 @@ export const WSMultiplayerGameView = ({
                 </div>
               </div>
 
+              {/* Opponent captured pieces */}
+              <div className="w-full max-w-md">
+                <CapturedPieces 
+                  pieces={opponentCaptured} 
+                  color={isWhite ? "black" : "white"}
+                  materialAdvantage={opponentMaterialAdvantage > 0 ? opponentMaterialAdvantage : undefined}
+                />
+              </div>
+
               {/* Chess Board with sound callbacks - only show opponent's last move */}
               <ChessBoard
                 game={chess}
@@ -612,42 +614,44 @@ export const WSMultiplayerGameView = ({
                 onCheckSound={playCheck}
               />
 
-              {/* Player Info Bar */}
+              {/* Player captured pieces */}
+              <div className="w-full max-w-md">
+                <CapturedPieces 
+                  pieces={myCaptured} 
+                  color={isWhite ? "white" : "black"}
+                  materialAdvantage={myMaterialAdvantage > 0 ? myMaterialAdvantage : undefined}
+                />
+              </div>
+
+              {/* Player Info Row — compact name box + badges outside + timer + spectators */}
               <div className="flex items-center justify-between w-full max-w-md">
-                <div className="flex items-center gap-3 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-xl">
-                  <PlayerAvatar
-                    skinColor={skinColor}
-                    skinIcon={skinIcon}
-                    size="md"
-                  />
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    {/* Row 1: Name + ELO + Rank + Badges + Streak */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-sm truncate max-w-[120px]">{playerName}</span>
-                      {(() => {
-                        const eloInfo = getEloTitle(playerElo);
-                        return (
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${eloInfo.bgClass} ${eloInfo.colorClass} ${eloInfo.borderClass}`}>
-                            {playerElo}
-                          </span>
-                        );
-                      })()}
-                      <RankBadge rank={playerRank} size="xs" />
-                      {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
-                      {playerStreak > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
-                          <Flame className="w-3 h-3" />
-                          {playerStreak}
-                        </span>
-                      )}
-                    </div>
-                    {/* Row 2: Captured pieces */}
-                    <CapturedPieces 
-                      pieces={myCaptured} 
-                      color={isWhite ? "white" : "black"}
-                      materialAdvantage={myMaterialAdvantage > 0 ? myMaterialAdvantage : undefined}
+                <div className="flex items-center gap-2">
+                  {/* Compact name box matching timer height */}
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border-2 border-primary/20 rounded-xl">
+                    <PlayerAvatar
+                      skinColor={skinColor}
+                      skinIcon={skinIcon}
+                      size="sm"
                     />
+                    <span className="font-semibold text-sm truncate max-w-[120px]">{playerName}</span>
                   </div>
+                  {/* Badges outside the name box */}
+                  {(() => {
+                    const eloInfo = getEloTitle(playerElo);
+                    return (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${eloInfo.bgClass} ${eloInfo.colorClass} ${eloInfo.borderClass}`}>
+                        {playerElo}
+                      </span>
+                    );
+                  })()}
+                  <RankBadge rank={playerRank} size="xs" />
+                  {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
+                  {playerStreak > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
+                      <Flame className="w-3 h-3" />
+                      {playerStreak}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} />
@@ -668,10 +672,12 @@ export const WSMultiplayerGameView = ({
       <AlertDialog open={showResignDialog} onOpenChange={setShowResignDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Resign Game?</AlertDialogTitle>
+            <AlertDialogTitle>{timerSnapshot?.clockRunning ? 'Resign Game?' : 'Leave Game?'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to resign? This will count as a loss and your opponent will win
-              {wager > 0 && ` the ${wager} SC wager`}.
+              {timerSnapshot?.clockRunning
+                ? <>Are you sure you want to resign? This will count as a loss and your opponent will win{wager > 0 && ` the ${wager} SC wager`}.</>
+                : 'No moves have been made yet. You can leave without losing any credits.'
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -681,9 +687,9 @@ export const WSMultiplayerGameView = ({
                 setShowResignDialog(false);
                 onExit();
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className={timerSnapshot?.clockRunning ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
             >
-              Yes, Resign
+              {timerSnapshot?.clockRunning ? 'Yes, Resign' : 'Leave Game'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
