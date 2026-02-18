@@ -6,7 +6,7 @@
  * Heavy backdrop dims the page behind it.
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MessageCircle,
@@ -17,7 +17,7 @@ import {
   Swords,
   ChevronRight,
   SmilePlus,
-  PanelRightClose,
+  ChevronDown,
 } from "lucide-react";
 import { useFriendStore, type Friend } from "@/stores/friendStore";
 import { useClanStore } from "@/stores/clanStore";
@@ -290,34 +290,12 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
   const [activeTab, setActiveTab] = useState<"friends" | "clan">("friends");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
-
   return (
     <>
-      {/* Backdrop - lighter so the page is still somewhat visible */}
+      {/* Panel - slides up from bottom, right side, no backdrop */}
       <div
         className={cn(
-          "fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300",
-          isOpen
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none",
-        )}
-        onClick={onClose}
-      />
-
-      {/* Panel - slides up from bottom, right side */}
-      <div
-        className={cn(
-          "fixed right-4 bottom-4 w-[310px] max-h-[520px] z-[61]",
+          "fixed right-4 bottom-4 w-[310px] h-[520px] z-[61]",
           "bg-[#0f1923]",
           "border border-slate-500/25",
           "rounded-2xl",
@@ -339,7 +317,7 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
             title="Close"
           >
-            <PanelRightClose className="w-5 h-5" />
+            <ChevronDown className="w-5 h-5" />
           </button>
         </div>
 
