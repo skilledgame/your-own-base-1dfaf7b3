@@ -2,11 +2,10 @@
  * FriendsButton - Header button matching UserDropdown style.
  *
  * Click toggles a full-height FriendsSlideover panel.
- * The panel is portaled to document.body to escape the header's
- * backdrop-blur stacking context.
+ * Open/close state lives in the friendStore so it persists across navigations.
+ * The panel is portaled to document.body to escape the header's stacking context.
  */
 
-import { useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Users } from "lucide-react";
 import { useFriendStore } from "@/stores/friendStore";
@@ -20,15 +19,14 @@ interface FriendsButtonProps {
 export function FriendsButton({ className }: FriendsButtonProps) {
   const friends = useFriendStore((state) => state.friends);
   const friendCount = friends.length;
-  const [isOpen, setIsOpen] = useState(false);
-
-  const toggle = useCallback(() => setIsOpen((prev) => !prev), []);
-  const close = useCallback(() => setIsOpen(false), []);
+  const isOpen = useFriendStore((state) => state.panelOpen);
+  const togglePanel = useFriendStore((state) => state.togglePanel);
+  const closePanel = useFriendStore((state) => state.closePanel);
 
   return (
     <>
       <button
-        onClick={toggle}
+        onClick={togglePanel}
         className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-xl",
           "bg-slate-800/60 hover:bg-slate-700/60",
@@ -46,7 +44,7 @@ export function FriendsButton({ className }: FriendsButtonProps) {
       </button>
 
       {createPortal(
-        <FriendsSlideover isOpen={isOpen} onClose={close} />,
+        <FriendsSlideover isOpen={isOpen} onClose={closePanel} />,
         document.body,
       )}
     </>

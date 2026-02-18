@@ -1,12 +1,11 @@
 /**
- * FriendsSlideover - Full-height slide-out panel on the right side.
+ * FriendsSlideover - Popup panel with Friends/Clan tabs and inline DM chat.
  *
- * Portaled to document.body so it escapes the header's stacking context.
- * Starts below the header, stretches to the bottom of the viewport.
- * Heavy backdrop dims the page behind it.
+ * Clicking the message icon on a friend opens a phone-style DM view
+ * inside the same popup -- back button, name header, message bubbles, input.
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MessageCircle,
@@ -18,10 +17,13 @@ import {
   ChevronRight,
   SmilePlus,
   ChevronDown,
+  ArrowLeft,
+  Send,
 } from "lucide-react";
 import { useFriendStore, type Friend } from "@/stores/friendStore";
 import { useClanStore } from "@/stores/clanStore";
 import { usePresenceStore, type UserStatus } from "@/stores/presenceStore";
+import { useChatStore, getDmChannelId } from "@/stores/chatStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -44,12 +46,27 @@ function StatusDot({ status }: { status: UserStatus }) {
   );
 }
 
-function FriendAvatar({ name, status }: { name: string; status: UserStatus }) {
+function FriendAvatar({
+  name,
+  status,
+  size = "md",
+}: {
+  name: string;
+  status: UserStatus;
+  size?: "sm" | "md";
+}) {
   const initial = name.charAt(0).toUpperCase();
+  const dim = size === "sm" ? "w-8 h-8" : "w-10 h-10";
+  const text = size === "sm" ? "text-xs" : "text-sm";
   return (
     <div className="relative flex-shrink-0">
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-        <span className="text-white text-sm font-bold">{initial}</span>
+      <div
+        className={cn(
+          dim,
+          "rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center",
+        )}
+      >
+        <span className={cn("text-white font-bold", text)}>{initial}</span>
       </div>
       <StatusDot status={status} />
     </div>
@@ -94,7 +111,152 @@ function FriendRow({
   );
 }
 
-function FriendsTabContent() {
+/* ── DM Chat View (phone-style) ── */
+
+function DmChatView({
+  friend,
+  onBack,
+}: {
+  friend: Friend;
+  onBack: () => void;
+}) {
+  const { user } = useAuth();
+  const status = usePresenceStore((s) => s.getStatus)(friend.friend_user_id);
+  const messages = useChatStore((s) => s.messages);
+  const loading = useChatStore((s) => s.loading);
+  const setActiveChannel = useChatStore((s) => s.setActiveChannel);
+  const sendMessage = useChatStore((s) => s.sendMessage);
+
+  const [input, setInput] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      const channelId = getDmChannelId(user.id, friend.friend_user_id);
+      setActiveChannel("dm", channelId);
+    }
+  }, [user?.id, friend.friend_user_id, setActiveChannel]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    sendMessage(input.trim());
+    setInput("");
+  };
+
+  const statusLabel =
+    status === "in_game"
+      ? "In Game"
+      : status === "online"
+        ? "Online"
+        : "Offline";
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Phone-style header */}
+      <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-slate-700/25 flex-shrink-0">
+        <button
+          onClick={onBack}
+          className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <FriendAvatar name={friend.display_name} status={status} size="sm" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-white truncate leading-tight">
+            {friend.display_name}
+          </p>
+          <p
+            className={cn(
+              "text-[11px] leading-tight",
+              status === "online"
+                ? "text-emerald-400"
+                : status === "in_game"
+                  ? "text-amber-400"
+                  : "text-slate-500",
+            )}
+          >
+            {statusLabel}
+          </p>
+        </div>
+      </div>
+
+      {/* Messages area */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="flex flex-col gap-1.5 p-3">
+          {loading && messages.length === 0 && (
+            <p className="text-xs text-slate-500 text-center py-8">
+              Loading messages...
+            </p>
+          )}
+
+          {!loading && messages.length === 0 && (
+            <p className="text-xs text-slate-500 text-center py-8">
+              No messages yet. Say hi!
+            </p>
+          )}
+
+          {messages.map((msg) => {
+            const isMe = msg.sender_id === user?.id;
+            return (
+              <div
+                key={msg.id}
+                className={cn("flex", isMe ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[80%] px-3 py-2 rounded-2xl text-sm break-words",
+                    isMe
+                      ? "bg-purple-600 text-white rounded-br-md"
+                      : "bg-white/[0.07] text-slate-200 rounded-bl-md",
+                  )}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
+
+      {/* Input bar */}
+      <div className="flex items-center gap-2 px-3 py-2.5 border-t border-slate-700/25 flex-shrink-0">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Type a message..."
+          className="flex-1 bg-white/[0.05] border border-slate-700/30 rounded-full px-3.5 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500/40"
+        />
+        <button
+          onClick={handleSend}
+          disabled={!input.trim()}
+          className={cn(
+            "p-2 rounded-full transition-colors",
+            input.trim()
+              ? "bg-purple-600 text-white hover:bg-purple-500"
+              : "bg-white/[0.04] text-slate-600",
+          )}
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Tab Content ── */
+
+function FriendsTabContent({
+  onOpenDm,
+}: {
+  onOpenDm: (friend: Friend) => void;
+}) {
   const navigate = useNavigate();
   const friends = useFriendStore((state) => state.friends);
   const pendingRequests = useFriendStore((state) => state.pendingRequests);
@@ -113,7 +275,6 @@ function FriendsTabContent() {
 
   return (
     <div className="flex flex-col">
-      {/* Pending requests banner */}
       {incomingCount > 0 && (
         <button
           onClick={() => navigate("/friends")}
@@ -134,7 +295,6 @@ function FriendsTabContent() {
         </button>
       )}
 
-      {/* Online friends */}
       {onlineFriends.length > 0 && (
         <div className="mt-4">
           <p className="px-5 pb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
@@ -145,13 +305,12 @@ function FriendsTabContent() {
               key={friend.friend_user_id}
               friend={friend}
               status={getStatus(friend.friend_user_id)}
-              onMessage={() => navigate("/friends")}
+              onMessage={() => onOpenDm(friend)}
             />
           ))}
         </div>
       )}
 
-      {/* Offline friends */}
       {offlineFriends.length > 0 && (
         <div className="mt-4">
           <p className="px-5 pb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
@@ -162,13 +321,12 @@ function FriendsTabContent() {
               key={friend.friend_user_id}
               friend={friend}
               status="offline"
-              onMessage={() => navigate("/friends")}
+              onMessage={() => onOpenDm(friend)}
             />
           ))}
         </div>
       )}
 
-      {/* Empty state */}
       {friends.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
           <div className="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center mb-5">
@@ -226,7 +384,6 @@ function ClanTabContent() {
 
   return (
     <div className="flex flex-col">
-      {/* Clan header card */}
       <div className="mx-4 mt-4 px-4 py-4 rounded-xl bg-white/[0.03] border border-slate-700/30">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
@@ -243,7 +400,6 @@ function ClanTabContent() {
         </div>
       </div>
 
-      {/* Members */}
       <div className="mt-4">
         <p className="px-5 pb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
           Members — {onlineMembers.length} online
@@ -286,95 +442,110 @@ function ClanTabContent() {
   );
 }
 
+/* ── Main Slideover ── */
+
 export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
   const [activeTab, setActiveTab] = useState<"friends" | "clan">("friends");
+  const [dmFriend, setDmFriend] = useState<Friend | null>(null);
   const navigate = useNavigate();
 
+  const handleBack = () => {
+    setDmFriend(null);
+    useChatStore.getState().reset();
+  };
+
   return (
-    <>
-      {/* Panel - slides up from bottom, right side, no backdrop */}
-      <div
-        className={cn(
-          "fixed right-4 bottom-4 w-[310px] h-[520px] z-[61]",
-          "bg-[#0f1923]",
-          "border border-slate-500/25",
-          "rounded-2xl",
-          "shadow-[0_8px_40px_rgba(0,0,0,0.45)]",
-          "flex flex-col overflow-hidden",
-          "transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          isOpen
-            ? "translate-y-0 opacity-100"
-            : "translate-y-8 opacity-0 pointer-events-none",
-        )}
-      >
-        {/* Close arrow bar */}
-        <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            {activeTab === "friends" ? "Friends" : "Clan"}
-          </span>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
-            title="Close"
-          >
-            <ChevronDown className="w-5 h-5" />
-          </button>
-        </div>
+    <div
+      className={cn(
+        "fixed right-4 bottom-4 w-[310px] h-[400px] z-[61]",
+        "bg-[#0f1923]",
+        "border border-slate-500/25",
+        "rounded-2xl",
+        "shadow-[0_8px_40px_rgba(0,0,0,0.45)]",
+        "flex flex-col overflow-hidden",
+        "transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        isOpen
+          ? "translate-y-0 opacity-100"
+          : "translate-y-8 opacity-0 pointer-events-none",
+      )}
+    >
+      {/* If chatting with a friend, show DM view */}
+      {dmFriend ? (
+        <DmChatView friend={dmFriend} onBack={handleBack} />
+      ) : (
+        <>
+          {/* Close arrow bar */}
+          <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              {activeTab === "friends" ? "Friends" : "Clan"}
+            </span>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+              title="Close"
+            >
+              <ChevronDown className="w-5 h-5" />
+            </button>
+          </div>
 
-        {/* Tabs */}
-        <div className="flex flex-shrink-0 mx-3 rounded-lg bg-white/[0.04] p-0.5">
-          <button
-            onClick={() => setActiveTab("friends")}
-            className={cn(
-              "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
-              activeTab === "friends"
-                ? "bg-white/[0.08] text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-300",
+          {/* Tabs */}
+          <div className="flex flex-shrink-0 mx-3 rounded-lg bg-white/[0.04] p-0.5">
+            <button
+              onClick={() => setActiveTab("friends")}
+              className={cn(
+                "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
+                activeTab === "friends"
+                  ? "bg-white/[0.08] text-white shadow-sm"
+                  : "text-slate-500 hover:text-slate-300",
+              )}
+            >
+              Friends
+            </button>
+            <button
+              onClick={() => setActiveTab("clan")}
+              className={cn(
+                "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
+                activeTab === "clan"
+                  ? "bg-white/[0.08] text-white shadow-sm"
+                  : "text-slate-500 hover:text-slate-300",
+              )}
+            >
+              Clan
+            </button>
+          </div>
+
+          {/* Thin separator */}
+          <div className="mx-3 mt-2.5 border-t border-slate-700/25" />
+
+          {/* Scrollable content */}
+          <ScrollArea className="flex-1 min-h-0">
+            {activeTab === "friends" ? (
+              <FriendsTabContent onOpenDm={setDmFriend} />
+            ) : (
+              <ClanTabContent />
             )}
-          >
-            Friends
-          </button>
-          <button
-            onClick={() => setActiveTab("clan")}
-            className={cn(
-              "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
-              activeTab === "clan"
-                ? "bg-white/[0.08] text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-300",
-            )}
-          >
-            Clan
-          </button>
-        </div>
+          </ScrollArea>
 
-        {/* Thin separator */}
-        <div className="mx-3 mt-2.5 border-t border-slate-700/25" />
-
-        {/* Scrollable content */}
-        <ScrollArea className="flex-1 min-h-0">
-          {activeTab === "friends" ? <FriendsTabContent /> : <ClanTabContent />}
-        </ScrollArea>
-
-        {/* Bottom button */}
-        <div className="flex-shrink-0 p-3 border-t border-slate-700/25">
-          <button
-            onClick={() => {
-              navigate(activeTab === "friends" ? "/friends" : "/clan");
-              onClose();
-            }}
-            className={cn(
-              "w-full flex items-center justify-center gap-2 py-2.5 rounded-full",
-              "border border-slate-500/25 hover:border-slate-400/35",
-              "bg-white/[0.04] hover:bg-white/[0.07]",
-              "text-white text-sm font-bold tracking-wide",
-              "transition-all duration-200",
-            )}
-          >
-            <SmilePlus className="w-4 h-4" />
-            {activeTab === "friends" ? "SEE ALL FRIENDS" : "VIEW CLAN"}
-          </button>
-        </div>
-      </div>
-    </>
+          {/* Bottom button */}
+          <div className="flex-shrink-0 p-3 border-t border-slate-700/25">
+            <button
+              onClick={() => {
+                navigate(activeTab === "friends" ? "/friends" : "/clan");
+              }}
+              className={cn(
+                "w-full flex items-center justify-center gap-2 py-2.5 rounded-full",
+                "border border-slate-500/25 hover:border-slate-400/35",
+                "bg-white/[0.04] hover:bg-white/[0.07]",
+                "text-white text-sm font-bold tracking-wide",
+                "transition-all duration-200",
+              )}
+            >
+              <SmilePlus className="w-4 h-4" />
+              {activeTab === "friends" ? "SEE ALL FRIENDS" : "VIEW CLAN"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
