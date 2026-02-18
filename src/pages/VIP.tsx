@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Crown, Trophy, Sparkles, ArrowLeft, Check, Lock, 
-  Coins, Star, ChevronRight, Award, Gem, Swords, Target, Flame, Shield
+  Crown, Trophy, Sparkles, ArrowLeft, Check, Lock, X,
+  Coins, Star, ChevronRight, Award, Gem, Swords, Target, Flame, Shield, LayoutGrid
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -117,6 +117,7 @@ export default function VIP() {
   const navigate = useNavigate();
   const { totalWageredSc, displayName, isLoading, dailyPlayStreak } = useProfile();
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const [showAllChallenges, setShowAllChallenges] = useState(false);
   const { tiers, loading: rankConfigLoading } = useRankConfig();
 
   // Build dynamic rank ladder & order from DB config
@@ -140,6 +141,9 @@ export default function VIP() {
     const requiredIndex = RANK_ORDER.indexOf(requiredRank);
     return currentRankIndex >= requiredIndex;
   };
+
+  const currentChallenge = RANK_CHALLENGES.find(c => c.requiredRank === rankInfo.tierName)
+    || RANK_CHALLENGES[0];
 
   const handleClaimReward = (rewardId: string) => {
     // TODO: Implement reward claiming logic
@@ -270,7 +274,7 @@ export default function VIP() {
         {/* Daily Streak */}
         <DailyStreakCard currentStreak={dailyPlayStreak} />
 
-        {/* Challenges Grid */}
+        {/* Challenges - Current Rank + Show All */}
         <div>
           <div className="flex items-center gap-2 mb-4">
             <Target className="w-5 h-5 text-primary" />
@@ -278,13 +282,14 @@ export default function VIP() {
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            {RANK_CHALLENGES.map((challenge) => {
+            {/* Current rank challenge */}
+            {(() => {
+              const challenge = currentChallenge;
               const ChallengeIcon = challenge.icon;
               const hasRank = checkRankRequirement(challenge.requiredRank);
               
               return (
                 <Card 
-                  key={challenge.id}
                   className={cn(
                     "relative overflow-hidden transition-all",
                     hasRank 
@@ -332,10 +337,7 @@ export default function VIP() {
                       </div>
                       <Button 
                         size="sm"
-                        className={cn(
-                          "h-8",
-                          !hasRank && "bg-muted text-muted-foreground cursor-not-allowed"
-                        )}
+                        className="h-8"
                         disabled={!hasRank}
                         onClick={() => handleClaimReward(challenge.id)}
                       >
@@ -345,7 +347,22 @@ export default function VIP() {
                   </CardContent>
                 </Card>
               );
-            })}
+            })()}
+
+            {/* Show All card */}
+            <Card 
+              className="relative overflow-hidden transition-all border-dashed border-2 border-primary/30 hover:border-primary/50 cursor-pointer group"
+              onClick={() => setShowAllChallenges(true)}
+            >
+              <CardContent className="p-5 flex flex-col items-center justify-center h-full min-h-[200px]">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center mb-3 transition-colors">
+                  <LayoutGrid className="w-7 h-7 text-primary" />
+                </div>
+                <h3 className="font-bold text-foreground mb-1">Show All</h3>
+                <p className="text-xs text-muted-foreground text-center">View all {RANK_CHALLENGES.length} rank challenges</p>
+                <ChevronRight className="w-5 h-5 text-primary mt-3 group-hover:translate-x-1 transition-transform" />
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -505,6 +522,106 @@ export default function VIP() {
           </CardContent>
         </Card>
       </div>
+
+      {/* All Challenges Modal */}
+      {showAllChallenges && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setShowAllChallenges(false)}
+          />
+
+          {/* Modal panel */}
+          <div className="relative z-10 w-full max-w-lg mx-auto max-h-[85vh] flex flex-col bg-background border border-border/60 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">All Challenges</h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => setShowAllChallenges(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Scrollable challenge list */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+              {RANK_CHALLENGES.map((challenge) => {
+                const ChallengeIcon = challenge.icon;
+                const hasRank = checkRankRequirement(challenge.requiredRank);
+                const isCurrent = challenge.requiredRank === rankInfo.tierName;
+
+                return (
+                  <div
+                    key={challenge.id}
+                    className={cn(
+                      "relative rounded-xl border p-4 transition-all",
+                      isCurrent
+                        ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+                        : hasRank
+                          ? "border-border bg-card"
+                          : "border-border/40 bg-muted/10 opacity-60"
+                    )}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={cn(
+                        "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+                        hasRank ? "bg-primary/15" : "bg-muted"
+                      )}>
+                        {hasRank ? (
+                          <ChallengeIcon className="w-5 h-5 text-primary" />
+                        ) : (
+                          <Lock className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <h3 className="font-bold text-sm text-foreground truncate">{challenge.title}</h3>
+                          {isCurrent && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-primary/15 text-primary shrink-0">
+                              Your Rank
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{challenge.description}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                            <span className="text-sm font-bold text-yellow-500">+{formatSkilledCoins(challenge.reward)}</span>
+                          </div>
+                          <Badge variant="outline" className={cn(
+                            "text-[10px] capitalize",
+                            hasRank ? "border-primary/40 text-primary" : ""
+                          )}>
+                            {hasRank ? challenge.requiredRank : `Unlocks at ${challenge.requiredRank}`}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-6 py-4 border-t border-border/50">
+              <Button
+                className="w-full"
+                onClick={() => setShowAllChallenges(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <MobileBottomNav />
     </div>
