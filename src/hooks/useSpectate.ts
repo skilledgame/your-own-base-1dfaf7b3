@@ -2,14 +2,16 @@
  * useSpectate Hook
  * 
  * Manages spectator WebSocket communication:
+ * - Ensures wsClient is authenticated and connected
  * - Sends `spectate_game` to join as spectator
  * - Listens for `spectate_started`, `move_applied`, `clock_snapshot`, `game_ended`
  * - Returns game state (FEN, clocks, player info, isGameOver)
  * - Sends `leave_spectate` on unmount
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { wsClient } from '@/lib/wsClient';
+import { supabase } from '@/integrations/supabase/client';
 import type { TimerSnapshot } from '@/stores/chessStore';
 
 export interface SpectateGameState {
@@ -60,21 +62,32 @@ export function useSpectate(targetUserId: string | undefined): UseSpectateReturn
   const [error, setError] = useState<string | null>(null);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const spectatingRef = useRef(false);
-  const targetRef = useRef(targetUserId);
-  targetRef.current = targetUserId;
+  const gameIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!targetUserId) return;
+    if (!targetUserId) {
+      setError('No target user specified.');
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
+    let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const handleMessage = (data: unknown) => {
+      if (cancelled) return;
       if (typeof data !== 'object' || data === null || !('type' in data)) return;
       const msg = data as { type: string; [key: string]: unknown };
 
       switch (msg.type) {
         case 'spectate_started': {
           const payload = msg as any;
+          const newGameId = payload.gameId || '';
+          gameIdRef.current = newGameId;
           setGameState({
-            gameId: payload.gameId || '',
+            gameId: newGameId,
             dbGameId: payload.dbGameId,
             fen: payload.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
             turn: payload.turn || 'w',
@@ -94,6 +107,8 @@ export function useSpectate(targetUserId: string | undefined): UseSpectateReturn
         case 'move_applied': {
           if (!spectatingRef.current) return;
           const payload = msg as any;
+          // Only process moves for the game we're spectating
+          if (payload.gameId && gameIdRef.current && payload.gameId !== gameIdRef.current) return;
           setGameState(prev => {
             if (!prev) return prev;
             return { ...prev, fen: payload.fen, turn: payload.turn };
@@ -119,6 +134,8 @@ export function useSpectate(targetUserId: string | undefined): UseSpectateReturn
         case 'clock_update': {
           if (!spectatingRef.current) return;
           const payload = msg as any;
+          // Only process clock for the game we're spectating
+          if (payload.gameId && gameIdRef.current && payload.gameId !== gameIdRef.current) return;
           const snapshot = buildTimerSnapshot(payload);
           setTimerSnapshot(snapshot);
           break;
@@ -127,6 +144,8 @@ export function useSpectate(targetUserId: string | undefined): UseSpectateReturn
         case 'game_ended': {
           if (!spectatingRef.current) return;
           const payload = msg as any;
+          // Only process game_ended for the game we're spectating
+          if (payload.gameId && gameIdRef.current && payload.gameId !== gameIdRef.current) return;
           setGameState(prev => {
             if (!prev) return prev;
             return {
@@ -137,6 +156,11 @@ export function useSpectate(targetUserId: string | undefined): UseSpectateReturn
             };
           });
           setTimerSnapshot(null);
+          break;
+        }
+
+        case 'spectator_count_update': {
+          // Ignore — only relevant for players, not spectators
           break;
         }
 
@@ -151,40 +175,91 @@ export function useSpectate(targetUserId: string | undefined): UseSpectateReturn
       }
     };
 
-    // Register message callback
-    const unsubscribe = wsClient.onMessage(handleMessage);
+    // Register message callback FIRST (before sending anything)
+    unsubscribe = wsClient.onMessage(handleMessage);
 
-    // Send spectate_game
-    const sendSpectate = () => {
-      if (wsClient.getStatus() === 'connected') {
-        wsClient.send({ type: 'spectate_game', targetUserId });
-      } else {
-        // Wait for connection
-        const checkInterval = setInterval(() => {
-          if (wsClient.getStatus() === 'connected') {
-            wsClient.send({ type: 'spectate_game', targetUserId });
-            clearInterval(checkInterval);
-          }
-        }, 500);
-        // Timeout after 10s
-        setTimeout(() => {
-          clearInterval(checkInterval);
-          if (!spectatingRef.current) {
-            setError('Failed to connect to game server');
-            setLoading(false);
-          }
-        }, 10000);
-      }
+    const sendSpectateMessage = () => {
+      wsClient.send({ type: 'spectate_game', targetUserId });
     };
 
-    sendSpectate();
+    const waitForConnectionThenSend = () => {
+      if (wsClient.getStatus() === 'connected') {
+        sendSpectateMessage();
+        return;
+      }
+
+      // Poll every 300ms until connected, timeout after 10s
+      pollIntervalId = setInterval(() => {
+        if (cancelled) {
+          if (pollIntervalId) clearInterval(pollIntervalId);
+          return;
+        }
+        if (wsClient.getStatus() === 'connected') {
+          if (pollIntervalId) clearInterval(pollIntervalId);
+          pollIntervalId = null;
+          sendSpectateMessage();
+        }
+      }, 300);
+
+      timeoutId = setTimeout(() => {
+        if (pollIntervalId) {
+          clearInterval(pollIntervalId);
+          pollIntervalId = null;
+        }
+        if (!cancelled && !spectatingRef.current) {
+          setError('Failed to connect to game server. Please try again.');
+          setLoading(false);
+        }
+      }, 10000);
+    };
+
+    // CRITICAL: Ensure wsClient is authenticated and connected.
+    // The wsClient singleton may not have an auth token if useChessWebSocket
+    // hasn't been mounted yet (e.g. user came from friends list, not a game page).
+    const ensureConnected = async () => {
+      if (cancelled) return;
+
+      // Step 1: Ensure auth token is set
+      if (!wsClient.hasAuthToken()) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (cancelled) return;
+          if (data.session?.access_token) {
+            wsClient.setAuthToken(data.session.access_token);
+          } else {
+            setError('Not signed in. Please log in to spectate.');
+            setLoading(false);
+            return;
+          }
+        } catch {
+          if (cancelled) return;
+          setError('Authentication failed. Please try again.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Step 2: Ensure WS is connected (connect() is a no-op if already open/connecting)
+      if (wsClient.getStatus() !== 'connected') {
+        wsClient.connect();
+      }
+
+      // Step 3: Wait for connection, then send spectate_game
+      waitForConnectionThenSend();
+    };
+
+    ensureConnected();
 
     return () => {
-      unsubscribe();
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+      if (pollIntervalId) clearInterval(pollIntervalId);
+      if (timeoutId) clearTimeout(timeoutId);
       // Send leave_spectate on unmount
       if (spectatingRef.current) {
         wsClient.send({ type: 'leave_spectate' });
         spectatingRef.current = false;
+        gameIdRef.current = null;
       }
     };
   }, [targetUserId]);

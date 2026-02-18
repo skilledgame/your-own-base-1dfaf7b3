@@ -394,6 +394,10 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as MoveAppliedMessage;
         const currentState = useChessStore.getState();
         
+        // Skip if we're not in a game or the gameId doesn't match (e.g. spectate messages)
+        if (!currentState.gameState) break;
+        if (payload.gameId && currentState.gameState.gameId !== payload.gameId) break;
+        
         // Update FEN from server (server is authoritative)
         store.updateFromServer(payload.fen, payload.turn);
         
@@ -485,6 +489,13 @@ function initializeGlobalMessageHandler(): void {
         const payload = msg as unknown as GameEndedMessage;
         const currentState = useChessStore.getState();
         
+        // Skip if we're not in a game (e.g. spectate messages — handled by useSpectate)
+        if (!currentState.gameState) break;
+        
+        // Skip if gameId doesn't match our active game (e.g. spectated game ending)
+        const gameId = payload.gameId || currentState.gameState?.gameId || null;
+        if (gameId && currentState.gameState.gameId !== gameId) break;
+        
         // Clear resign fallback timeout (if any)
         if ((window as any).__resignTimeoutId) {
           clearTimeout((window as any).__resignTimeoutId);
@@ -496,9 +507,6 @@ function initializeGlobalMessageHandler(): void {
         
         // PART B: Reset navigation guard so next game can navigate
         navigatedToGameId = null;
-        
-        // Validate payload and extract gameId
-        const gameId = payload.gameId || currentState.gameState?.gameId || null;
         
         // Validate required fields
         if (!payload.reason) {
@@ -711,9 +719,13 @@ function initializeGlobalMessageHandler(): void {
       case "clock_snapshot":
       case "clock_update": {
         // Server sends clock snapshots: 1Hz periodic sync + explicit sync responses.
+        // Skip if we're not in a game or gameId doesn't match (e.g. spectate messages)
+        const payload = msg as any;
+        if (!store.gameState) break;
+        if (payload.gameId && store.gameState.gameId !== payload.gameId) break;
+        
         // Always accept if no local snapshot, or if clockRunning/turn changed.
         // Otherwise, drift-check: only apply if local estimate drifted >500ms from server.
-        const payload = msg as any;
         const incomingSnapshot = buildTimerSnapshot(payload);
         const currentSnapshot = store.timerSnapshot;
 
@@ -757,6 +769,9 @@ function initializeGlobalMessageHandler(): void {
 
       case "spectator_count_update": {
         const payload = msg as any;
+        // Only update if we're in a game and gameId matches
+        if (!store.gameState) break;
+        if (payload.gameId && store.gameState.gameId !== payload.gameId) break;
         const count = typeof payload.count === 'number' ? payload.count : 0;
         store.setSpectatorCount(count);
         break;
