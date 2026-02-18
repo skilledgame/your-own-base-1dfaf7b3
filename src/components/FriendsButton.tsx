@@ -1,11 +1,11 @@
 /**
  * FriendsButton - Header button that matches UserDropdown style.
  *
- * Shows friend icon + count. On hover, slides out a FriendsSlideover
+ * Shows friend icon + count. Click toggles a full-height FriendsSlideover
  * panel from the right with Friends and Clan tabs.
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Users } from "lucide-react";
 import { useFriendStore } from "@/stores/friendStore";
 import { cn } from "@/lib/utils";
@@ -19,33 +19,14 @@ export function FriendsButton({ className }: FriendsButtonProps) {
   const friends = useFriendStore((state) => state.friends);
   const friendCount = friends.length;
   const [isOpen, setIsOpen] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleMouseEnter = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    setIsOpen(true);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    timeoutRef.current = setTimeout(() => {
-      setIsOpen(false);
-    }, 300);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  const toggle = useCallback(() => setIsOpen((prev) => !prev), []);
+  const close = useCallback(() => setIsOpen(false), []);
 
   return (
     <>
       <button
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onClick={toggle}
         className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-xl",
           "bg-slate-800/60 hover:bg-slate-700/60",
@@ -53,6 +34,7 @@ export function FriendsButton({ className }: FriendsButtonProps) {
           "transition-all duration-200",
           "focus:outline-none focus:ring-2 focus:ring-primary/50",
           "text-slate-300 hover:text-white",
+          isOpen && "bg-slate-700/60 text-white",
           className,
         )}
         title="Friends"
@@ -61,11 +43,7 @@ export function FriendsButton({ className }: FriendsButtonProps) {
         <span className="text-sm font-semibold tabular-nums">{friendCount}</span>
       </button>
 
-      <FriendsSlideover
-        isOpen={isOpen}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      />
+      <FriendsSlideover isOpen={isOpen} onClose={close} />
     </>
   );
 }

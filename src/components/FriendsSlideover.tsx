@@ -2,9 +2,8 @@
  * FriendsSlideover - Full-height slide-out panel on the right side.
  *
  * Two tabs: Friends and Clan (inspired by Fortnite friend panel).
- * Slides in from the right with smooth animation.
- * Uses z-[39] so it sits behind the header (z-40) and sidebar (z-50),
- * keeping both always visible.
+ * Opens/closes on click. Heavy backdrop so background is barely visible.
+ * Uses z-[39] so header (z-40) and sidebar (z-50) stay on top.
  */
 
 import { useState } from "react";
@@ -28,8 +27,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface FriendsSlideoverProps {
   isOpen: boolean;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  onClose: () => void;
 }
 
 function StatusDot({ status }: { status: UserStatus }) {
@@ -287,79 +285,84 @@ function ClanTabContent() {
   );
 }
 
-export function FriendsSlideover({
-  isOpen,
-  onMouseEnter,
-  onMouseLeave,
-}: FriendsSlideoverProps) {
+export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
   const [activeTab, setActiveTab] = useState<"friends" | "clan">("friends");
   const navigate = useNavigate();
 
   return (
-    <div
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      className={cn(
-        "fixed top-0 right-0 bottom-0 w-[360px] z-[39]",
-        "bg-[#0f1923] border-l border-white/[0.06]",
-        "shadow-[-8px_0_32px_rgba(0,0,0,0.6)]",
-        "flex flex-col",
-        "transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-        isOpen ? "translate-x-0" : "translate-x-full",
+    <>
+      {/* Backdrop - heavy opacity so background is barely visible */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[38] bg-black/80 transition-opacity duration-300"
+          onClick={onClose}
+        />
       )}
-    >
-      {/* Spacer for header - keeps content below the fixed header */}
-      <div className="flex-shrink-0 h-20" />
 
-      {/* Tabs */}
-      <div className="flex flex-shrink-0 border-b border-white/[0.06]">
-        <button
-          onClick={() => setActiveTab("friends")}
-          className={cn(
-            "flex-1 py-4 text-xs font-bold tracking-widest uppercase transition-all duration-200",
-            activeTab === "friends"
-              ? "text-white border-b-2 border-purple-500"
-              : "text-slate-500 hover:text-slate-300",
-          )}
-        >
-          Friends
-        </button>
-        <button
-          onClick={() => setActiveTab("clan")}
-          className={cn(
-            "flex-1 py-4 text-xs font-bold tracking-widest uppercase transition-all duration-200",
-            activeTab === "clan"
-              ? "text-white border-b-2 border-purple-500"
-              : "text-slate-500 hover:text-slate-300",
-          )}
-        >
-          Clan
-        </button>
+      {/* Panel - full height, top to bottom */}
+      <div
+        className={cn(
+          "fixed top-0 right-0 bottom-0 w-[360px] z-[39]",
+          "bg-[#0f1923] border-l border-white/[0.06]",
+          "shadow-[-8px_0_32px_rgba(0,0,0,0.6)]",
+          "flex flex-col",
+          "transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          isOpen ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {/* Spacer so content starts below the fixed header */}
+        <div className="flex-shrink-0 h-20" />
+
+        {/* Tabs */}
+        <div className="flex flex-shrink-0 border-b border-white/[0.06]">
+          <button
+            onClick={() => setActiveTab("friends")}
+            className={cn(
+              "flex-1 py-4 text-xs font-bold tracking-widest uppercase transition-all duration-200",
+              activeTab === "friends"
+                ? "text-white border-b-2 border-purple-500"
+                : "text-slate-500 hover:text-slate-300",
+            )}
+          >
+            Friends
+          </button>
+          <button
+            onClick={() => setActiveTab("clan")}
+            className={cn(
+              "flex-1 py-4 text-xs font-bold tracking-widest uppercase transition-all duration-200",
+              activeTab === "clan"
+                ? "text-white border-b-2 border-purple-500"
+                : "text-slate-500 hover:text-slate-300",
+            )}
+          >
+            Clan
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <ScrollArea className="flex-1 min-h-0">
+          {activeTab === "friends" ? <FriendsTabContent /> : <ClanTabContent />}
+        </ScrollArea>
+
+        {/* Bottom "SEE ALL FRIENDS" / "VIEW CLAN" button */}
+        <div className="flex-shrink-0 p-5 border-t border-white/[0.06]">
+          <button
+            onClick={() =>
+              navigate(activeTab === "friends" ? "/friends" : "/clan")
+            }
+            className={cn(
+              "w-full flex items-center justify-center gap-2.5 py-3.5 rounded-full",
+              "border border-slate-500/30 hover:border-slate-400/40",
+              "bg-slate-800/60 hover:bg-slate-700/60",
+              "text-white text-sm font-bold tracking-wide",
+              "transition-all duration-200",
+            )}
+          >
+            <SmilePlus className="w-5 h-5" />
+            {activeTab === "friends" ? "SEE ALL FRIENDS" : "VIEW CLAN"}
+          </button>
+        </div>
       </div>
-
-      {/* Scrollable content */}
-      <ScrollArea className="flex-1 min-h-0">
-        {activeTab === "friends" ? <FriendsTabContent /> : <ClanTabContent />}
-      </ScrollArea>
-
-      {/* Bottom "SEE ALL FRIENDS" / "VIEW CLAN" button */}
-      <div className="flex-shrink-0 p-5 border-t border-white/[0.06]">
-        <button
-          onClick={() =>
-            navigate(activeTab === "friends" ? "/friends" : "/clan")
-          }
-          className={cn(
-            "w-full flex items-center justify-center gap-2.5 py-3.5 rounded-full",
-            "border border-slate-500/30 hover:border-slate-400/40",
-            "bg-slate-800/60 hover:bg-slate-700/60",
-            "text-white text-sm font-bold tracking-wide",
-            "transition-all duration-200",
-          )}
-        >
-          <SmilePlus className="w-5 h-5" />
-          {activeTab === "friends" ? "SEE ALL FRIENDS" : "VIEW CLAN"}
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
