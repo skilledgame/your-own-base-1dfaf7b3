@@ -44,8 +44,7 @@ interface ChessOnlineModeProps {
 const WAGER_OPTIONS = [
   {
     amount: 100,
-    label: 'Starter',
-    description: 'Perfect for beginners',
+    label: 'Tier I',
     prize: 190,
     icon: Target,
     color: 'from-blue-500 to-blue-600',
@@ -53,8 +52,7 @@ const WAGER_OPTIONS = [
   },
   {
     amount: 500,
-    label: 'Competitive',
-    description: 'Most popular tier',
+    label: 'Tier II',
     prize: 950,
     icon: Zap,
     color: 'from-purple-500 to-purple-600',
@@ -63,8 +61,7 @@ const WAGER_OPTIONS = [
   },
   {
     amount: 1000,
-    label: 'Pro',
-    description: 'High stakes action',
+    label: 'Tier III',
     prize: 1900,
     icon: Crown,
     color: 'from-yellow-500 to-orange-500',
@@ -339,9 +336,9 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                   {/* Title */}
                   <div className="text-center mb-8">
                     <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                      SELECT <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">ENTRY FEE</span>
+                      SELECT <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">GAME</span>
                     </h1>
-                    <p className="text-white/50 mt-2">Winner takes 95% of the pot</p>
+                    <p className="text-white/50 mt-2">Winner earns double their skilled coins entry</p>
                   </div>
 
                   {/* Wager Cards */}
@@ -391,24 +388,21 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                             </div>
 
                             {/* Label */}
-                            <h3 className="text-xl font-bold text-white text-center mb-1">
+                            <h3 className="text-xl font-bold text-white text-center mb-3">
                               {option.label}
                             </h3>
-                            <p className="text-white/50 text-sm text-center mb-4">
-                              {option.description}
-                            </p>
 
                             {/* Amount */}
-                            <div className="flex items-center justify-center gap-2 mb-2">
-                              <Coins className="w-6 h-6 text-yellow-500" />
-                              <span className="text-3xl font-black text-white">{option.amount}</span>
-                              <span className="text-lg text-yellow-400 font-semibold">SC</span>
+                            <div className="flex items-center justify-center gap-2 mb-3">
+                              <Coins className="w-7 h-7 text-yellow-500" />
+                              <span className="text-4xl font-black text-white">{option.amount}</span>
+                              <span className="text-xl text-yellow-400 font-semibold">SC</span>
                             </div>
 
                             {/* Prize */}
                             <div className="flex items-center justify-center gap-2 text-green-400">
-                              <Trophy className="w-4 h-4" />
-                              <span className="text-sm font-semibold">Win {option.prize} SC</span>
+                              <Trophy className="w-5 h-5" />
+                              <span className="text-base font-semibold">Earn {option.prize} SC</span>
                             </div>
 
                             {/* Selected indicator */}
@@ -468,6 +462,11 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                       Connecting to game server...
                     </p>
                   )}
+
+                  {/* Platform fee disclaimer */}
+                  <p className="text-white/30 text-xs mt-6 max-w-md text-center">
+                    Keep in mind we take a 5% platform fee off each players entry that goes to hosting the service
+                  </p>
                 </>
               )}
             </main>

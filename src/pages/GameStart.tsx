@@ -94,23 +94,23 @@ const GAMES: Record<string, GameInfo> = {
 const STAKE_OPTIONS = [
   { 
     coins: 100, 
-    label: 'Starter',
-    description: 'Perfect for beginners',
+    label: 'Tier I',
+    description: '',
     prize: 190,
     icon: Target,
   },
   { 
     coins: 500, 
-    label: 'Competitive',
-    description: 'Most popular tier',
+    label: 'Tier II',
+    description: '',
     prize: 950,
     icon: Zap,
     popular: true,
   },
   { 
     coins: 1000, 
-    label: 'Pro',
-    description: 'High stakes action',
+    label: 'Tier III',
+    description: '',
     prize: 1900,
     icon: Crown,
   },
@@ -613,7 +613,7 @@ export default function GameStart() {
             <div className="lg:col-span-2 space-y-4">
               <h2 className="font-bold text-white text-xl flex items-center gap-2">
                 <Swords className="w-5 h-5 text-blue-400" />
-                Select Entry Amount
+                Select Game
               </h2>
               
               <div className="grid sm:grid-cols-3 gap-4">
@@ -662,11 +662,10 @@ export default function GameStart() {
                       </div>
                       
                       <p className="font-medium text-blue-300 text-sm">{option.label}</p>
-                      <p className="text-xs text-blue-200/50 mb-3">{option.description}</p>
                       
                       <div className="pt-3 border-t border-blue-500/20">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-blue-200/50">Win Prize</span>
+                          <span className="text-blue-200/50">Earn Prize</span>
                           <span className="font-bold text-green-400 flex items-center gap-1">
                             <Trophy className="w-3 h-3" />
                             {option.prize.toLocaleString()} SC
