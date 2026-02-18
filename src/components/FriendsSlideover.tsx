@@ -303,10 +303,10 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - lighter so the page is still somewhat visible */}
       <div
         className={cn(
-          "fixed inset-0 z-[60] bg-black/85 transition-opacity duration-300",
+          "fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300",
           isOpen
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none",
@@ -314,16 +314,19 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
         onClick={onClose}
       />
 
-      {/* Panel */}
+      {/* Panel - slides up from bottom, right side */}
       <div
         className={cn(
-          "fixed top-[80px] right-0 bottom-0 w-[360px] z-[61]",
+          "fixed right-4 bottom-4 w-[310px] max-h-[520px] z-[61]",
           "bg-[#0f1923]",
-          "border-l border-slate-700/40",
-          "shadow-[-4px_0_24px_rgba(0,0,0,0.5)]",
-          "flex flex-col",
-          "transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          isOpen ? "translate-x-0" : "translate-x-full",
+          "border border-slate-500/25",
+          "rounded-2xl",
+          "shadow-[0_8px_40px_rgba(0,0,0,0.45)]",
+          "flex flex-col overflow-hidden",
+          "transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          isOpen
+            ? "translate-y-0 opacity-100"
+            : "translate-y-8 opacity-0 pointer-events-none",
         )}
       >
         {/* Close arrow bar */}
@@ -341,11 +344,11 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-shrink-0 mx-4 rounded-lg bg-white/[0.04] p-0.5">
+        <div className="flex flex-shrink-0 mx-3 rounded-lg bg-white/[0.04] p-0.5">
           <button
             onClick={() => setActiveTab("friends")}
             className={cn(
-              "flex-1 py-2.5 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
+              "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
               activeTab === "friends"
                 ? "bg-white/[0.08] text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-300",
@@ -356,7 +359,7 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
           <button
             onClick={() => setActiveTab("clan")}
             className={cn(
-              "flex-1 py-2.5 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
+              "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
               activeTab === "clan"
                 ? "bg-white/[0.08] text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-300",
@@ -367,7 +370,7 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
         </div>
 
         {/* Thin separator */}
-        <div className="mx-4 mt-3 border-t border-slate-700/30" />
+        <div className="mx-3 mt-2.5 border-t border-slate-700/25" />
 
         {/* Scrollable content */}
         <ScrollArea className="flex-1 min-h-0">
@@ -375,15 +378,15 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
         </ScrollArea>
 
         {/* Bottom button */}
-        <div className="flex-shrink-0 p-4 border-t border-slate-700/30">
+        <div className="flex-shrink-0 p-3 border-t border-slate-700/25">
           <button
             onClick={() => {
               navigate(activeTab === "friends" ? "/friends" : "/clan");
               onClose();
             }}
             className={cn(
-              "w-full flex items-center justify-center gap-2.5 py-3 rounded-full",
-              "border border-slate-600/30 hover:border-slate-500/40",
+              "w-full flex items-center justify-center gap-2 py-2.5 rounded-full",
+              "border border-slate-500/25 hover:border-slate-400/35",
               "bg-white/[0.04] hover:bg-white/[0.07]",
               "text-white text-sm font-bold tracking-wide",
               "transition-all duration-200",
