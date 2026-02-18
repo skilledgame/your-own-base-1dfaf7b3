@@ -79,6 +79,10 @@ interface WSMultiplayerGameViewProps {
   playerStreak?: number;
   opponentStreak?: number;
   
+  // Opponent skin
+  opponentSkinColor?: string | null;
+  opponentSkinIcon?: string | null;
+  
   // Actions
   onSendMove: (from: string, to: string, promotion?: string) => void;
   onExit: () => void;
@@ -108,6 +112,8 @@ export const WSMultiplayerGameView = ({
   opponentElo = 800,
   playerStreak = 0,
   opponentStreak = 0,
+  opponentSkinColor,
+  opponentSkinIcon,
   onSendMove,
   onExit,
   onBack,
@@ -537,6 +543,8 @@ export const WSMultiplayerGameView = ({
               <div className="flex items-center justify-between w-full max-w-md">
                 <div className="flex items-center gap-3 px-3 py-2.5 bg-secondary/80 border border-white/5 rounded-xl">
                   <PlayerAvatar
+                    skinColor={opponentSkinColor}
+                    skinIcon={opponentSkinIcon}
                     size="md"
                     fallbackInitial={opponentName || "O"}
                   />
@@ -593,28 +601,18 @@ export const WSMultiplayerGameView = ({
               </div>
 
               {/* Chess Board with sound callbacks - only show opponent's last move */}
-              <div className="relative">
-                <ChessBoard
-                  game={chess}
-                  onMove={handleMove}
-                  isPlayerTurn={isMyTurn && !isGameOver}
-                  lastMove={opponentLastMove}
-                  isCheck={chess.isCheck()}
-                  flipped={!isWhite}
-                  isGameOver={isGameOver}
-                  onMoveSound={playMove}
-                  onCaptureSound={playCapture}
-                  onCheckSound={playCheck}
-                />
-
-                {/* Spectator count badge - bottom right corner */}
-                {spectatorCount > 0 && (
-                  <div className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 py-1 bg-black/70 backdrop-blur-sm rounded-full text-white/80 text-xs font-medium border border-white/10 z-10">
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>{spectatorCount} watching</span>
-                  </div>
-                )}
-              </div>
+              <ChessBoard
+                game={chess}
+                onMove={handleMove}
+                isPlayerTurn={isMyTurn && !isGameOver}
+                lastMove={opponentLastMove}
+                isCheck={chess.isCheck()}
+                flipped={!isWhite}
+                isGameOver={isGameOver}
+                onMoveSound={playMove}
+                onCaptureSound={playCapture}
+                onCheckSound={playCheck}
+              />
 
               {/* Player Info Bar */}
               <div className="flex items-center justify-between w-full max-w-md">
@@ -625,8 +623,14 @@ export const WSMultiplayerGameView = ({
                     size="md"
                   />
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    {/* Row 1: Name + ELO + Rank + Badges + Streak */}
+                    {/* Row 1: Name + ELO + Rank + Badges + Streak + Spectators */}
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      {spectatorCount > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-white/60 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded">
+                          <Eye className="w-3 h-3" />
+                          {spectatorCount}
+                        </span>
+                      )}
                       <span className="font-semibold text-sm truncate max-w-[120px]">{playerName}</span>
                       {(() => {
                         const eloInfo = getEloTitle(playerElo);

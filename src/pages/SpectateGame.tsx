@@ -179,7 +179,7 @@ export default function SpectateGame() {
         </div>
 
         {/* Chess Board with red border */}
-        <div className="relative">
+        <div className="relative w-fit max-w-full">
           <div className="border-4 border-red-500 rounded-lg overflow-hidden">
             <ChessBoard
               game={chess}

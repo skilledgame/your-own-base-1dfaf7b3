@@ -414,7 +414,7 @@ const ChessBoardComponent = ({
   const isPremoveSelected = premoveSelectedSquare;
 
   return (
-    <div className="relative">
+    <div className="relative w-[384px] sm:w-[448px] md:w-[512px] max-w-full">
       <div className="grid grid-cols-8 gap-0 rounded-lg overflow-hidden shadow-xl border-2 border-border">
         {displayRanks.map((rank, row) => (
           displayFiles.map((file, col) => {
@@ -441,7 +441,7 @@ const ChessBoardComponent = ({
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, row, col)}
                 className={cn(
-                  "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center cursor-pointer relative",
+                  "aspect-square flex items-center justify-center cursor-pointer relative",
                   // Base square color
                   isLightSquare(row, col) ? "chess-square-light" : "chess-square-dark",
                   // --- Highlight priority (lowest → highest): ---
