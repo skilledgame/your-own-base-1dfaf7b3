@@ -173,7 +173,7 @@ export const LiveWins = () => {
                     <img
                       src={win.tierImage}
                       alt={`${win.wager} SC Chess`}
-                      className="w-full h-full object-cover scale-110"
+                      className="w-full h-full object-cover"
                     />
                     <span className="absolute top-1.5 left-2 text-[10px] text-white/90 font-bold uppercase tracking-wider drop-shadow-lg">
                       Chess
