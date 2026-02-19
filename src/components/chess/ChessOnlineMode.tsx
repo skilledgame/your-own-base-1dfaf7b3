@@ -382,7 +382,7 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                             }}
                           >
                             {/* Icon */}
-                            <div className="w-14 h-14 mx-auto mb-4 rounded-xl overflow-hidden">
+                            <div className="w-20 h-20 mx-auto mb-4 rounded-[22%] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
                               <img src={option.image} alt={option.label} className="w-full h-full object-cover" />
                             </div>
 
