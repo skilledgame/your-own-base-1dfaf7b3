@@ -99,10 +99,10 @@ const VIP_REWARDS = [
 const getRankColor = (tier: string) => {
   switch (tier) {
     case 'goat': return 'from-purple-400 to-violet-600';
-    case 'diamond': return 'from-cyan-400 to-blue-500';
-    case 'platinum': return 'from-slate-300 to-slate-500';
+    case 'diamond': return 'from-blue-400 to-blue-600';
+    case 'platinum': return 'from-sky-300 to-sky-500';
     case 'gold': return 'from-yellow-400 to-amber-500';
-    case 'silver': return 'from-gray-300 to-gray-400';
+    case 'silver': return 'from-slate-300 to-slate-400';
     case 'bronze': return 'from-orange-500 to-orange-700';
     default: return 'from-gray-500 to-gray-600';
   }

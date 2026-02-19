@@ -27,10 +27,10 @@ const LABEL_SIZE_MAP = {
 function getRankTextColor(tierName: string): string {
   switch (tierName) {
     case 'goat': return 'text-purple-400';
-    case 'diamond': return 'text-cyan-400';
-    case 'platinum': return 'text-slate-300';
+    case 'diamond': return 'text-blue-400';
+    case 'platinum': return 'text-sky-300';
     case 'gold': return 'text-yellow-400';
-    case 'silver': return 'text-gray-300';
+    case 'silver': return 'text-slate-300';
     case 'bronze': return 'text-orange-500';
     default: return 'text-muted-foreground';
   }

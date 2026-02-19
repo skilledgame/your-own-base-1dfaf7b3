@@ -91,10 +91,10 @@ const RANK_UNLOCKS: Record<string, string[]> = {
 const getRankColor = (tier: string) => {
   switch (tier) {
     case 'goat': return 'from-purple-400 to-violet-600';
-    case 'diamond': return 'from-cyan-400 to-blue-500';
-    case 'platinum': return 'from-slate-300 to-slate-500';
+    case 'diamond': return 'from-blue-400 to-blue-600';
+    case 'platinum': return 'from-sky-300 to-sky-500';
     case 'gold': return 'from-yellow-400 to-amber-500';
-    case 'silver': return 'from-gray-300 to-gray-400';
+    case 'silver': return 'from-slate-300 to-slate-400';
     case 'bronze': return 'from-orange-600 to-orange-800';
     default: return 'from-gray-500 to-gray-600';
   }
@@ -104,10 +104,10 @@ const getRankColor = (tier: string) => {
 const getRankBarColors = (tier: string): [string, string, string] => {
   switch (tier) {
     case 'goat':     return ['#7c3aed', '#c084fc', '#7c3aed'];
-    case 'diamond':  return ['#0ea5e9', '#7dd3fc', '#0ea5e9'];
-    case 'platinum': return ['#5eead4', '#99f6e4', '#5eead4'];
+    case 'diamond':  return ['#2563eb', '#60a5fa', '#2563eb'];
+    case 'platinum': return ['#0ea5e9', '#7dd3fc', '#0ea5e9'];
     case 'gold':     return ['#d97706', '#fbbf24', '#d97706'];
-    case 'silver':   return ['#6b7280', '#d1d5db', '#6b7280'];
+    case 'silver':   return ['#94a3b8', '#cbd5e1', '#94a3b8'];
     case 'bronze':   return ['#92400e', '#d97706', '#92400e'];
     default:         return ['#6b7280', '#9ca3af', '#6b7280'];
   }
@@ -187,10 +187,10 @@ export default function VIP() {
         <Card className={cn(
           "overflow-hidden border-2",
           rankInfo.tierName === 'goat' ? 'border-purple-500/60' :
-          rankInfo.tierName === 'diamond' ? 'border-sky-400/60' :
-          rankInfo.tierName === 'platinum' ? 'border-teal-300/60' :
+          rankInfo.tierName === 'diamond' ? 'border-blue-500/70' :
+          rankInfo.tierName === 'platinum' ? 'border-sky-400/60' :
           rankInfo.tierName === 'gold' ? 'border-yellow-500/60' :
-          rankInfo.tierName === 'silver' ? 'border-gray-400/60' :
+          rankInfo.tierName === 'silver' ? 'border-slate-400/60' :
           rankInfo.tierName === 'bronze' ? 'border-amber-700/60' :
           'border-border'
         )}>
@@ -392,10 +392,10 @@ export default function VIP() {
                     isCurrentRank 
                       ? cn("border-2",
                           rank.tier === 'goat' ? 'border-purple-500/70 bg-purple-500/5' :
-                          rank.tier === 'diamond' ? 'border-sky-400/70 bg-sky-400/5' :
-                          rank.tier === 'platinum' ? 'border-teal-300/70 bg-teal-300/5' :
+                          rank.tier === 'diamond' ? 'border-blue-500/70 bg-blue-500/5' :
+                          rank.tier === 'platinum' ? 'border-sky-400/70 bg-sky-400/5' :
                           rank.tier === 'gold' ? 'border-yellow-500/70 bg-yellow-500/5' :
-                          rank.tier === 'silver' ? 'border-gray-400/70 bg-gray-400/5' :
+                          rank.tier === 'silver' ? 'border-slate-400/70 bg-slate-400/5' :
                           rank.tier === 'bronze' ? 'border-amber-700/70 bg-amber-700/5' :
                           'border-primary bg-primary/5'
                         )
@@ -428,10 +428,10 @@ export default function VIP() {
                           {isCurrentRank && (
                             <Badge variant="secondary" className={cn("text-xs",
                               rank.tier === 'goat' ? 'bg-purple-500/20 text-purple-400' :
-                              rank.tier === 'diamond' ? 'bg-sky-400/20 text-sky-400' :
-                              rank.tier === 'platinum' ? 'bg-teal-300/20 text-teal-300' :
+                              rank.tier === 'diamond' ? 'bg-blue-500/20 text-blue-400' :
+                              rank.tier === 'platinum' ? 'bg-sky-400/20 text-sky-300' :
                               rank.tier === 'gold' ? 'bg-yellow-500/20 text-yellow-500' :
-                              rank.tier === 'silver' ? 'bg-gray-400/20 text-gray-300' :
+                              rank.tier === 'silver' ? 'bg-slate-400/20 text-slate-300' :
                               rank.tier === 'bronze' ? 'bg-amber-700/20 text-amber-600' :
                               'bg-primary/20 text-primary'
                             )}>
