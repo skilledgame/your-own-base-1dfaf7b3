@@ -80,18 +80,12 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
     }
   }, [isDarkMode]);
 
-  // Fetch total SC earned and subscribe to real-time updates
+  // Fetch platform-wide total SC earned via SECURITY DEFINER RPC (bypasses RLS)
   useEffect(() => {
     const fetchTotal = async () => {
-      const { data } = await supabase
-        .from('games')
-        .select('wager')
-        .eq('status', 'finished')
-        .not('winner_id', 'is', null);
-
-      if (data) {
-        const total = data.reduce((sum, g) => sum + (g.wager || 0) * 2, 0);
-        setTotalSCEarned(total);
+      const { data, error } = await supabase.rpc('get_total_sc_earned');
+      if (!error && data != null) {
+        setTotalSCEarned(Number(data));
       }
     };
 
@@ -105,7 +99,10 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
         table: 'games',
       }, (payload: any) => {
         if (payload.new?.status === 'finished' && payload.new?.winner_id && payload.old?.status !== 'finished') {
-          setTotalSCEarned(prev => prev + (payload.new.wager || 0) * 2);
+          // Re-fetch to get accurate platform total
+          supabase.rpc('get_total_sc_earned').then(({ data }) => {
+            if (data != null) setTotalSCEarned(Number(data));
+          });
         }
       })
       .subscribe();
@@ -335,6 +332,55 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                   </div>
                 </nav>
               </div>
+
+              {/* Language Selector & Total SC — inside scrollable area */}
+              <div className="px-3 mt-6 space-y-2">
+                {/* Language Selector */}
+                <div ref={langDropdownRef} className="relative">
+                  <button
+                    onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/15 transition-colors duration-200 text-left"
+                  >
+                    <Globe className="w-5 h-5 text-primary flex-shrink-0" />
+                    <span className="font-semibold text-foreground">{currentLangName}</span>
+                    <ChevronDown
+                      className={`w-4 h-4 ml-auto text-muted-foreground transition-transform duration-200 ${langDropdownOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {langDropdownOpen && (
+                    <div className="mt-1 w-full rounded-xl bg-card border border-border shadow-lg overflow-hidden z-50">
+                      {SUPPORTED_LANGUAGES.map((l) => (
+                        <button
+                          key={l.code}
+                          onClick={() => handleLanguageChange(l.code)}
+                          className={`
+                            w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150
+                            ${l.code === lang
+                              ? 'bg-primary/10 text-primary font-semibold'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
+                          `}
+                        >
+                          <span className="font-medium">{l.nativeName}</span>
+                          {l.code === lang && (
+                            <span className="ml-auto w-2 h-2 rounded-full bg-primary" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Total SC Earned */}
+                <div className="rounded-xl bg-[#0d0f1a] border border-white/5 px-4 py-3">
+                  <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider mb-1">
+                    {t('nav.total_sc_earned')}
+                  </p>
+                  <p className="text-lg font-bold text-foreground tracking-wide">
+                    {formattedTotal}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* ===== COLLAPSED VIEW ===== */}
@@ -438,88 +484,30 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                       </div>
                     </TooltipContent>
                   </Tooltip>
+                  {/* Language icon */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          handleCollapseToggle();
+                          setLangDropdownOpen(true);
+                        }}
+                        className="w-full flex items-center justify-center p-3 rounded-lg transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <Globe className="w-5 h-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>{currentLangName}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </nav>
               </div>
             </div>
           </div>
 
-          {/* Footer: Language, Total SC, Sign Out */}
+          {/* Footer: Sign Out only */}
           <div className={`border-t ${borderClass}`}>
-            {/* Language Selector & Total SC — only in expanded mode */}
-            {!collapsed && (
-              <div className="px-3 pt-3 pb-2 space-y-2">
-                {/* Language Selector */}
-                <div ref={langDropdownRef} className="relative">
-                  <button
-                    onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/15 transition-colors duration-200 text-left"
-                  >
-                    <Globe className="w-5 h-5 text-primary flex-shrink-0" />
-                    <span className="font-semibold text-foreground">{currentLangName}</span>
-                    <ChevronDown
-                      className={`w-4 h-4 ml-auto text-muted-foreground transition-transform duration-200 ${langDropdownOpen ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-
-                  {/* Language Dropdown (opens downward) */}
-                  {langDropdownOpen && (
-                    <div className="mt-1 w-full rounded-xl bg-card border border-border shadow-lg overflow-hidden z-50">
-                      {SUPPORTED_LANGUAGES.map((l) => (
-                        <button
-                          key={l.code}
-                          onClick={() => handleLanguageChange(l.code)}
-                          className={`
-                            w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150
-                            ${l.code === lang
-                              ? 'bg-primary/10 text-primary font-semibold'
-                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
-                          `}
-                        >
-                          <span className="font-medium">{l.nativeName}</span>
-                          {l.code === lang && (
-                            <span className="ml-auto w-2 h-2 rounded-full bg-primary" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Total SC Earned */}
-                <div className="rounded-xl bg-[#0d0f1a] border border-white/5 px-4 py-3">
-                  <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider mb-1">
-                    {t('nav.total_sc_earned')}
-                  </p>
-                  <p className="text-lg font-bold text-foreground tracking-wide">
-                    {formattedTotal}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Collapsed: language icon */}
-            {collapsed && (
-              <div className="px-2 pt-2 pb-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => {
-                        handleCollapseToggle();
-                        setLangDropdownOpen(true);
-                      }}
-                      className="w-full flex items-center justify-center p-3 rounded-lg transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <Globe className="w-5 h-5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <p>{currentLangName}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            )}
-
-            {/* Sign Out / Get Started */}
             <div className="p-4">
               {isAuthenticated ? (
                 collapsed ? (

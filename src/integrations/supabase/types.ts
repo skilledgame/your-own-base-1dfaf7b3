@@ -1006,6 +1006,10 @@ export type Database = {
         Args: { p_player_id: string }
         Returns: string
       }
+      get_total_sc_earned: {
+        Args: Record<string, never>
+        Returns: number
+      }
       get_friends_list: {
         Args: never
         Returns: {
