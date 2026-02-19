@@ -26,8 +26,23 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { RankBadge } from '@/components/RankBadge';
+import { getRankFromTotalWagered } from '@/lib/rankSystem';
 import { MFAEnroll } from '@/components/MFAEnroll';
 import { clearEmailMfaVerified } from '@/lib/mfaStorage';
+
+// ─── Rank border helper ───────────────────────────────────────
+function getRankBorderClass(tierName: string): string {
+  switch (tierName) {
+    case 'goat': return 'border-purple-500/60';
+    case 'diamond': return 'border-sky-400/60';
+    case 'platinum': return 'border-teal-300/60';
+    case 'gold': return 'border-yellow-500/60';
+    case 'silver': return 'border-gray-400/60';
+    case 'bronze': return 'border-amber-700/60';
+    default: return 'border-border';
+  }
+}
 import {
   Dialog,
   DialogContent,
@@ -73,7 +88,8 @@ interface MFAFactor {
 // ═══════════════════════════════════════════════════════════════
 export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
   const { user } = useAuth();
-  const { skinColor, skinIcon } = useProfile();
+  const { skinColor, skinIcon, totalWageredSc } = useProfile();
+  const rankInfo = getRankFromTotalWagered(totalWageredSc);
 
   // ── Display Name state ──────────────────────────────────────
   const [displayName, setDisplayName] = useState('');
@@ -95,6 +111,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
   const [cooldownLoading, setCooldownLoading] = useState(true);
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showCooldownError, setShowCooldownError] = useState(false);
   const editNameInputRef = useRef<HTMLInputElement>(null);
 
   // ── Email change state ──────────────────────────────────────
@@ -208,6 +225,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
     setEditNameValue(originalName);
     setIsAvailable(null);
     setValidationError(null);
+    setShowCooldownError(false);
     setShowEditNameDialog(true);
     setTimeout(() => editNameInputRef.current?.focus(), 100);
   };
@@ -217,9 +235,16 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
     setEditNameValue('');
     setIsAvailable(null);
     setValidationError(null);
+    setShowCooldownError(false);
   };
 
   const handleSaveClick = () => {
+    // If on cooldown, show the cooldown error instead of proceeding
+    if (!cooldownLoading && !cooldownAllowed) {
+      setShowCooldownError(true);
+      return;
+    }
+
     const trimmed = editNameValue.trim();
     if (trimmed.toLowerCase() === originalName.toLowerCase()) { closeEditNameDialog(); return; }
     try { usernameSchema.parse(trimmed); } catch (error) {
@@ -419,7 +444,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
     <div className="space-y-6">
 
       {/* ─── Profile Card ─────────────────────────────────────── */}
-      <Card className="border-border bg-card overflow-hidden">
+      <Card className={cn("border-2 bg-card overflow-hidden", getRankBorderClass(rankInfo.tierName))}>
         <CardContent className="pt-6 pb-6">
           <div className="flex items-center gap-5">
             {/* Avatar with hover overlay */}
@@ -447,6 +472,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
                 <>
                   <div className="flex items-center gap-3">
                     <h2 className="text-xl font-bold truncate">{displayName || 'Unknown'}</h2>
+                    <RankBadge rank={rankInfo} size="sm" />
                     <Button
                       size="icon"
                       variant="ghost"
@@ -856,30 +882,25 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
               3-20 characters. Letters, numbers, and underscores only.
             </p>
 
-            {/* Cooldown info */}
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
-              <Clock className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  You can only change your username <span className="text-foreground font-medium">once every 14 days</span>. Choose wisely!
-                </p>
-                {!cooldownAllowed && nextChangeAt && (
-                  <p className="text-xs text-amber-500 mt-1">
-                    Next change available: {nextChangeAt.toLocaleDateString('en-US', {
-                      month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-                    })}
+            {/* Cooldown error — only shown after clicking Save while on cooldown */}
+            {showCooldownError && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm text-amber-500 font-medium">
+                    Username change is on cooldown.
                   </p>
-                )}
-              </div>
-            </div>
-
-            {/* Cooldown block message */}
-            {!cooldownLoading && !cooldownAllowed && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                <p className="text-sm text-amber-500 font-medium">
-                  Username change is on cooldown. Try again in {formatCooldownRemaining()}.
-                </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    You can only change your username <span className="text-foreground font-medium">once every 14 days</span>.
+                  </p>
+                  {nextChangeAt && (
+                    <p className="text-xs text-amber-500 mt-1">
+                      Next change available: {nextChangeAt.toLocaleDateString('en-US', {
+                        month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+                      })}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -890,7 +911,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
             </Button>
             <Button
               onClick={handleSaveClick}
-              disabled={!canSaveInDialog || saving || (!cooldownLoading && !cooldownAllowed)}
+              disabled={saving || (showCooldownError)}
               className="bg-accent hover:bg-accent/90 text-accent-foreground"
             >
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}

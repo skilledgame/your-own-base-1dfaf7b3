@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Shield, ArrowLeft, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { setMfaVerified } from '@/lib/mfaStorage';
 
 interface MFAVerifyProps {
   onVerified: () => void;
@@ -122,6 +123,9 @@ export function MFAVerify({
       }
 
       // Success - session is now at aal2
+      // Persist verification for 30 days so user isn't re-prompted on every
+      // browser reopen, token refresh, or route change
+      setMfaVerified('totp');
       onVerified();
     } catch {
       setError('Verification failed. Please try again.');

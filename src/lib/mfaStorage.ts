@@ -1,42 +1,51 @@
 /**
  * MFA Storage Helper
  * 
- * Persists email-based 2FA verification status in localStorage with a 30-day TTL.
- * This prevents users from being forced to re-verify email 2FA every time they
- * reopen the browser (sessionStorage clears on close).
+ * Persists MFA verification status in localStorage with a 30-day TTL.
+ * Covers BOTH email-based and TOTP-based 2FA.
  * 
- * MFA verification should only happen at sign-in, not on every session restore.
+ * This prevents users from being forced to re-verify MFA every time they:
+ * - Reopen the browser (sessionStorage would be lost)
+ * - Navigate to a new page (useEffect re-runs)
+ * - Have their token refreshed (AAL level can momentarily be stale)
+ * 
+ * MFA verification should ONLY happen at sign-in time, not during
+ * session restore or routine token refreshes.
  */
 
-const MFA_VERIFIED_KEY = 'skilled_email_2fa_verified';
+const MFA_VERIFIED_KEY = 'skilled_mfa_verified';
 const MFA_EXPIRY_DAYS = 30;
 
 interface MfaVerifiedData {
   verified: true;
+  method: 'email' | 'totp';
   timestamp: number;
 }
 
 /**
- * Mark email 2FA as verified for the next 30 days.
- * Called after successful email OTP verification during login.
+ * Mark MFA as verified for the next 30 days.
+ * Called after successful MFA verification during login (email OTP or TOTP).
  */
-export function setEmailMfaVerified(): void {
+export function setMfaVerified(method: 'email' | 'totp'): void {
   try {
     const data: MfaVerifiedData = {
       verified: true,
+      method,
       timestamp: Date.now(),
     };
     localStorage.setItem(MFA_VERIFIED_KEY, JSON.stringify(data));
+    // Also clean up legacy sessionStorage key
+    sessionStorage.removeItem('email_2fa_verified');
   } catch {
     // Storage unavailable — fall through
   }
 }
 
 /**
- * Check if email 2FA was verified within the last 30 days.
- * Returns true if the user doesn't need to re-verify.
+ * Check if MFA was verified within the last 30 days.
+ * Returns true if the user doesn't need to re-verify — regardless of method.
  */
-export function isEmailMfaVerified(): boolean {
+export function isMfaVerified(): boolean {
   try {
     const raw = localStorage.getItem(MFA_VERIFIED_KEY);
     if (!raw) return false;
@@ -47,7 +56,7 @@ export function isEmailMfaVerified(): boolean {
     // Check if within 30 days
     const elapsed = Date.now() - data.timestamp;
     if (elapsed > MFA_EXPIRY_DAYS * 24 * 60 * 60 * 1000) {
-      clearEmailMfaVerified();
+      clearMfaVerified();
       return false;
     }
 
@@ -58,15 +67,21 @@ export function isEmailMfaVerified(): boolean {
 }
 
 /**
- * Clear the email 2FA verification flag.
+ * Clear the MFA verification flag.
  * Called on sign-out, hard reset, or when changing 2FA method.
  */
-export function clearEmailMfaVerified(): void {
+export function clearMfaVerified(): void {
   try {
     localStorage.removeItem(MFA_VERIFIED_KEY);
-    // Also clean up legacy sessionStorage key if present
+    // Also clean up legacy keys
+    localStorage.removeItem('skilled_email_2fa_verified');
     sessionStorage.removeItem('email_2fa_verified');
   } catch {
     // Storage unavailable — fall through
   }
 }
+
+// Legacy aliases for backward compatibility during migration
+export const setEmailMfaVerified = () => setMfaVerified('email');
+export const isEmailMfaVerified = isMfaVerified;
+export const clearEmailMfaVerified = clearMfaVerified;

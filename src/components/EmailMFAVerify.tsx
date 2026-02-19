@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Mail, ArrowLeft, RefreshCw, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { setEmailMfaVerified } from '@/lib/mfaStorage';
+import { setMfaVerified } from '@/lib/mfaStorage';
 
 const CODE_LENGTH = 8;
 const EMPTY_CODE = Array(CODE_LENGTH).fill('');
@@ -142,8 +142,8 @@ export function EmailMFAVerify({ email, onVerified, onBack, onSwitchToAuthentica
       }
 
       if (data?.session) {
-        // Mark email 2FA as verified for 30 days (persists across browser restarts)
-        setEmailMfaVerified();
+        // Mark MFA as verified for 30 days (persists across browser restarts)
+        setMfaVerified('email');
         onVerified();
       } else {
         setError('Verification failed. Please try again.');

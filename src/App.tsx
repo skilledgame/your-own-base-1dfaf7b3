@@ -48,7 +48,7 @@ import { useUserDataStore } from "./stores/userDataStore";
 import { useFriendStore } from "./stores/friendStore";
 import { usePresenceStore } from "./stores/presenceStore";
 import { supabase } from "@/integrations/supabase/client";
-import { isEmailMfaVerified } from "@/lib/mfaStorage";
+import { isMfaVerified } from "@/lib/mfaStorage";
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -90,20 +90,22 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // MFA enforcement: redirect to /auth if user needs MFA verification
-  // - TOTP users: enforced via AAL level (aal1 -> aal2)
-  // - Email 2FA users: enforced via sessionStorage flag
-  // - No 2FA users: allowed through (2FA is optional)
+  // MFA enforcement: redirect to /auth if user needs MFA verification.
+  // 
+  // CRITICAL: This runs ONCE after auth bootstrap, NOT on every route change.
+  // Once mfaChecked is true, it stays true for the lifetime of this mount.
+  // MFA is only required at sign-in time (persisted via localStorage for 30 days).
+  //
+  // - If isMfaVerified() is true → skip all checks (covers TOTP + email)
   // - OAuth users (Google): always skip
+  // - No 2FA configured: always skip
   useEffect(() => {
-    if (!isAuthReady || !isAuthenticated) {
-      setMfaChecked(true);
-      return;
-    }
+    // Already checked — don't re-run on route changes or token refreshes
+    if (mfaChecked) return;
 
-    // Don't check MFA if already on auth page or public pages
-    const publicPaths = ['/auth', '/terms', '/privacy', '/how-it-works'];
-    if (publicPaths.includes(location.pathname)) {
+    if (!isAuthReady) return;
+
+    if (!isAuthenticated) {
       setMfaChecked(true);
       return;
     }
@@ -115,22 +117,25 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Check persistent MFA flag — covers BOTH email and TOTP verification.
+    // This flag is set after successful MFA at sign-in and lasts 30 days.
+    if (isMfaVerified()) {
+      setMfaChecked(true);
+      return;
+    }
+
     const checkMFA = async () => {
       try {
-        // Check email-based 2FA first — if verified within the last 30 days, user is good
-        // (even if they also have TOTP enrolled, email 2FA is a valid alternative).
-        // Uses localStorage with a 30-day TTL so users aren't forced to re-verify
-        // every time they reopen the browser.
-        const emailMfaVerified = isEmailMfaVerified();
-
-        if (emailMfaVerified) {
-          // Email 2FA verified within 30 days — allow through
+        // Don't check MFA if already on auth page or public pages
+        const publicPaths = ['/auth', '/terms', '/privacy', '/how-it-works'];
+        if (publicPaths.includes(location.pathname)) {
           setMfaChecked(true);
           return;
         }
 
         const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         if (error) {
+          // If MFA check fails, don't block the user
           setMfaChecked(true);
           return;
         }
@@ -143,7 +148,7 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
 
         // Check for email-based 2FA preference (not yet verified)
         const mfaMethod = user?.user_metadata?.mfa_method;
-        if (mfaMethod === 'email' && !emailMfaVerified) {
+        if (mfaMethod === 'email') {
           navigate('/auth', { replace: true });
           return;
         }
@@ -157,7 +162,7 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
     };
 
     checkMFA();
-  }, [isAuthReady, isAuthenticated, user, location.pathname, navigate]);
+  }, [isAuthReady, isAuthenticated, user, mfaChecked, location.pathname, navigate]);
   
   // Initialize centralized user data store when authenticated
   // This replaces separate balance and profile store initialization

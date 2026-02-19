@@ -17,7 +17,7 @@ import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { cn } from '@/lib/utils';
-import { isEmailMfaVerified, setEmailMfaVerified } from '@/lib/mfaStorage';
+import { isMfaVerified, setMfaVerified } from '@/lib/mfaStorage';
 
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email address');
@@ -86,10 +86,10 @@ export default function Auth() {
       // Uses localStorage with 30-day TTL so users stay signed in across
       // browser restarts without being forced to re-verify.
       const mfaMethod = session.user.user_metadata?.mfa_method;
-      const emailMfaVerified = isEmailMfaVerified();
 
-      if (emailMfaVerified) {
-        // Email 2FA verified within 30 days — go home
+      // If MFA was already verified within the last 30 days (any method),
+      // skip the challenge and go straight home
+      if (isMfaVerified()) {
         navigate('/');
         return;
       }
@@ -114,7 +114,7 @@ export default function Auth() {
       }
 
       // No TOTP enrolled — check for email-based 2FA preference
-      if (mfaMethod === 'email' && !emailMfaVerified) {
+      if (mfaMethod === 'email') {
         // Need to verify email 2FA
         setEmail(session.user.email || '');
         setStep('email-2fa-verify');
@@ -302,7 +302,7 @@ export default function Auth() {
       await supabase.auth.updateUser({
         data: { mfa_method: 'email' },
       });
-      setEmailMfaVerified();
+      setMfaVerified('email');
     } catch {
       // Non-critical — continue with the flow even if metadata update fails
       console.warn('Failed to auto-enable email 2FA metadata');
@@ -330,7 +330,10 @@ export default function Auth() {
   };
 
   // TOTP MFA verify success (login)
+  // Note: MFAVerify.tsx already calls setMfaVerified('totp') internally,
+  // but we set it here too as a safety net
   const handleMFAVerified = () => {
+    setMfaVerified('totp');
     toast({
       title: 'Welcome back!',
       description: 'Two-factor authentication verified.',
@@ -348,6 +351,8 @@ export default function Auth() {
     } catch {
       // Non-critical — the TOTP factor is already enrolled in Supabase MFA
     }
+    // Mark MFA as verified for 30 days
+    setMfaVerified('totp');
     toast({
       title: '2FA Enabled!',
       description: 'Your account is now protected with two-factor authentication.',
@@ -356,7 +361,10 @@ export default function Auth() {
   };
 
   // Email 2FA verify success (login)
+  // Note: EmailMFAVerify.tsx already calls setMfaVerified('email') internally,
+  // but we set it here too as a safety net
   const handleEmail2FAVerified = () => {
+    setMfaVerified('email');
     toast({
       title: 'Welcome back!',
       description: 'Email verification successful.',
