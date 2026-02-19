@@ -159,11 +159,38 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
     }
   };
 
-  const handleJoinGame = (notif: Notification) => {
-    const gameId = notif.metadata?.game_id;
-    if (gameId && gameId !== 'pending') {
-      navigate(`/game/lobby/${gameId}`);
-    } else {
+  const handleJoinGame = async (notif: Notification) => {
+    const lobbyCode = notif.metadata?.game_id;
+    if (!lobbyCode || lobbyCode === 'pending' || lobbyCode === 'chess') {
+      navigate('/chess');
+      return;
+    }
+
+    try {
+      // game_id contains the lobby code — join via the edge function
+      const response = await supabase.functions.invoke('join-lobby', {
+        body: { lobbyCode },
+      });
+
+      if (response.error || response.data?.success === false) {
+        toast.error(response.data?.error || response.data?.details || 'Failed to join game');
+        navigate('/chess');
+      } else {
+        const targetRoomId = response.data?.roomId;
+        if (targetRoomId) {
+          navigate(`/game/lobby/${targetRoomId}`);
+        } else {
+          navigate('/chess');
+        }
+      }
+
+      // Mark notification as acted upon
+      await supabase
+        .from('notifications')
+        .update({ action_taken: true })
+        .eq('id', notif.id);
+    } catch {
+      toast.error('Failed to join game');
       navigate('/chess');
     }
   };

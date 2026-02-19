@@ -1,9 +1,10 @@
 /**
  * FriendsSlideover - Popup panel with Friends/Messages tabs, inline profile,
- * DM chat, and game invite picker.
+ * DM chat, and game invite picker with wager selection.
  *
  * Click friend row → profile. Message icon → DM. Gamepad icon → game picker.
  * Messages tab shows DM inbox. Friends who sent you a game invite glow green.
+ * Arrow collapses/expands panel (doesn't close it).
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -18,6 +19,8 @@ import {
   ChevronRight,
   SmilePlus,
   ChevronDown,
+  ChevronUp,
+  X,
   ArrowLeft,
   Send,
   BarChart3,
@@ -28,12 +31,16 @@ import {
   Calendar,
   Gamepad2,
   Check,
+  Lock,
+  Coins,
+  Loader2,
 } from "lucide-react";
 import { useFriendStore, type Friend } from "@/stores/friendStore";
 import { usePresenceStore, type UserStatus } from "@/stores/presenceStore";
 import { useChatStore, getDmChannelId } from "@/stores/chatStore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBalance } from "@/hooks/useBalance";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -44,19 +51,6 @@ interface FriendsSlideoverProps {
 }
 
 /* ── Shared helpers ── */
-
-function StatusDot({ status }: { status: UserStatus }) {
-  return (
-    <span
-      className={cn(
-        "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#0f1923]",
-        status === "online" && "bg-emerald-400",
-        status === "in_game" && "bg-amber-400",
-        status === "offline" && "bg-slate-600",
-      )}
-    />
-  );
-}
 
 function FriendAvatar({
   name,
@@ -97,9 +91,14 @@ function FriendAvatar({
   );
 }
 
-const GAMES = [
-  { id: "chess", label: "Chess", icon: Crown },
+const INVITE_GAMES = [
+  { id: "chess", label: "Chess", emoji: "♟️", gradientFrom: "#1e3a5f", gradientTo: "#0d1b2a", available: true },
+  { id: "game2", label: "", emoji: "🪿", gradientFrom: "#6b5c5c", gradientTo: "#4a3f3f", available: false },
+  { id: "game3", label: "", emoji: "🦖", gradientFrom: "#4a6b5c", gradientTo: "#3a5248", available: false },
+  { id: "game4", label: "", emoji: "🏓", gradientFrom: "#6b5a4a", gradientTo: "#524638", available: false },
 ] as const;
+
+const WAGER_OPTIONS = [100, 500, 1000] as const;
 
 /* ── Friend Row ── */
 
@@ -178,7 +177,7 @@ function FriendRow({
   );
 }
 
-/* ── Game Invite Picker ── */
+/* ── Game Invite Picker (game selection + wager) ── */
 
 function GameInvitePicker({
   friend,
@@ -187,88 +186,372 @@ function GameInvitePicker({
   friend: Friend;
   onBack: () => void;
 }) {
+  const navigate = useNavigate();
+  const closePanel = useFriendStore((s) => s.closePanel);
   const inviteToGame = useFriendStore((s) => s.inviteToGame);
-  const [sending, setSending] = useState<string | null>(null);
-  const [sent, setSent] = useState<string | null>(null);
+  const { balance } = useBalance();
 
-  const handleInvite = async (gameId: string) => {
-    setSending(gameId);
+  const [step, setStep] = useState<"game" | "wager" | "waiting">("game");
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [selectedWager, setSelectedWager] = useState<number>(100);
+  const [customWager, setCustomWager] = useState("");
+  const [useCustom, setUseCustom] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  // Waiting state
+  const [lobbyRoomId, setLobbyRoomId] = useState<string | null>(null);
+  const [lobbyCode, setLobbyCode] = useState<string | null>(null);
+  const [friendJoined, setFriendJoined] = useState(false);
+  const [gameStarting, setGameStarting] = useState(false);
+
+  const effectiveWager = useCustom
+    ? parseInt(customWager, 10) || 0
+    : selectedWager;
+
+  const handleSelectGame = (gameId: string) => {
+    setSelectedGame(gameId);
+    setStep("wager");
+  };
+
+  // Subscribe to room updates when waiting
+  useEffect(() => {
+    if (step !== "waiting" || !lobbyRoomId) return;
+
+    const channel = supabase
+      .channel(`invite-room-${lobbyRoomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "private_rooms",
+          filter: `id=eq.${lobbyRoomId}`,
+        },
+        (payload) => {
+          const room = payload.new as any;
+          if (room.joiner_id && !friendJoined) {
+            setFriendJoined(true);
+            // Auto-ready the creator, then navigate to the lobby
+            setTimeout(async () => {
+              setGameStarting(true);
+              try {
+                await supabase.rpc("toggle_ready", {
+                  p_room_id: lobbyRoomId,
+                });
+              } catch {
+                // Continue to lobby even if auto-ready fails
+              }
+              setTimeout(() => {
+                closePanel();
+                navigate(`/game/lobby/${lobbyRoomId}`);
+              }, 1200);
+            }, 800);
+          }
+          if (room.status === "started" && room.game_id) {
+            closePanel();
+            navigate(`/game/live/${room.game_id}`);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [step, lobbyRoomId, friendJoined, navigate, closePanel]);
+
+  const handleSendInvite = async () => {
+    if (effectiveWager <= 0) {
+      toast.error("Please enter a valid wager amount");
+      return;
+    }
+    if (effectiveWager > balance) {
+      toast.error("Insufficient balance for this wager");
+      return;
+    }
+
+    setSending(true);
     try {
-      await inviteToGame(friend.friend_user_id, gameId);
-      setSent(gameId);
-      toast.success(`Invited ${friend.display_name} to play!`);
+      const response = await supabase.functions.invoke("create-lobby", {
+        body: { wager: effectiveWager, gameType: "chess" },
+      });
+
+      if (response.error || response.data?.success === false) {
+        toast.error(
+          response.data?.error ||
+            response.data?.details ||
+            "Failed to create lobby",
+        );
+        setSending(false);
+        return;
+      }
+
+      const { lobbyCode: code, roomId } = response.data;
+      if (!code || !roomId) {
+        toast.error("Invalid response from server");
+        setSending(false);
+        return;
+      }
+
+      // Send invite with the lobbyCode (not roomId) so the friend can join
+      await inviteToGame(friend.friend_user_id, code);
+
+      setLobbyRoomId(roomId);
+      setLobbyCode(code);
+      setStep("waiting");
     } catch {
       toast.error("Failed to send invite");
     } finally {
-      setSending(null);
+      setSending(false);
     }
   };
 
+  // Step: game selection
+  if (step === "game") {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center px-3 py-2.5 border-b border-slate-700/25 flex-shrink-0">
+          <button
+            onClick={onBack}
+            className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <span className="ml-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+            Invite to Game
+          </span>
+        </div>
+
+        <div className="px-4 pt-3 pb-2">
+          <p className="text-sm text-slate-300">
+            Play with{" "}
+            <span className="font-bold text-white">{friend.display_name}</span>
+          </p>
+        </div>
+
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="grid grid-cols-2 gap-2.5 px-4 pb-4">
+            {INVITE_GAMES.map((game) => (
+              <button
+                key={game.id}
+                onClick={() => game.available && handleSelectGame(game.id)}
+                disabled={!game.available}
+                className={cn(
+                  "relative flex flex-col items-center justify-center rounded-2xl aspect-square overflow-hidden transition-all",
+                  game.available
+                    ? "hover:scale-[1.03] cursor-pointer ring-1 ring-white/10 hover:ring-white/25"
+                    : "opacity-50 cursor-not-allowed",
+                )}
+                style={{
+                  background: `linear-gradient(135deg, ${game.gradientFrom}, ${game.gradientTo})`,
+                }}
+              >
+                <span className="text-4xl mb-1.5 drop-shadow-lg">{game.emoji}</span>
+                {game.available ? (
+                  <p className="text-xs font-bold text-white drop-shadow">{game.label}</p>
+                ) : (
+                  <>
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <div className="bg-black/50 backdrop-blur-sm rounded-full p-2">
+                        <Lock className="w-4 h-4 text-white/60" />
+                      </div>
+                    </div>
+                    <p className="relative text-[10px] font-semibold text-white/50 mt-0.5">
+                      Coming Soon
+                    </p>
+                  </>
+                )}
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  }
+
+  // Step: waiting for friend
+  if (step === "waiting") {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center px-3 py-2.5 border-b border-slate-700/25 flex-shrink-0">
+          <button
+            onClick={() => {
+              closePanel();
+              if (lobbyRoomId) navigate(`/game/lobby/${lobbyRoomId}`);
+            }}
+            className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <span className="ml-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+            Waiting
+          </span>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          {gameStarting ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                <Check className="w-8 h-8 text-emerald-400" />
+              </div>
+              <p className="text-base font-bold text-white mb-1">
+                {friend.display_name} joined!
+              </p>
+              <p className="text-sm text-slate-400">
+                Setting up the game...
+              </p>
+              <Loader2 className="w-5 h-5 text-purple-400 animate-spin mt-4" />
+            </>
+          ) : friendJoined ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                <Check className="w-8 h-8 text-emerald-400" />
+              </div>
+              <p className="text-base font-bold text-white mb-1">
+                {friend.display_name} joined!
+              </p>
+              <p className="text-sm text-slate-400">
+                Preparing the match...
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center mb-4 animate-pulse">
+                <Users className="w-8 h-8 text-purple-400" />
+              </div>
+              <p className="text-base font-bold text-white mb-1">
+                Invite sent!
+              </p>
+              <p className="text-sm text-slate-400 mb-4">
+                Waiting for {friend.display_name} to join...
+              </p>
+              <div className="px-4 py-3 rounded-xl bg-white/[0.04] border border-slate-700/25">
+                <p className="text-[11px] text-slate-500 mb-1">Wager</p>
+                <p className="text-lg font-bold text-white">
+                  {effectiveWager} SC
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Step: wager
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center px-3 py-2.5 border-b border-slate-700/25 flex-shrink-0">
         <button
-          onClick={onBack}
+          onClick={() => setStep("game")}
           className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <span className="ml-2 text-xs font-bold uppercase tracking-widest text-slate-400">
-          Invite to Game
+          Set Wager
         </span>
       </div>
 
-      <div className="p-4 text-center">
-        <p className="text-sm text-slate-300">
-          Choose a game to play with{" "}
-          <span className="font-bold text-white">{friend.display_name}</span>
-        </p>
-      </div>
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
+          <div className="flex items-center justify-center gap-2 py-2">
+            <span className="text-3xl">♟️</span>
+            <p className="text-sm font-bold text-white">Chess</p>
+          </div>
 
-      <div className="flex flex-col gap-2 px-4 pb-4">
-        {GAMES.map((game) => {
-          const Icon = game.icon;
-          const isSent = sent === game.id;
-          const isSending = sending === game.id;
-          return (
-            <button
-              key={game.id}
-              onClick={() => !isSent && handleInvite(game.id)}
-              disabled={isSending || isSent}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-colors",
-                isSent
-                  ? "bg-emerald-500/10 border-emerald-500/25 cursor-default"
-                  : "bg-white/[0.03] border-slate-700/25 hover:bg-white/[0.06] hover:border-slate-600/30",
-              )}
-            >
-              <div
+          <div className="flex flex-col gap-2">
+            {WAGER_OPTIONS.map((amount) => (
+              <button
+                key={amount}
+                onClick={() => {
+                  setSelectedWager(amount);
+                  setUseCustom(false);
+                }}
+                disabled={amount > balance}
                 className={cn(
-                  "w-10 h-10 rounded-lg flex items-center justify-center",
-                  isSent
-                    ? "bg-emerald-500/20"
-                    : "bg-gradient-to-br from-amber-500 to-orange-600",
+                  "flex items-center justify-between px-4 py-3 rounded-xl border transition-all",
+                  !useCustom && selectedWager === amount
+                    ? "bg-purple-500/15 border-purple-500/30 ring-1 ring-purple-500/20"
+                    : "bg-white/[0.03] border-slate-700/25 hover:bg-white/[0.06]",
+                  amount > balance && "opacity-40 cursor-not-allowed",
                 )}
               >
-                {isSent ? (
-                  <Check className="w-5 h-5 text-emerald-400" />
-                ) : (
-                  <Icon className="w-5 h-5 text-white" />
-                )}
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-bold text-white">{game.label}</p>
-                <p className="text-[11px] text-slate-500">
-                  {isSent
-                    ? "Invite sent!"
-                    : isSending
-                      ? "Sending..."
-                      : "1v1 Private Match"}
-                </p>
-              </div>
+                <div className="flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-yellow-500" />
+                  <span className="text-sm font-bold text-white">
+                    {amount} SC
+                  </span>
+                </div>
+                <span className="text-[11px] text-emerald-400 font-medium">
+                  Win {Math.floor(amount * 1.9)} SC
+                </span>
+              </button>
+            ))}
+
+            {/* Custom wager */}
+            <button
+              onClick={() => setUseCustom(true)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-3 rounded-xl border transition-all",
+                useCustom
+                  ? "bg-purple-500/15 border-purple-500/30 ring-1 ring-purple-500/20"
+                  : "bg-white/[0.03] border-slate-700/25 hover:bg-white/[0.06]",
+              )}
+            >
+              <Coins className="w-4 h-4 text-yellow-500" />
+              {useCustom ? (
+                <input
+                  autoFocus
+                  type="number"
+                  value={customWager}
+                  onChange={(e) => setCustomWager(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Amount"
+                  min={50}
+                  max={100000}
+                  className="flex-1 bg-transparent text-sm font-bold text-white placeholder:text-slate-500 focus:outline-none w-20"
+                />
+              ) : (
+                <span className="text-sm font-bold text-slate-400">
+                  Custom Amount
+                </span>
+              )}
             </button>
-          );
-        })}
+          </div>
+
+          <div className="flex items-center justify-between text-xs mt-1 px-1">
+            <span className="text-slate-500">Your balance</span>
+            <span className="text-white font-semibold">
+              {balance.toLocaleString()} SC
+            </span>
+          </div>
+        </div>
+      </ScrollArea>
+
+      <div className="flex-shrink-0 p-3 border-t border-slate-700/25">
+        <button
+          onClick={handleSendInvite}
+          disabled={sending || effectiveWager <= 0 || effectiveWager > balance}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all",
+            sending || effectiveWager <= 0 || effectiveWager > balance
+              ? "bg-slate-700/40 text-slate-500 cursor-not-allowed"
+              : "bg-gradient-to-r from-purple-500 to-violet-500 text-white hover:from-purple-400 hover:to-violet-400",
+          )}
+        >
+          {sending ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Creating lobby...
+            </>
+          ) : (
+            <>
+              <Send className="w-4 h-4" />
+              Send Invite — {effectiveWager > 0 ? `${effectiveWager} SC` : "..."}
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
@@ -295,7 +578,9 @@ function FriendProfileView({
   onChat: () => void;
 }) {
   const navigate = useNavigate();
-  const status: UserStatus = usePresenceStore((s) => s.statusMap[friend.friend_user_id] || 'offline');
+  const status: UserStatus = usePresenceStore(
+    (s) => s.statusMap[friend.friend_user_id] || "offline",
+  );
   const removeFriend = useFriendStore((s) => s.removeFriend);
   const closePanel = useFriendStore((s) => s.closePanel);
   const [profile, setProfile] = useState<FriendProfile | null>(null);
@@ -474,7 +759,9 @@ function DmChatView({
   onBack: () => void;
 }) {
   const { user } = useAuth();
-  const status: UserStatus = usePresenceStore((s) => s.statusMap[friend.friend_user_id] || 'offline');
+  const status: UserStatus = usePresenceStore(
+    (s) => s.statusMap[friend.friend_user_id] || "offline",
+  );
   const messages = useChatStore((s) => s.messages);
   const loading = useChatStore((s) => s.loading);
   const setActiveChannel = useChatStore((s) => s.setActiveChannel);
@@ -848,7 +1135,7 @@ function FriendsTabContent({
 type View =
   | { screen: "list" }
   | { screen: "profile"; friend: Friend }
-  | { screen: "dm"; friend: Friend }
+  | { screen: "dm"; friend: Friend; returnTo: "list" | "profile" | "messages" }
   | { screen: "invite"; friend: Friend };
 
 export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
@@ -860,7 +1147,9 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Fetch pending game invites to highlight friends who invited us
+  const collapsed = useFriendStore((s) => s.panelCollapsed);
+  const toggleCollapse = useFriendStore((s) => s.toggleCollapse);
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -881,7 +1170,6 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
 
     fetchInvites();
 
-    // Listen for new game invites
     const channel = supabase
       .channel(`game-invites-${user.id}`)
       .on(
@@ -924,9 +1212,12 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
     setView({ screen: "profile", friend });
   }, []);
 
-  const goToDm = useCallback((friend: Friend) => {
-    setView({ screen: "dm", friend });
-  }, []);
+  const goToDm = useCallback(
+    (friend: Friend, returnTo: "list" | "profile" | "messages" = "list") => {
+      setView({ screen: "dm", friend, returnTo });
+    },
+    [],
+  );
 
   const goToInvite = useCallback((friend: Friend) => {
     setView({ screen: "invite", friend });
@@ -935,16 +1226,26 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
   const goBackFromDm = useCallback(() => {
     useChatStore.getState().reset();
     if (view.screen === "dm") {
-      setView({ screen: "profile", friend: view.friend });
+      if (view.returnTo === "profile") {
+        setView({ screen: "profile", friend: view.friend });
+      } else {
+        setView({ screen: "list" });
+        if (view.returnTo === "messages") {
+          setActiveTab("messages");
+        }
+      }
     } else {
       setView({ screen: "list" });
     }
   }, [view]);
 
+  const COLLAPSED_HEIGHT = "h-[44px]";
+  const EXPANDED_HEIGHT = "h-[400px]";
+
   return (
     <div
       className={cn(
-        "fixed right-4 bottom-4 w-[310px] h-[400px] z-[61]",
+        "fixed right-4 bottom-4 w-[310px] z-[61]",
         "bg-[#0f1923]",
         "border border-slate-500/25",
         "rounded-2xl",
@@ -954,6 +1255,7 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
         isOpen
           ? "translate-y-0 opacity-100"
           : "translate-y-8 opacity-0 pointer-events-none",
+        collapsed ? COLLAPSED_HEIGHT : EXPANDED_HEIGHT,
       )}
     >
       {view.screen === "dm" ? (
@@ -962,82 +1264,100 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
         <FriendProfileView
           friend={view.friend}
           onBack={goToList}
-          onChat={() => goToDm(view.friend)}
+          onChat={() => goToDm(view.friend, "profile")}
         />
       ) : view.screen === "invite" ? (
         <GameInvitePicker friend={view.friend} onBack={goToList} />
       ) : (
         <>
-          {/* Close bar */}
-          <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+          {/* Header bar — always visible, even when collapsed */}
+          <div className="flex items-center justify-between px-4 h-[44px] flex-shrink-0">
             <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {activeTab === "friends" ? "Friends" : "Messages"}
             </span>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
-              title="Close"
-            >
-              <ChevronDown className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={toggleCollapse}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                title={collapsed ? "Expand" : "Collapse"}
+              >
+                {collapsed ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex flex-shrink-0 mx-3 rounded-lg bg-white/[0.04] p-0.5">
-            <button
-              onClick={() => setActiveTab("friends")}
-              className={cn(
-                "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
-                activeTab === "friends"
-                  ? "bg-white/[0.08] text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-300",
-              )}
-            >
-              Friends
-            </button>
-            <button
-              onClick={() => setActiveTab("messages")}
-              className={cn(
-                "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
-                activeTab === "messages"
-                  ? "bg-white/[0.08] text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-300",
-              )}
-            >
-              Messages
-            </button>
-          </div>
+          {/* Content below header — hidden when collapsed */}
+          {!collapsed && (
+            <>
+              {/* Tabs */}
+              <div className="flex flex-shrink-0 mx-3 rounded-lg bg-white/[0.04] p-0.5">
+                <button
+                  onClick={() => setActiveTab("friends")}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
+                    activeTab === "friends"
+                      ? "bg-white/[0.08] text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-300",
+                  )}
+                >
+                  Friends
+                </button>
+                <button
+                  onClick={() => setActiveTab("messages")}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-bold tracking-wide uppercase rounded-md transition-all duration-200",
+                    activeTab === "messages"
+                      ? "bg-white/[0.08] text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-300",
+                  )}
+                >
+                  Messages
+                </button>
+              </div>
 
-          <div className="mx-3 mt-2.5 border-t border-slate-700/25" />
+              <div className="mx-3 mt-2.5 border-t border-slate-700/25" />
 
-          <ScrollArea className="flex-1 min-h-0">
-            {activeTab === "friends" ? (
-              <FriendsTabContent
-                onOpenDm={goToDm}
-                onOpenProfile={goToProfile}
-                onOpenInvite={goToInvite}
-                invitedByIds={invitedByIds}
-              />
-            ) : (
-              <MessagesTabContent onOpenDm={goToDm} />
-            )}
-          </ScrollArea>
+              <ScrollArea className="flex-1 min-h-0">
+                {activeTab === "friends" ? (
+                  <FriendsTabContent
+                    onOpenDm={(f) => goToDm(f, "list")}
+                    onOpenProfile={goToProfile}
+                    onOpenInvite={goToInvite}
+                    invitedByIds={invitedByIds}
+                  />
+                ) : (
+                  <MessagesTabContent onOpenDm={(f) => goToDm(f, "messages")} />
+                )}
+              </ScrollArea>
 
-          <div className="flex-shrink-0 p-3 border-t border-slate-700/25">
-            <button
-              onClick={() => navigate("/friends")}
-              className={cn(
-                "w-full flex items-center justify-center gap-2 py-2.5 rounded-full",
-                "border border-slate-500/25 hover:border-slate-400/35",
-                "bg-white/[0.04] hover:bg-white/[0.07]",
-                "text-white text-sm font-bold tracking-wide",
-                "transition-all duration-200",
-              )}
-            >
-              <SmilePlus className="w-4 h-4" />
-              SEE ALL FRIENDS
-            </button>
-          </div>
+              <div className="flex-shrink-0 p-3 border-t border-slate-700/25">
+                <button
+                  onClick={() => navigate("/friends")}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 py-2.5 rounded-full",
+                    "border border-slate-500/25 hover:border-slate-400/35",
+                    "bg-white/[0.04] hover:bg-white/[0.07]",
+                    "text-white text-sm font-bold tracking-wide",
+                    "transition-all duration-200",
+                  )}
+                >
+                  <SmilePlus className="w-4 h-4" />
+                  SEE ALL FRIENDS
+                </button>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

@@ -338,7 +338,7 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                     <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
                       SELECT <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">GAME</span>
                     </h1>
-                    <p className="text-white/50 mt-2">Winner earns double their skilled coins entry</p>
+                    <p className="text-white/50 mt-2">Time Control: 1 minute games with a 3-second increment per move.</p>
                   </div>
 
                   {/* Wager Cards */}
