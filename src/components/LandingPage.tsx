@@ -24,6 +24,7 @@ import { FriendsButton } from './FriendsButton';
 import { SkilledCoinsDisplay } from './SkilledCoinsDisplay';
 import { BalanceDepositPill } from './BalanceDepositPill';
 import { NotificationDropdown } from './NotificationDropdown';
+import { SiteFooterLinks } from './SiteFooterLinks';
 
 import { VIPProgressSection } from './VIPProgressSection';
 
@@ -405,6 +406,9 @@ export const LandingPage = ({
 
         {/* FAQ Section */}
         <FAQSection />
+
+        {/* Site Footer Links + Social Media */}
+        <SiteFooterLinks />
 
         {/* Crypto Section */}
         <CryptoSection />
