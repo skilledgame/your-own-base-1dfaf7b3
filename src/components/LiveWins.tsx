@@ -13,14 +13,18 @@ interface Win {
   gradientTo: string;
 }
 
+const MAX_WINS = 6;
+
 export const LiveWins = () => {
   const [wins, setWins] = useState<Win[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastFetchRef = useRef<number>(0);
   const isFetchingRef = useRef<boolean>(false);
+  const previousWinIdsRef = useRef<Set<string>>(new Set());
+  const [newWinId, setNewWinId] = useState<string | null>(null);
 
-  // Fetch recent finished games using FK joins for accurate player names
+  // Fetch recent finished games
   const fetchRecentWins = useCallback(async () => {
     if (isFetchingRef.current) return;
 
@@ -31,7 +35,6 @@ export const LiveWins = () => {
     lastFetchRef.current = now;
 
     try {
-      // Use Supabase FK join: games.winner_id -> players.id
       const { data: games, error } = await supabase
         .from('games')
         .select(`
@@ -50,7 +53,7 @@ export const LiveWins = () => {
         .eq('status', 'finished')
         .not('winner_id', 'is', null)
         .order('settled_at', { ascending: false })
-        .limit(20);
+        .limit(MAX_WINS);
 
       if (error) {
         console.error('Error fetching recent wins:', error);
@@ -63,13 +66,12 @@ export const LiveWins = () => {
         return;
       }
 
-      // Collect user_ids from winners to batch-fetch display names from profiles
+      // Batch-fetch display names from profiles
       const userIds = games
         .map((g: any) => g.winner?.user_id)
         .filter(Boolean) as string[];
       const uniqueUserIds = [...new Set(userIds)];
 
-      // Profiles table is publicly readable - fetch display names
       const profileMap = new Map<string, string>();
       if (uniqueUserIds.length > 0) {
         const { data: profiles } = await supabase
@@ -79,27 +81,25 @@ export const LiveWins = () => {
 
         if (profiles) {
           for (const p of profiles) {
-            if (p.display_name) {
-              profileMap.set(p.user_id, p.display_name);
-            }
+            if (p.display_name) profileMap.set(p.user_id, p.display_name);
           }
         }
       }
 
+      const isInitialLoad = previousWinIdsRef.current.size === 0;
+
       const recentWins: Win[] = games.map((game: any) => {
         const winner = game.winner;
-        // Priority: profile display_name > player name > 'Player'
         const displayName =
           (winner?.user_id && profileMap.get(winner.user_id)) ||
           winner?.name ||
           'Player';
-
         const timestampSource = game.settled_at || game.updated_at || game.created_at || Date.now();
 
         return {
           id: game.id,
           playerName: displayName,
-          amount: Math.floor(game.wager * 1.9), // Winner payout after 5% fee
+          amount: Math.floor(game.wager * 1.9),
           game: 'Chess',
           gameIcon: '♟️',
           timestamp: new Date(timestampSource),
@@ -108,10 +108,19 @@ export const LiveWins = () => {
         };
       });
 
-      // Sort by timestamp (newest first = leftmost)
-      const sortedWins = recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      // Sort newest first (leftmost)
+      recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-      setWins(sortedWins);
+      // Detect if there's a brand-new win that wasn't in the previous set
+      if (!isInitialLoad) {
+        const incoming = recentWins[0];
+        if (incoming && !previousWinIdsRef.current.has(incoming.id)) {
+          setNewWinId(incoming.id);
+        }
+      }
+
+      previousWinIdsRef.current = new Set(recentWins.map(w => w.id));
+      setWins(recentWins);
     } catch (err) {
       console.error('Failed to fetch recent wins:', err);
     } finally {
@@ -125,7 +134,7 @@ export const LiveWins = () => {
     fetchRecentWins();
   }, [fetchRecentWins]);
 
-  // Lightweight polling every 2 minutes
+  // Poll every 2 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       fetchRecentWins();
@@ -133,36 +142,35 @@ export const LiveWins = () => {
     return () => clearInterval(interval);
   }, [fetchRecentWins]);
 
-  // Auto-scroll animation: slides left-to-right in a continuous loop
+  // Clear pop-in animation flag after it finishes
+  useEffect(() => {
+    if (newWinId) {
+      const timer = setTimeout(() => setNewWinId(null), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [newWinId]);
+
+  // Continuous scroll loop (right-to-left marquee, newest starts on left)
   useEffect(() => {
     const scrollContainer = scrollRef.current;
     if (!scrollContainer || wins.length === 0) return;
 
     let animationId: number;
+    let scrollPosition = 0;
     const scrollSpeed = 0.5;
-
-    // Calculate the width of one set of wins for seamless looping
     const singleSetWidth = scrollContainer.scrollWidth / 2;
 
-    // Start scrolled to the end of the first set so we can scroll leftward (visually right)
-    let scrollPosition = singleSetWidth;
-    scrollContainer.scrollLeft = scrollPosition;
-
     const animate = () => {
-      scrollPosition -= scrollSpeed; // Decrease scrollLeft = items move right visually
-
-      // When we've scrolled past the beginning, jump back to the duplicate set
-      if (scrollPosition <= 0) {
-        scrollPosition += singleSetWidth;
+      scrollPosition += scrollSpeed;
+      if (scrollPosition >= singleSetWidth) {
+        scrollPosition -= singleSetWidth;
       }
-
       scrollContainer.scrollLeft = scrollPosition;
       animationId = requestAnimationFrame(animate);
     };
 
     animationId = requestAnimationFrame(animate);
 
-    // Pause on hover
     const handleMouseEnter = () => cancelAnimationFrame(animationId);
     const handleMouseLeave = () => {
       animationId = requestAnimationFrame(animate);
@@ -178,9 +186,7 @@ export const LiveWins = () => {
     };
   }, [wins]);
 
-  if (!loading && wins.length === 0) {
-    return null;
-  }
+  if (!loading && wins.length === 0) return null;
 
   return (
     <section className="py-6 px-0 overflow-hidden">
@@ -204,47 +210,52 @@ export const LiveWins = () => {
             className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
             style={{ scrollBehavior: 'auto' }}
           >
-            {/* Render wins twice for seamless infinite scrolling. Newest first (leftmost). */}
-            {[...wins, ...wins].map((win, index) => (
-              <div
-                key={`${win.id}-${index}`}
-                className="flex-shrink-0 w-[140px] group cursor-pointer"
-              >
-                {/* Game Card */}
-                <div
-                  className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105"
-                  style={{
-                    background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})`,
-                  }}
-                >
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl drop-shadow-lg">{win.gameIcon}</span>
-                  </div>
-                  <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
-                    <span className="text-white/90 text-xs font-bold uppercase tracking-wider drop-shadow">
-                      {win.game}
-                    </span>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                </div>
+            {/* Duplicate for seamless loop. Newest first (leftmost). */}
+            {[...wins, ...wins].map((win, index) => {
+              // Only pop the first copy when it's the brand-new win
+              const shouldPop = win.id === newWinId && index < MAX_WINS;
 
-                {/* Win Info */}
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
-                      <Coins className="w-2.5 h-2.5 text-white" />
+              return (
+                <div
+                  key={`${win.id}-${index}`}
+                  className={`flex-shrink-0 w-[140px] group cursor-pointer${shouldPop ? ' win-pop-in' : ''}`}
+                >
+                  {/* Game Card */}
+                  <div
+                    className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105"
+                    style={{
+                      background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})`,
+                    }}
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-4xl drop-shadow-lg">{win.gameIcon}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground truncate max-w-[60px]">
-                      {win.playerName}
-                    </span>
+                    <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
+                      <span className="text-white/90 text-xs font-bold uppercase tracking-wider drop-shadow">
+                        {win.game}
+                      </span>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  </div>
+
+                  {/* Win Info */}
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
+                        <Coins className="w-2.5 h-2.5 text-white" />
+                      </div>
+                      <span className="text-xs text-muted-foreground truncate max-w-[60px]">
+                        {win.playerName}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-accent font-bold text-sm">
+                    {win.amount.toLocaleString()} SC
+                    <Coins className="w-4 h-4 text-yellow-500" />
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-accent font-bold text-sm">
-                  {win.amount.toLocaleString()} SC
-                  <Coins className="w-4 h-4 text-yellow-500" />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
