@@ -159,12 +159,44 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
     }
   };
 
-  const handleJoinGame = (notif: Notification) => {
-    const gameId = notif.metadata?.game_id;
-    if (gameId && gameId !== 'pending') {
-      navigate(`/game/lobby/${gameId}`);
-    } else {
+  const handleJoinGame = async (notif: Notification) => {
+    const roomId = notif.metadata?.game_id;
+    if (!roomId || roomId === 'pending' || roomId === 'chess') {
       navigate('/chess');
+      return;
+    }
+
+    try {
+      // Look up the lobby code from the room so we can join properly
+      const { data: room } = await supabase
+        .from('private_rooms')
+        .select('code')
+        .eq('id', roomId)
+        .maybeSingle();
+
+      if (room?.code) {
+        const response = await supabase.functions.invoke('join-lobby', {
+          body: { lobbyCode: room.code },
+        });
+
+        if (response.error || response.data?.success === false) {
+          // If join fails (already joined, etc.) still try navigating
+          navigate(`/game/lobby/${roomId}`);
+        } else {
+          const targetRoomId = response.data?.roomId || roomId;
+          navigate(`/game/lobby/${targetRoomId}`);
+        }
+      } else {
+        navigate(`/game/lobby/${roomId}`);
+      }
+
+      // Mark notification as acted upon
+      await supabase
+        .from('notifications')
+        .update({ action_taken: true })
+        .eq('id', notif.id);
+    } catch {
+      navigate(`/game/lobby/${roomId}`);
     }
   };
   
