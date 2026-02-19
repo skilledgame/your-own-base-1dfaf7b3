@@ -1,7 +1,7 @@
 /**
  * EmailVerify - Email OTP Verification Component
  * 
- * Shows an 8-digit code input for users to verify their email after signup.
+ * Shows a 6-digit code input for users to verify their email after signup.
  * Supabase sends a verification code to the user's email, and this component
  * handles entering and verifying that code via supabase.auth.verifyOtp().
  * 
@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Mail, ArrowLeft, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 6;
 const EMPTY_CODE = Array(CODE_LENGTH).fill('');
 
 interface EmailVerifyProps {

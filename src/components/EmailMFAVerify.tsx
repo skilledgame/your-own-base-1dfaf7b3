@@ -19,7 +19,7 @@ import { Loader2, Mail, ArrowLeft, RefreshCw, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { setMfaVerified } from '@/lib/mfaStorage';
 
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 6;
 const EMPTY_CODE = Array(CODE_LENGTH).fill('');
 
 interface EmailMFAVerifyProps {

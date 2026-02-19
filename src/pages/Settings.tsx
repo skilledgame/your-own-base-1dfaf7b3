@@ -19,10 +19,11 @@ import { DevicesTab } from '@/components/settings/DevicesTab';
 import { AvatarTab } from '@/components/settings/AvatarTab';
 import { SubscriptionsTab } from '@/components/settings/SubscriptionsTab';
 import { BillingTab } from '@/components/settings/BillingTab';
+import { AppSettingsTab } from '@/components/settings/AppSettingsTab';
 
 type SettingsTabType =
   | 'profile' | 'password' | 'mfa' | 'devices' | 'avatar'
-  | 'subscriptions' | 'billing';
+  | 'subscriptions' | 'billing' | 'app';
 
 interface SidebarSection {
   label: string;
@@ -37,6 +38,12 @@ const SECTIONS: SidebarSection[] = [
       { id: 'password', label: 'Password' },
       { id: 'mfa', label: 'Multi-Factor Auth' },
       { id: 'devices', label: 'Devices' },
+    ],
+  },
+  {
+    label: 'App',
+    tabs: [
+      { id: 'app', label: 'App Settings' },
     ],
   },
   {
@@ -84,6 +91,8 @@ export default function Settings() {
         return <SubscriptionsTab />;
       case 'billing':
         return <BillingTab />;
+      case 'app':
+        return <AppSettingsTab />;
       default:
         return <ProfileTab />;
     }
