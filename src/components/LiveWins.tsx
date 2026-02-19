@@ -1,20 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Coins, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { getRankFromTotalWagered } from '@/lib/rankSystem';
+import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
+import { RankBadge } from '@/components/RankBadge';
 import coins100 from '@/assets/coins-100.png';
 import coins500 from '@/assets/coins-500.png';
 import coins1000 from '@/assets/coins-1000.png';
-
-const RANK_BORDER_COLORS: Record<string, string> = {
-  unranked: 'border-gray-500/40',
-  bronze: 'border-orange-500/70',
-  silver: 'border-slate-300/70',
-  gold: 'border-yellow-400/80',
-  platinum: 'border-sky-400/80',
-  diamond: 'border-blue-400/80',
-  goat: 'border-purple-400/80',
-};
 
 interface Win {
   id: string;
@@ -23,7 +14,7 @@ interface Win {
   wager: number;
   game: string;
   tierImage: string;
-  rank: string;
+  rankInfo: RankInfo;
   timestamp: Date;
 }
 
@@ -88,12 +79,12 @@ export const LiveWins = () => {
         const player = game.winner_id ? playerMap.get(game.winner_id) : null;
         const profile = player?.user_id ? profileMap.get(player.user_id) : null;
         const displayName = profile?.displayName || player?.name || 'Player';
-        const rank = getRankFromTotalWagered(profile?.totalWagered ?? 0).tierName;
+        const rankInfo = getRankFromTotalWagered(profile?.totalWagered ?? 0);
         const ts = game.settled_at || game.updated_at || game.created_at;
         return {
           id: game.id, playerName: displayName, amount: Math.floor(game.wager * 1.9),
           wager: game.wager, game: 'Chess', tierImage: getTierImage(game.wager),
-          rank, timestamp: new Date(ts),
+          rankInfo, timestamp: new Date(ts),
         };
       });
 
@@ -178,7 +169,7 @@ export const LiveWins = () => {
                   key={`${win.id}-${index}`}
                   className={`flex-shrink-0 w-[140px] group cursor-pointer${!isFirstRender && index === 0 ? ' win-card-pop' : ''}`}
                 >
-                  <div className={`relative aspect-square rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105 border-2 ${RANK_BORDER_COLORS[win.rank] || RANK_BORDER_COLORS.unranked}`}>
+                  <div className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
                     <img
                       src={win.tierImage}
                       alt={`${win.wager} SC Chess`}
@@ -190,10 +181,8 @@ export const LiveWins = () => {
                   </div>
 
                   <div className="flex items-center gap-1 mt-1">
-                    <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
-                      <Coins className="w-2.5 h-2.5 text-white" />
-                    </div>
-                    <span className="text-xs text-muted-foreground truncate max-w-[60px]">
+                    <RankBadge rank={win.rankInfo} size="xs" />
+                    <span className="text-xs text-muted-foreground truncate max-w-[70px]">
                       {win.playerName}
                     </span>
                   </div>
