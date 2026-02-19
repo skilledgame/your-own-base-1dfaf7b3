@@ -48,7 +48,7 @@ import { useUserDataStore } from "./stores/userDataStore";
 import { useFriendStore } from "./stores/friendStore";
 import { usePresenceStore } from "./stores/presenceStore";
 import { supabase } from "@/integrations/supabase/client";
-import { isMfaVerified } from "@/lib/mfaStorage";
+import { isMfaVerified, setMfaVerified } from "@/lib/mfaStorage";
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -146,14 +146,16 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Check for email-based 2FA preference (not yet verified)
-        const mfaMethod = user?.user_metadata?.mfa_method;
-        if (mfaMethod === 'email') {
-          navigate('/auth', { replace: true });
-          return;
+        // If session is already at aal2, backfill the persistent flag
+        // (handles users who verified TOTP before the flag code existed)
+        if (data.currentLevel === 'aal2') {
+          setMfaVerified('totp');
         }
 
-        // No 2FA enrolled or already verified — allow through
+        // Email-based 2FA is ONLY enforced during the login flow
+        // (in Auth.tsx handleEmailSubmit). It should NOT force-redirect
+        // on page load — the user already has an active session.
+        // Only Supabase-native TOTP MFA (AAL levels) is enforced here.
       } catch {
         // If MFA check fails, don't block the user
       } finally {

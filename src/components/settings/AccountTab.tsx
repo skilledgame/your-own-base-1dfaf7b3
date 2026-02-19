@@ -329,6 +329,10 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
     }
     setSavingEmail(true);
     try {
+      // Elevate session to AAL2 if TOTP MFA is active
+      const elevated = await elevateToAAL2();
+      if (!elevated) { setSavingEmail(false); return; }
+
       const { error } = await supabase.auth.updateUser({ email: newEmail });
       if (error) {
         toast.error(error.message);
@@ -344,12 +348,61 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
     }
   };
 
+  // ── AAL2 elevation (needed when TOTP MFA is active) ────────
+  const elevateToAAL2 = async (): Promise<boolean> => {
+    try {
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!aalData || aalData.currentLevel === 'aal2') return true; // already elevated
+      if (aalData.nextLevel !== 'aal2') return true; // no elevation needed
+
+      // Need to elevate — get the TOTP factor
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factors?.totp?.find(f => f.status === 'verified');
+      if (!totpFactor) return true; // no verified TOTP, shouldn't need AAL2
+
+      // Create challenge
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+      if (challengeError || !challenge) {
+        toast.error('MFA challenge failed. Please re-verify your authenticator app.');
+        return false;
+      }
+
+      // Ask user for TOTP code via prompt (simple approach)
+      const code = window.prompt('Enter your 6-digit authenticator code to confirm this change:');
+      if (!code || code.length !== 6) {
+        toast.error('MFA verification cancelled.');
+        return false;
+      }
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: totpFactor.id,
+        challengeId: challenge.id,
+        code,
+      });
+
+      if (verifyError) {
+        toast.error('Invalid authenticator code. Please try again.');
+        return false;
+      }
+
+      return true; // session is now at AAL2
+    } catch {
+      toast.error('MFA verification failed.');
+      return false;
+    }
+  };
+
   // ── Password change ─────────────────────────────────────────
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
     if (newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return; }
 
     setChangingPassword(true);
+
+    // Elevate session to AAL2 if TOTP MFA is active
+    const elevated = await elevateToAAL2();
+    if (!elevated) { setChangingPassword(false); return; }
+
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) { toast.error(error.message); } else {
       toast.success('Password updated successfully!');
@@ -457,8 +510,8 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
 
       {/* ─── Profile Card ─────────────────────────────────────── */}
       <Card className={cn("border-2 bg-card overflow-hidden", getRankBorderClass(rankInfo.tierName))}>
-        {/* Discord-style rank banner */}
-        <div className={cn("h-24 bg-gradient-to-r relative", getRankGradientClass(rankInfo.tierName))} />
+        {/* Discord-style rank banner with shine */}
+        <div className={cn("h-24 bg-gradient-to-r animate-banner-shine", getRankGradientClass(rankInfo.tierName))} />
 
         {/* Avatar overlapping the banner */}
         <div className="relative px-6">
@@ -535,7 +588,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
 
       {/* ─── Change Password ──────────────────────────────────── */}
       {!isOAuthUser && (
-        <Card className="border-border bg-card">
+        <Card className={cn("border bg-card", getRankBorderClass(rankInfo.tierName))}>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -613,7 +666,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
 
       {/* ─── Two-Factor Authentication ────────────────────────── */}
       {!isOAuthUser && (
-        <Card className="border-border bg-card">
+        <Card className={cn("border bg-card", getRankBorderClass(rankInfo.tierName))}>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
@@ -772,7 +825,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
       )}
 
       {/* ─── Member Since ─────────────────────────────────────── */}
-      <Card className="border-border bg-card">
+      <Card className={cn("border bg-card", getRankBorderClass(rankInfo.tierName))}>
         <CardContent className="py-4">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Member since</span>

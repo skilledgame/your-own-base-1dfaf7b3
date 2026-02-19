@@ -456,3 +456,34 @@
     background-position: 0% 50%;
   }
 }
+
+@keyframes banner-shine {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+  100% {
+    transform: translateX(250%) skewX(-15deg);
+  }
+}
+
+.animate-banner-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-banner-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  animation: banner-shine 4s ease-in-out infinite;
+  pointer-events: none;
+}

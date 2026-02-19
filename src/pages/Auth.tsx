@@ -80,13 +80,6 @@ export default function Auth() {
         return;
       }
 
-      // Check email 2FA status FIRST — if already verified within 30 days,
-      // user is good (even if they also have TOTP enrolled).
-      // Email 2FA is a valid alternative to TOTP, not an addition.
-      // Uses localStorage with 30-day TTL so users stay signed in across
-      // browser restarts without being forced to re-verify.
-      const mfaMethod = session.user.user_metadata?.mfa_method;
-
       // If MFA was already verified within the last 30 days (any method),
       // skip the challenge and go straight home
       if (isMfaVerified()) {
@@ -99,7 +92,8 @@ export default function Auth() {
       if (!aalData) return;
 
       if (aalData.currentLevel === 'aal2') {
-        // Already fully verified with TOTP 2FA
+        // Already fully verified with TOTP 2FA — backfill flag for old users
+        setMfaVerified('totp');
         navigate('/');
         return;
       }
@@ -113,15 +107,10 @@ export default function Auth() {
         return;
       }
 
-      // No TOTP enrolled — check for email-based 2FA preference
-      if (mfaMethod === 'email') {
-        // Need to verify email 2FA
-        setEmail(session.user.email || '');
-        setStep('email-2fa-verify');
-        return;
-      }
-
-      // No 2FA configured — just go home (2FA is optional now)
+      // No TOTP enrolled — user has an active session.
+      // Email 2FA is only enforced during the login flow (handleEmailSubmit),
+      // NOT when the user navigates to /auth with an existing session.
+      // Just send them home.
       navigate('/');
     };
 
