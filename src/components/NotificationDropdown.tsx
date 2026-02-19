@@ -168,29 +168,33 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
 
     // game_id is encoded as "roomId::lobbyCode"
     const parts = rawGameId.split('::');
+    const roomId = parts.length === 2 ? parts[0] : null;
     const lobbyCode = parts.length === 2 ? parts[1] : rawGameId;
 
     try {
-      const response = await supabase.functions.invoke('join-lobby', {
-        body: { lobbyCode },
+      // Use the join_private_room RPC (SECURITY DEFINER) instead of the
+      // join-lobby edge function to avoid the financial columns trigger.
+      const { data, error } = await supabase.rpc('join_private_room', {
+        p_code: lobbyCode,
       });
 
-      if (response.error) {
-        toast.error(response.data?.error || response.data?.details || response.error.message || 'Failed to join game');
+      if (error) {
+        toast.error(error.message || 'Failed to join game');
         navigate('/chess');
         return;
       }
-
-      const data = response.data;
 
       if (data?.success === false || data?.error) {
-        toast.error(data.details || data.error || 'Failed to join game');
+        toast.error(data.error || 'Failed to join game');
         navigate('/chess');
         return;
       }
 
-      if ((data?.game || data?.gameId) && data?.roomId) {
-        navigate(`/game/lobby/${data.roomId}`);
+      // Navigate using the roomId we already have from the notification,
+      // or fall back to the one returned by the RPC.
+      const targetRoomId = roomId || data?.room_id || data?.roomId;
+      if (targetRoomId) {
+        navigate(`/game/lobby/${targetRoomId}`);
       } else {
         navigate('/chess');
       }

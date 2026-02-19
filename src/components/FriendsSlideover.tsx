@@ -365,10 +365,7 @@ function GameInvitePicker({
       <div className="flex flex-col h-full">
         <div className="flex items-center px-3 py-2.5 border-b border-slate-700/25 flex-shrink-0">
           <button
-            onClick={() => {
-              closePanel();
-              if (lobbyRoomId) navigate(`/game/lobby/${lobbyRoomId}`);
-            }}
+            onClick={onBack}
             className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
