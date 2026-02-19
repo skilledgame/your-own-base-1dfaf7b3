@@ -160,14 +160,17 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
   };
 
   const handleJoinGame = async (notif: Notification) => {
-    const lobbyCode = notif.metadata?.game_id;
-    if (!lobbyCode || lobbyCode === 'pending' || lobbyCode === 'chess') {
+    const rawGameId = notif.metadata?.game_id as string | undefined;
+    if (!rawGameId || rawGameId === 'pending' || rawGameId === 'chess') {
       navigate('/chess');
       return;
     }
 
+    // game_id is encoded as "roomId::lobbyCode"
+    const parts = rawGameId.split('::');
+    const lobbyCode = parts.length === 2 ? parts[1] : rawGameId;
+
     try {
-      // game_id contains the lobby code — join via the edge function
       const response = await supabase.functions.invoke('join-lobby', {
         body: { lobbyCode },
       });
@@ -184,7 +187,6 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
         }
       }
 
-      // Mark notification as acted upon
       await supabase
         .from('notifications')
         .update({ action_taken: true })

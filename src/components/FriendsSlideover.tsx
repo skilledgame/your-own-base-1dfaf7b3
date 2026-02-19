@@ -293,14 +293,14 @@ function GameInvitePicker({
         return;
       }
 
-      // Send invite with the lobbyCode (not roomId) so the friend can join
-      await inviteToGame(friend.friend_user_id, code);
+      // Encode both roomId and lobbyCode so the receiver can join
+      await inviteToGame(friend.friend_user_id, `${roomId}::${code}`);
 
       setLobbyRoomId(roomId);
       setLobbyCode(code);
       setStep("waiting");
-    } catch {
-      toast.error("Failed to send invite");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to send invite");
     } finally {
       setSending(false);
     }
@@ -1163,7 +1163,8 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
 
       const ids = new Set<string>();
       (data || []).forEach((n: any) => {
-        if (n.metadata?.sender_id) ids.add(n.metadata.sender_id);
+        const id = n.metadata?.inviter_id || n.metadata?.sender_id;
+        if (id) ids.add(id);
       });
       setInvitedByIds(ids);
     };
@@ -1182,14 +1183,15 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
         },
         (payload) => {
           const notif = payload.new as any;
-          if (notif.type === "game_invite" && notif.metadata?.sender_id) {
+          const inviterId = notif.metadata?.inviter_id || notif.metadata?.sender_id;
+          if (notif.type === "game_invite" && inviterId) {
             setInvitedByIds((prev) => {
               const next = new Set(prev);
-              next.add(notif.metadata.sender_id);
+              next.add(inviterId);
               return next;
             });
             const senderName =
-              notif.metadata?.sender_name || "A friend";
+              notif.metadata?.inviter_name || notif.metadata?.sender_name || "A friend";
             toast.info(`${senderName} invited you to play!`, {
               icon: <Gamepad2 className="w-4 h-4" />,
             });
