@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Coins, Infinity } from 'lucide-react';
+import { Coins } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface TokenBalanceProps {
@@ -37,15 +37,9 @@ export const TokenBalance = ({
         className={cn(
           "flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border",
           animate && "animate-bounce-in",
-          isPrivileged && "border-primary bg-primary/10"
         )}
       >
-        {isPrivileged ? (
-          <>
-            <Infinity className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-lg text-primary">∞</span>
-          </>
-        ) : showSkeleton ? (
+        {showSkeleton ? (
           <>
             <Coins className="w-5 h-5 text-yellow-500/50" />
             <Skeleton className="h-6 w-16" />

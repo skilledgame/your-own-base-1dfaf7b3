@@ -44,9 +44,7 @@ export const BalanceDepositPill = memo(({
         <Coins className="w-5 h-5 text-yellow-400" />
         
         {/* Balance amount */}
-        {isPrivileged ? (
-          <span className="font-semibold text-white">∞</span>
-        ) : isLoading && !isReady ? (
+        {isLoading && !isReady ? (
           <Skeleton className="h-4 w-14 bg-slate-600" />
         ) : (
           <span className="font-semibold text-white">

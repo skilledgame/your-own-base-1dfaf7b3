@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Coins, Swords, Zap, X, Infinity } from 'lucide-react';
+import { Coins, Swords, Zap, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WagerModalProps {
@@ -65,21 +65,11 @@ export const WagerModal = ({ balance, onStartGame, onClose, isPrivileged }: Wage
         {/* Balance Display */}
         <div className={cn(
           "flex items-center justify-center gap-2 mb-6 p-3 rounded-lg",
-          isPrivileged ? "bg-primary/10 border border-primary" : "bg-secondary"
+          "bg-secondary"
         )}>
-          {isPrivileged ? (
-            <>
-              <Infinity className="w-5 h-5 text-primary" />
-              <span className="text-muted-foreground">Balance:</span>
-              <span className="font-bold text-primary text-xl">∞</span>
-            </>
-          ) : (
-            <>
-              <Coins className="w-5 h-5 text-gold" />
-              <span className="text-muted-foreground">Balance:</span>
-              <span className="font-bold text-gold text-xl">{balance}</span>
-            </>
-          )}
+          <Coins className="w-5 h-5 text-gold" />
+          <span className="text-muted-foreground">Balance:</span>
+          <span className="font-bold text-gold text-xl">{balance}</span>
         </div>
 
         {/* Preset Wagers */}

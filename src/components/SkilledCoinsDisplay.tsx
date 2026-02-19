@@ -6,7 +6,7 @@
  */
 
 import { memo } from 'react';
-import { Coins, Infinity, Loader2 } from 'lucide-react';
+import { Coins, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBalance } from '@/hooks/useBalance';
@@ -39,24 +39,6 @@ export const SkilledCoinsDisplay = memo(({
     md: 'w-5 h-5',
     lg: 'w-6 h-6',
   };
-  
-  // Privileged users show infinity
-  if (isPrivileged) {
-    return (
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-full bg-primary/10 border border-primary/30",
-          sizeClasses[size],
-          animate && "animate-bounce-in",
-          className
-        )}
-      >
-        <Infinity className={cn(iconSizes[size], "text-primary")} />
-        <span className="font-semibold text-primary">∞</span>
-        {showLabel && <span className="text-primary/70">Skilled Coins</span>}
-      </div>
-    );
-  }
   
   // Loading state - show skeleton or last known value
   if (isLoading && !isReady) {

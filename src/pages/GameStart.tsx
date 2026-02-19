@@ -22,7 +22,6 @@ import {
   Trophy,
   Bot,
   Sparkles,
-  Infinity as InfinityIcon,
   Check,
   Zap,
   Target,
@@ -548,18 +547,9 @@ export default function GameStart() {
               <span className="hidden sm:inline">Back</span>
             </Link>
             <LogoLink className="h-8" />
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full bg-blue-950/50 border ${isPrivileged ? 'border-blue-400 bg-blue-500/10' : 'border-blue-500/30'}`}>
-              {isPrivileged ? (
-                <>
-                  <InfinityIcon className="w-5 h-5 text-blue-400" />
-                  <span className="font-semibold text-blue-400">∞</span>
-                </>
-              ) : (
-                <>
-                  <Coins className="w-5 h-5 text-yellow-500" />
-                  <span className="font-semibold text-white">{balance.toLocaleString()}</span>
-                </>
-              )}
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-950/50 border border-blue-500/30">
+              <Coins className="w-5 h-5 text-yellow-500" />
+              <span className="font-semibold text-white">{balance.toLocaleString()}</span>
             </div>
           </div>
         </header>
@@ -912,18 +902,9 @@ export default function GameStart() {
             Back
           </Link>
           <LogoLink className="h-8" />
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border ${isPrivileged ? 'border-primary bg-primary/10' : 'border-border'}`}>
-            {isPrivileged ? (
-              <>
-                <InfinityIcon className="w-5 h-5 text-primary" />
-                <span className="font-semibold text-primary">∞</span>
-              </>
-            ) : (
-              <>
-                <Coins className="w-5 h-5 text-yellow-500" />
-                <span className="font-semibold">{balance.toLocaleString()}</span>
-              </>
-            )}
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border">
+            <Coins className="w-5 h-5 text-yellow-500" />
+            <span className="font-semibold">{balance.toLocaleString()}</span>
           </div>
         </div>
       </header>
