@@ -13,19 +13,20 @@ interface Win {
   gradientTo: string;
 }
 
-const MAX_WINS = 6;
-const CARD_WIDTH = 140; // px
-const CARD_GAP = 12; // px (gap-3)
+const MAX_WINS = 18;
+const CYCLE_INTERVAL = 3000; // 3 seconds between each new card
 
 export const LiveWins = () => {
   const [wins, setWins] = useState<Win[]>([]);
-  const [displayedWins, setDisplayedWins] = useState<Win[]>([]);
   const [loading, setLoading] = useState(true);
   const lastFetchRef = useRef<number>(0);
   const isFetchingRef = useRef<boolean>(false);
-  const previousWinIdsRef = useRef<Set<string>>(new Set());
-  const initialLoadDone = useRef(false);
-  const animatingRef = useRef(false);
+
+  // Display state: queue of currently visible cards + animation trigger
+  const [displayQueue, setDisplayQueue] = useState<Win[]>([]);
+  const [animKey, setAnimKey] = useState(0);
+  const cycleIndexRef = useRef(0);
+  const cycleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchRecentWins = useCallback(async () => {
     if (isFetchingRef.current) return;
@@ -56,7 +57,6 @@ export const LiveWins = () => {
         return;
       }
 
-      // Get player records for all winner IDs
       const winnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))] as string[];
       const playerMap = new Map<string, { name: string | null; user_id: string | null }>();
 
@@ -65,7 +65,6 @@ export const LiveWins = () => {
           .from('players')
           .select('id, name, user_id')
           .in('id', winnerIds);
-
         if (players) {
           for (const p of players) {
             playerMap.set(p.id, { name: p.name, user_id: p.user_id });
@@ -73,7 +72,6 @@ export const LiveWins = () => {
         }
       }
 
-      // Get display names from profiles
       const userIds = [...new Set(
         Array.from(playerMap.values()).map(p => p.user_id).filter(Boolean)
       )] as string[];
@@ -84,7 +82,6 @@ export const LiveWins = () => {
           .from('profiles')
           .select('user_id, display_name')
           .in('user_id', userIds);
-
         if (profiles) {
           for (const p of profiles) {
             if (p.display_name) profileMap.set(p.user_id, p.display_name);
@@ -113,7 +110,6 @@ export const LiveWins = () => {
       });
 
       recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      previousWinIdsRef.current = new Set(recentWins.map(w => w.id));
       setWins(recentWins);
     } catch (err) {
       console.error('Failed to fetch recent wins:', err);
@@ -136,46 +132,51 @@ export const LiveWins = () => {
     return () => clearInterval(interval);
   }, [fetchRecentWins]);
 
-  // Staggered pop-in on initial load, then detect new wins
+  // Cycling loop: pop in one card at a time from the wins array
   useEffect(() => {
     if (wins.length === 0) return;
 
-    if (!initialLoadDone.current) {
-      // First load: pop in wins one by one from left to right
-      initialLoadDone.current = true;
-      setDisplayedWins([]);
-
-      wins.forEach((win, i) => {
-        setTimeout(() => {
-          setDisplayedWins(prev => {
-            if (prev.find(w => w.id === win.id)) return prev;
-            return [...prev, win];
-          });
-        }, i * 200); // 200ms stagger between each card
-      });
-    } else {
-      // Subsequent fetches: check for new wins and pop them in
-      const currentIds = new Set(displayedWins.map(w => w.id));
-      const newWins = wins.filter(w => !currentIds.has(w.id));
-
-      if (newWins.length > 0 && !animatingRef.current) {
-        animatingRef.current = true;
-        // Insert new wins at the front, trim to MAX_WINS
-        setDisplayedWins(wins.slice(0, MAX_WINS));
-        setTimeout(() => {
-          animatingRef.current = false;
-        }, 600);
-      } else if (newWins.length === 0) {
-        // Same wins, just update data (e.g. name corrections)
-        setDisplayedWins(wins.slice(0, MAX_WINS));
-      }
+    // Clear any previous cycle
+    if (cycleTimerRef.current) {
+      clearInterval(cycleTimerRef.current);
+      cycleTimerRef.current = null;
     }
+
+    // Reset: start fresh cycle from the most recent win
+    cycleIndexRef.current = 0;
+    setDisplayQueue([wins[0]]);
+    setAnimKey(0);
+
+    // Every CYCLE_INTERVAL, pop the next win onto the left
+    cycleTimerRef.current = setInterval(() => {
+      cycleIndexRef.current += 1;
+      const idx = cycleIndexRef.current % wins.length;
+
+      // If we've looped back to 0, restart the queue fresh
+      if (idx === 0) {
+        setDisplayQueue([wins[0]]);
+        setAnimKey(k => k + 1);
+        return;
+      }
+
+      setDisplayQueue(prev => {
+        // Prepend the next win; keep max ~10 visible to avoid DOM bloat
+        return [wins[idx], ...prev].slice(0, 10);
+      });
+      setAnimKey(k => k + 1);
+    }, CYCLE_INTERVAL);
+
+    return () => {
+      if (cycleTimerRef.current) {
+        clearInterval(cycleTimerRef.current);
+      }
+    };
   }, [wins]);
 
   if (!loading && wins.length === 0) return null;
 
   return (
-    <section className="py-6 px-0 overflow-hidden">
+    <section className="py-6 px-0">
       <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-16 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
@@ -185,22 +186,20 @@ export const LiveWins = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-16 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         ) : (
           <div
-            className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
+            key={animKey}
+            className="flex gap-3 pb-2 win-row-shift"
           >
-            {displayedWins.map((win, index) => (
+            {displayQueue.map((win, index) => (
               <div
                 key={win.id}
-                className="flex-shrink-0 w-[140px] group cursor-pointer win-card-pop"
-                style={{
-                  animationDelay: `${index * 50}ms`,
-                }}
+                className={`flex-shrink-0 w-[140px] group cursor-pointer${index === 0 ? ' win-card-pop' : ''}`}
               >
                 {/* Game Card */}
                 <div

@@ -457,20 +457,35 @@
   }
 }
 
+/* Row shifts right by one card (140px + 12px gap) when a new card pops in */
+@keyframes win-row-shift {
+  from {
+    transform: translateX(-152px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.win-row-shift {
+  animation: win-row-shift 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* Pop animation for the newest card (leftmost) */
 @keyframes win-card-pop {
   0% {
-    transform: scale(0) translateY(10px);
+    transform: scale(0);
     opacity: 0;
   }
-  40% {
-    transform: scale(1.08) translateY(-2px);
+  50% {
+    transform: scale(1.1);
     opacity: 1;
   }
-  70% {
-    transform: scale(0.96) translateY(1px);
+  75% {
+    transform: scale(0.95);
   }
   100% {
-    transform: scale(1) translateY(0);
+    transform: scale(1);
     opacity: 1;
   }
 }
