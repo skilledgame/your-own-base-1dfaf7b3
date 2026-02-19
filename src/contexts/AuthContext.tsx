@@ -11,6 +11,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase, clearAuthStorage } from '@/integrations/supabase/client';
+import { clearEmailMfaVerified } from '@/lib/mfaStorage';
 
 export type AppRole = 'admin' | 'moderator' | 'user';
 
@@ -108,6 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       roleFetched.current = false;
       setLastAuthEvent('SIGNED_OUT');
       
+      // Clear email 2FA verification so user must re-verify on next login
+      clearEmailMfaVerified();
+      
       await supabase.auth.signOut({ scope: 'local' });
     } catch {
       // Sign out error - state already cleared
@@ -126,6 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       roleFetched.current = false;
       bootstrapComplete.current = false;
       signOutInProgress.current = false;
+      
+      // Clear email 2FA verification
+      clearEmailMfaVerified();
       
       await supabase.auth.signOut({ scope: 'local' });
       clearAuthStorage();

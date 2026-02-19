@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { cn } from '@/lib/utils';
+import { isEmailMfaVerified, setEmailMfaVerified } from '@/lib/mfaStorage';
 
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email address');
@@ -79,16 +80,16 @@ export default function Auth() {
         return;
       }
 
-      // Check email 2FA status FIRST — if already verified this session,
+      // Check email 2FA status FIRST — if already verified within 30 days,
       // user is good (even if they also have TOTP enrolled).
       // Email 2FA is a valid alternative to TOTP, not an addition.
-      // Check regardless of mfa_method because a TOTP user can choose to
-      // verify via email code instead — the sessionStorage flag proves they did.
+      // Uses localStorage with 30-day TTL so users stay signed in across
+      // browser restarts without being forced to re-verify.
       const mfaMethod = session.user.user_metadata?.mfa_method;
-      const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
+      const emailMfaVerified = isEmailMfaVerified();
 
       if (emailMfaVerified) {
-        // Email 2FA already verified this session — go home
+        // Email 2FA verified within 30 days — go home
         navigate('/');
         return;
       }
@@ -301,7 +302,7 @@ export default function Auth() {
       await supabase.auth.updateUser({
         data: { mfa_method: 'email' },
       });
-      sessionStorage.setItem('email_2fa_verified', 'true');
+      setEmailMfaVerified();
     } catch {
       // Non-critical — continue with the flow even if metadata update fails
       console.warn('Failed to auto-enable email 2FA metadata');

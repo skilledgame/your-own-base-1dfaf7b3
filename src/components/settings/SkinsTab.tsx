@@ -10,7 +10,9 @@ import { COLOR_THEMES, ANIMAL_ICONS } from '@/lib/skinConfig';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-export function SkinsTab() {
+export { AvatarTab as SkinsTab };
+
+export function AvatarTab() {
   const { user } = useAuth();
   const { skinColor, skinIcon, displayName } = useProfile();
   const [selectedColor, setSelectedColor] = useState(skinColor);
@@ -42,9 +44,9 @@ export function SkinsTab() {
         });
       }
 
-      toast.success('Skin updated!');
+      toast.success('Avatar updated!');
     } catch {
-      toast.error('Failed to update skin');
+      toast.error('Failed to update avatar');
     } finally {
       setSaving(false);
     }
@@ -60,7 +62,7 @@ export function SkinsTab() {
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg font-semibold">Your Skin</CardTitle>
+              <CardTitle className="text-lg font-semibold">Your Avatar</CardTitle>
               <CardDescription>Preview your avatar customization</CardDescription>
             </div>
           </div>
@@ -167,7 +169,7 @@ export function SkinsTab() {
               'disabled:opacity-50 disabled:cursor-not-allowed',
             )}
           >
-            {saving ? 'Saving...' : 'Save Skin'}
+            {saving ? 'Saving...' : 'Save Avatar'}
           </button>
         </div>
       )}

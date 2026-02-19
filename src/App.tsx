@@ -48,6 +48,7 @@ import { useUserDataStore } from "./stores/userDataStore";
 import { useFriendStore } from "./stores/friendStore";
 import { usePresenceStore } from "./stores/presenceStore";
 import { supabase } from "@/integrations/supabase/client";
+import { isEmailMfaVerified } from "@/lib/mfaStorage";
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -116,14 +117,14 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
 
     const checkMFA = async () => {
       try {
-        // Check email-based 2FA first — if verified this session, user is good
+        // Check email-based 2FA first — if verified within the last 30 days, user is good
         // (even if they also have TOTP enrolled, email 2FA is a valid alternative).
-        // Check regardless of mfa_method because a TOTP user can choose to verify
-        // via email code instead — the sessionStorage flag proves they did.
-        const emailMfaVerified = sessionStorage.getItem('email_2fa_verified') === 'true';
+        // Uses localStorage with a 30-day TTL so users aren't forced to re-verify
+        // every time they reopen the browser.
+        const emailMfaVerified = isEmailMfaVerified();
 
         if (emailMfaVerified) {
-          // Email 2FA already verified this session — allow through
+          // Email 2FA verified within 30 days — allow through
           setMfaChecked(true);
           return;
         }

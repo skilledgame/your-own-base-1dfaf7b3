@@ -18,16 +18,16 @@ import skilledLogo from '@/assets/skilled-logo.png';
 import { AccountTab } from '@/components/settings/AccountTab';
 import { SecurityTab } from '@/components/settings/SecurityTab';
 import { PreferencesTab } from '@/components/settings/PreferencesTab';
-import { SkinsTab } from '@/components/settings/SkinsTab';
+import { AvatarTab } from '@/components/settings/SkinsTab';
 import { APITab } from '@/components/settings/APITab';
 import { VerificationTab } from '@/components/settings/VerificationTab';
 import { OffersTab } from '@/components/settings/OffersTab';
 
-type SettingsTabType = 'account' | 'skins' | 'security' | 'preferences' | 'api' | 'verification' | 'offers';
+type SettingsTabType = 'account' | 'avatar' | 'security' | 'preferences' | 'api' | 'verification' | 'offers';
 
 const TABS: { id: SettingsTabType; label: string }[] = [
   { id: 'account', label: 'Account' },
-  { id: 'skins', label: 'Skins' },
+  { id: 'avatar', label: 'Avatar' },
   { id: 'security', label: 'Security' },
   { id: 'preferences', label: 'Preferences' },
   { id: 'api', label: 'API' },
@@ -58,9 +58,9 @@ export default function Settings() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'account':
-        return <AccountTab />;
-      case 'skins':
-        return <SkinsTab />;
+        return <AccountTab onNavigateToAvatar={() => setActiveTab('avatar')} />;
+      case 'avatar':
+        return <AvatarTab />;
       case 'security':
         return <SecurityTab />;
       case 'preferences':
