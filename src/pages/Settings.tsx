@@ -1,14 +1,15 @@
 /**
- * Settings Page - Grouped sidebar with Account & Payments sections
+ * Settings Page - Collapsible sidebar with Account & Payments sections
  */
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, X } from 'lucide-react';
+import { Settings as SettingsIcon, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 
 // Tab Components
 import { ProfileTab } from '@/components/settings/ProfileTab';
@@ -23,13 +24,17 @@ type SettingsTabType =
   | 'profile' | 'password' | 'mfa' | 'devices' | 'avatar'
   | 'subscriptions' | 'billing';
 
+type SectionKey = 'account' | 'payments';
+
 interface SidebarSection {
+  key: SectionKey;
   label: string;
   tabs: { id: SettingsTabType; label: string }[];
 }
 
 const SECTIONS: SidebarSection[] = [
   {
+    key: 'account',
     label: 'Account',
     tabs: [
       { id: 'profile', label: 'Profile' },
@@ -39,6 +44,7 @@ const SECTIONS: SidebarSection[] = [
     ],
   },
   {
+    key: 'payments',
     label: 'Payments',
     tabs: [
       { id: 'subscriptions', label: 'Subscriptions' },
@@ -47,11 +53,22 @@ const SECTIONS: SidebarSection[] = [
   },
 ];
 
+// Helper: find which section a tab belongs to
+function getSectionForTab(tabId: SettingsTabType): SectionKey {
+  for (const section of SECTIONS) {
+    if (section.tabs.some(t => t.id === tabId)) return section.key;
+  }
+  return 'account';
+}
+
 export default function Settings() {
   const navigate = useNavigate();
   const { isAuthenticated, isAuthReady } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTabType>('profile');
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<SectionKey>>(
+    new Set(['account']),
+  );
 
   useEffect(() => {
     if (isAuthReady && !isAuthenticated) {
@@ -66,6 +83,28 @@ export default function Settings() {
       </div>
     );
   }
+
+  const toggleSection = (key: SectionKey) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const handleTabClick = (tabId: SettingsTabType) => {
+    setActiveTab(tabId);
+    // Auto-expand the section this tab belongs to
+    const section = getSectionForTab(tabId);
+    setExpandedSections(prev => {
+      if (prev.has(section)) return prev;
+      return new Set(prev).add(section);
+    });
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -121,37 +160,63 @@ export default function Settings() {
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar with grouped sections */}
+          {/* Sidebar — collapsible sections */}
           <nav className="md:w-56 shrink-0">
             <div className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-              {/* On mobile: flat list. On desktop: grouped with section headers */}
-              {SECTIONS.map((section, sectionIdx) => (
-                <div key={section.label} className="contents md:block">
-                  {/* Section header (desktop only) */}
-                  {sectionIdx > 0 && (
-                    <div className="hidden md:block h-px bg-border my-2" />
-                  )}
-                  <p className="hidden md:block px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                    {section.label}
-                  </p>
-                  {section.tabs.map((tab) => (
+              {SECTIONS.map((section) => {
+                const isExpanded = expandedSections.has(section.key);
+                const sectionHasActiveTab = section.tabs.some(t => t.id === activeTab);
+
+                return (
+                  <div key={section.key} className="contents md:block">
+                    {/* Section toggle button */}
                     <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`
-                        relative px-4 py-2.5 text-left font-medium rounded-lg
-                        transition-all duration-200 whitespace-nowrap
-                        ${activeTab === tab.id
-                          ? 'bg-accent/10 text-accent border-l-2 md:border-l-2 border-b-2 md:border-b-0 border-accent'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                        }
-                      `}
+                      onClick={() => toggleSection(section.key)}
+                      className={cn(
+                        'w-full flex items-center justify-between px-4 py-2.5 rounded-lg transition-all duration-200',
+                        'font-semibold text-sm',
+                        sectionHasActiveTab && !isExpanded
+                          ? 'bg-accent/10 text-accent'
+                          : 'text-foreground hover:bg-muted/50',
+                      )}
                     >
-                      {tab.label}
+                      {section.label}
+                      <ChevronDown
+                        className={cn(
+                          'w-4 h-4 text-muted-foreground transition-transform duration-200',
+                          isExpanded && 'rotate-180',
+                        )}
+                      />
                     </button>
-                  ))}
-                </div>
-              ))}
+
+                    {/* Collapsible sub-tabs */}
+                    <div
+                      className={cn(
+                        'overflow-hidden transition-all duration-200',
+                        isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
+                      )}
+                    >
+                      <div className="flex md:flex-col gap-0.5 pl-3 mt-0.5 mb-2">
+                        {section.tabs.map((tab) => (
+                          <button
+                            key={tab.id}
+                            onClick={() => handleTabClick(tab.id)}
+                            className={cn(
+                              'relative px-4 py-2 text-left text-sm font-medium rounded-lg',
+                              'transition-all duration-200 whitespace-nowrap',
+                              activeTab === tab.id
+                                ? 'bg-accent/10 text-accent border-l-2 border-accent'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                            )}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </nav>
 
