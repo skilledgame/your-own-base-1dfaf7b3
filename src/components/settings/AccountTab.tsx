@@ -35,12 +35,24 @@ import { clearEmailMfaVerified } from '@/lib/mfaStorage';
 function getRankBorderClass(tierName: string): string {
   switch (tierName) {
     case 'goat': return 'border-purple-500/60';
-    case 'diamond': return 'border-sky-400/60';
-    case 'platinum': return 'border-teal-300/60';
+    case 'diamond': return 'border-blue-500/70';
+    case 'platinum': return 'border-sky-400/60';
     case 'gold': return 'border-yellow-500/60';
-    case 'silver': return 'border-gray-400/60';
+    case 'silver': return 'border-slate-400/60';
     case 'bronze': return 'border-amber-700/60';
     default: return 'border-border';
+  }
+}
+
+function getRankGradientClass(tierName: string): string {
+  switch (tierName) {
+    case 'goat': return 'from-purple-400 to-violet-600';
+    case 'diamond': return 'from-blue-400 to-blue-600';
+    case 'platinum': return 'from-sky-300 to-sky-500';
+    case 'gold': return 'from-yellow-400 to-amber-500';
+    case 'silver': return 'from-slate-300 to-slate-400';
+    case 'bronze': return 'from-orange-600 to-orange-800';
+    default: return 'from-gray-500 to-gray-600';
   }
 }
 import {
@@ -445,7 +457,11 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
 
       {/* ─── Profile Card ─────────────────────────────────────── */}
       <Card className={cn("border-2 bg-card overflow-hidden", getRankBorderClass(rankInfo.tierName))}>
-        <CardContent className="pt-6 pb-6">
+        {/* Rank gradient bar */}
+        <div className={cn("h-2 bg-gradient-to-r", getRankGradientClass(rankInfo.tierName))} />
+
+        <CardContent className="pt-6 pb-6 space-y-5">
+          {/* Avatar + Name row */}
           <div className="flex items-center gap-5">
             {/* Avatar with hover overlay */}
             <button
@@ -487,91 +503,36 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* ─── Email Section ────────────────────────────────────── */}
-      <Card className="border-border bg-card">
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Mail className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg font-semibold">Email</CardTitle>
+          <Separator className="bg-border" />
+
+          {/* Email row */}
+          <div className="flex items-center gap-5">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3">
+                <p className="text-base font-medium truncate">{user?.email || 'No email'}</p>
                 {emailVerified ? (
-                  <Badge className="bg-accent/20 text-accent border-accent/30 hover:bg-accent/20">
-                    <Check className="w-3 h-3 mr-1" />
+                  <Badge className="bg-accent/20 text-accent border-accent/30 hover:bg-accent/20 text-[10px] px-1.5 py-0.5">
+                    <Check className="w-3 h-3 mr-0.5" />
                     Verified
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
+                  <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30 text-[10px] px-1.5 py-0.5">
                     Unverified
                   </Badge>
                 )}
-              </div>
-              <CardDescription>Manage your email address</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Current Email</label>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input value={user?.email || ''} disabled className="pl-10 bg-muted/50 border-border text-foreground" />
-              </div>
-            </div>
-          </div>
-
-          {isEditingEmail ? (
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-muted-foreground mb-2 block">New Email Address</label>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="Enter new email"
-                      type="email"
-                      className="pl-10 bg-muted/50 border-border text-foreground"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2">
                 <Button
-                  onClick={handleChangeEmail}
-                  disabled={savingEmail || !newEmail}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => { setNewEmail(''); setIsEditingEmail(true); }}
+                  className="text-muted-foreground hover:text-foreground h-8 w-8"
                 >
-                  {savingEmail && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Save Email
-                </Button>
-                <Button variant="outline" onClick={() => { setIsEditingEmail(false); setNewEmail(''); }} className="border-border hover:bg-muted">
-                  Cancel
+                  <Edit2 className="w-4 h-4" />
                 </Button>
               </div>
+              <p className="text-sm text-muted-foreground mt-0.5">Email Address</p>
             </div>
-          ) : (
-            <Button variant="outline" onClick={() => setIsEditingEmail(true)} className="border-border hover:bg-muted">
-              <Edit2 className="w-4 h-4 mr-2" />
-              Change Email
-            </Button>
-          )}
-
-          {!emailVerified && (
-            <Button
-              className="bg-accent hover:bg-accent/90 text-accent-foreground"
-              onClick={() => toast.info('Verification email sent!')}
-            >
-              Confirm Email
-            </Button>
-          )}
+          </div>
         </CardContent>
       </Card>
 
@@ -916,6 +877,56 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
             >
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Edit Email Dialog ────────────────────────────────── */}
+      <Dialog open={isEditingEmail} onOpenChange={(open) => { if (!open) { setIsEditingEmail(false); setNewEmail(''); } }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-primary" />
+              Change Email
+            </DialogTitle>
+            <DialogDescription>
+              Enter your new email address. A confirmation link will be sent to verify the change.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block">Current Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input value={user?.email || ''} disabled className="pl-10 bg-muted/50 border-border text-foreground" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block">New Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Enter new email"
+                  type="email"
+                  className="pl-10 bg-muted/50 border-border text-foreground"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsEditingEmail(false); setNewEmail(''); }} disabled={savingEmail} className="border-border hover:bg-muted">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleChangeEmail}
+              disabled={savingEmail || !newEmail}
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              {savingEmail && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Email
             </Button>
           </DialogFooter>
         </DialogContent>
