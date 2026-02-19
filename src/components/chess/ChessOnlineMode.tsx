@@ -28,14 +28,14 @@ import {
   Loader2,
   Users,
   X,
-  Zap,
-  Target,
-  Crown,
   Wallet,
   LogIn,
   Shield,
   Search
 } from 'lucide-react';
+import coins100 from '@/assets/coins-100.png';
+import coins500 from '@/assets/coins-500.png';
+import coins1000 from '@/assets/coins-1000.png';
 
 interface ChessOnlineModeProps {
   onBack: () => void;
@@ -46,7 +46,7 @@ const WAGER_OPTIONS = [
     amount: 100,
     label: 'Tier I',
     prize: 190,
-    icon: Target,
+    image: coins100,
     color: 'from-blue-500 to-blue-600',
     glowColor: 'rgba(59, 130, 246, 0.4)'
   },
@@ -54,7 +54,7 @@ const WAGER_OPTIONS = [
     amount: 500,
     label: 'Tier II',
     prize: 950,
-    icon: Zap,
+    image: coins500,
     color: 'from-purple-500 to-purple-600',
     glowColor: 'rgba(147, 51, 234, 0.4)',
     popular: true
@@ -63,7 +63,7 @@ const WAGER_OPTIONS = [
     amount: 1000,
     label: 'Tier III',
     prize: 1900,
-    icon: Crown,
+    image: coins1000,
     color: 'from-yellow-500 to-orange-500',
     glowColor: 'rgba(245, 158, 11, 0.4)'
   }
@@ -344,7 +344,6 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                   {/* Wager Cards */}
                   <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 max-w-4xl w-full mb-8">
                     {WAGER_OPTIONS.map((option) => {
-                      const Icon = option.icon;
                       const isHovered = hoveredOption === option.amount;
                       const isSelected = selectedOption === option.amount;
                       const canAfford = balance >= option.amount;
@@ -383,8 +382,8 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                             }}
                           >
                             {/* Icon */}
-                            <div className={`w-14 h-14 mx-auto mb-4 rounded-xl bg-gradient-to-br ${option.color} flex items-center justify-center`}>
-                              <Icon className="w-7 h-7 text-white" />
+                            <div className="w-14 h-14 mx-auto mb-4 rounded-xl overflow-hidden">
+                              <img src={option.image} alt={option.label} className="w-full h-full object-cover" />
                             </div>
 
                             {/* Label */}
