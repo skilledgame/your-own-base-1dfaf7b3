@@ -11,15 +11,14 @@ interface Win {
   timestamp: Date;
   gradientFrom: string;
   gradientTo: string;
-  isNew?: boolean;
 }
 
 export const LiveWins = () => {
   const [wins, setWins] = useState<Win[]>([]);
   const [loading, setLoading] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const lastFetchRef = useRef<number>(0);
   const isFetchingRef = useRef<boolean>(false);
-  const previousWinIdsRef = useRef<Set<string>>(new Set());
 
   // Fetch recent finished games using FK joins for accurate player names
   const fetchRecentWins = useCallback(async () => {
@@ -32,7 +31,7 @@ export const LiveWins = () => {
     lastFetchRef.current = now;
 
     try {
-      // Use Supabase FK join: games.winner_id -> players.id -> players.user_id -> profiles.user_id
+      // Use Supabase FK join: games.winner_id -> players.id
       const { data: games, error } = await supabase
         .from('games')
         .select(`
@@ -87,8 +86,6 @@ export const LiveWins = () => {
         }
       }
 
-      const isInitialLoad = previousWinIdsRef.current.size === 0;
-
       const recentWins: Win[] = games.map((game: any) => {
         const winner = game.winner;
         // Priority: profile display_name > player name > 'Player'
@@ -102,21 +99,17 @@ export const LiveWins = () => {
         return {
           id: game.id,
           playerName: displayName,
-          amount: game.wager * 2, // Winner takes the full pot (both wagers)
+          amount: Math.floor(game.wager * 1.9), // Winner payout after 5% fee
           game: 'Chess',
           gameIcon: '♟️',
           timestamp: new Date(timestampSource),
           gradientFrom: '#5B3E99',
           gradientTo: '#3d2766',
-          isNew: !isInitialLoad && !previousWinIdsRef.current.has(game.id),
         };
       });
 
       // Sort by timestamp (newest first = leftmost)
       const sortedWins = recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-      // Update the previous IDs ref
-      previousWinIdsRef.current = new Set(sortedWins.map(w => w.id));
 
       setWins(sortedWins);
     } catch (err) {
@@ -140,14 +133,49 @@ export const LiveWins = () => {
     return () => clearInterval(interval);
   }, [fetchRecentWins]);
 
-  // Clear "isNew" flag after the pop animation completes
+  // Auto-scroll animation: slides left-to-right in a continuous loop
   useEffect(() => {
-    if (wins.some(w => w.isNew)) {
-      const timer = setTimeout(() => {
-        setWins(prev => prev.map(w => ({ ...w, isNew: false })));
-      }, 600);
-      return () => clearTimeout(timer);
-    }
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer || wins.length === 0) return;
+
+    let animationId: number;
+    const scrollSpeed = 0.5;
+
+    // Calculate the width of one set of wins for seamless looping
+    const singleSetWidth = scrollContainer.scrollWidth / 2;
+
+    // Start scrolled to the end of the first set so we can scroll leftward (visually right)
+    let scrollPosition = singleSetWidth;
+    scrollContainer.scrollLeft = scrollPosition;
+
+    const animate = () => {
+      scrollPosition -= scrollSpeed; // Decrease scrollLeft = items move right visually
+
+      // When we've scrolled past the beginning, jump back to the duplicate set
+      if (scrollPosition <= 0) {
+        scrollPosition += singleSetWidth;
+      }
+
+      scrollContainer.scrollLeft = scrollPosition;
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
+
+    // Pause on hover
+    const handleMouseEnter = () => cancelAnimationFrame(animationId);
+    const handleMouseLeave = () => {
+      animationId = requestAnimationFrame(animate);
+    };
+
+    scrollContainer.addEventListener('mouseenter', handleMouseEnter);
+    scrollContainer.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
+      scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
+    };
   }, [wins]);
 
   if (!loading && wins.length === 0) {
@@ -172,16 +200,15 @@ export const LiveWins = () => {
           </div>
         ) : (
           <div
+            ref={scrollRef}
             className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
+            style={{ scrollBehavior: 'auto' }}
           >
-            {/* Newest win is first (leftmost). New wins pop in, pushing older ones right. */}
-            {wins.map((win) => (
+            {/* Render wins twice for seamless infinite scrolling. Newest first (leftmost). */}
+            {[...wins, ...wins].map((win, index) => (
               <div
-                key={win.id}
+                key={`${win.id}-${index}`}
                 className="flex-shrink-0 w-[140px] group cursor-pointer"
-                style={{
-                  animation: win.isNew ? 'pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : undefined,
-                }}
               >
                 {/* Game Card */}
                 <div
