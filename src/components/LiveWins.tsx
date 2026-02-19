@@ -1,9 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Coins, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getRankFromTotalWagered } from '@/lib/rankSystem';
 import coins100 from '@/assets/coins-100.png';
 import coins500 from '@/assets/coins-500.png';
 import coins1000 from '@/assets/coins-1000.png';
+
+const RANK_BORDER_COLORS: Record<string, string> = {
+  unranked: 'border-gray-500/40',
+  bronze: 'border-orange-500/70',
+  silver: 'border-slate-300/70',
+  gold: 'border-yellow-400/80',
+  platinum: 'border-sky-400/80',
+  diamond: 'border-blue-400/80',
+  goat: 'border-purple-400/80',
+};
 
 interface Win {
   id: string;
@@ -12,6 +23,7 @@ interface Win {
   wager: number;
   game: string;
   tierImage: string;
+  rank: string;
   timestamp: Date;
 }
 
@@ -58,10 +70,12 @@ export const LiveWins = () => {
       }
 
       const userIds = [...new Set(Array.from(playerMap.values()).map(p => p.user_id).filter(Boolean))] as string[];
-      const profileMap = new Map<string, string>();
+      const profileMap = new Map<string, { displayName: string | null; totalWagered: number }>();
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('user_id, display_name').in('user_id', userIds);
-        if (profiles) for (const p of profiles) { if (p.display_name) profileMap.set(p.user_id, p.display_name); }
+        const { data: profiles } = await supabase.from('profiles').select('user_id, display_name, total_wagered_sc').in('user_id', userIds);
+        if (profiles) for (const p of profiles) {
+          profileMap.set(p.user_id, { displayName: p.display_name, totalWagered: p.total_wagered_sc ?? 0 });
+        }
       }
 
       const getTierImage = (wager: number) => {
@@ -72,12 +86,14 @@ export const LiveWins = () => {
 
       const recentWins: Win[] = games.map((game) => {
         const player = game.winner_id ? playerMap.get(game.winner_id) : null;
-        const displayName = (player?.user_id && profileMap.get(player.user_id)) || player?.name || 'Player';
+        const profile = player?.user_id ? profileMap.get(player.user_id) : null;
+        const displayName = profile?.displayName || player?.name || 'Player';
+        const rank = getRankFromTotalWagered(profile?.totalWagered ?? 0).tierName;
         const ts = game.settled_at || game.updated_at || game.created_at;
         return {
           id: game.id, playerName: displayName, amount: Math.floor(game.wager * 1.9),
           wager: game.wager, game: 'Chess', tierImage: getTierImage(game.wager),
-          timestamp: new Date(ts),
+          rank, timestamp: new Date(ts),
         };
       });
 
@@ -162,13 +178,13 @@ export const LiveWins = () => {
                   key={`${win.id}-${index}`}
                   className={`flex-shrink-0 w-[140px] group cursor-pointer${!isFirstRender && index === 0 ? ' win-card-pop' : ''}`}
                 >
-                  <div className="relative h-[140px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
+                  <div className={`relative aspect-square rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105 border-2 ${RANK_BORDER_COLORS[win.rank] || RANK_BORDER_COLORS.unranked}`}>
                     <img
                       src={win.tierImage}
                       alt={`${win.wager} SC Chess`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover scale-125"
                     />
-                    <span className="absolute top-2 left-2 text-[10px] text-white/90 font-bold uppercase tracking-wider drop-shadow-lg">
+                    <span className="absolute top-1.5 left-2 text-[10px] text-white/90 font-bold uppercase tracking-wider drop-shadow-lg">
                       Chess
                     </span>
                   </div>
