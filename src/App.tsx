@@ -49,6 +49,8 @@ import { useFriendStore } from "./stores/friendStore";
 import { usePresenceStore } from "./stores/presenceStore";
 import { supabase } from "@/integrations/supabase/client";
 import { isMfaVerified, setMfaVerified } from "@/lib/mfaStorage";
+import { LanguageProvider, stripLangPrefix } from "@/contexts/LanguageContext";
+import React from "react";
 
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
@@ -126,9 +128,9 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
 
     const checkMFA = async () => {
       try {
-        // Don't check MFA if already on auth page or public pages
         const publicPaths = ['/auth', '/terms', '/privacy', '/how-it-works'];
-        if (publicPaths.includes(location.pathname)) {
+        const strippedPath = stripLangPrefix(location.pathname);
+        if (publicPaths.includes(strippedPath)) {
           setMfaChecked(true);
           return;
         }
@@ -199,6 +201,45 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const LANG_PREFIXES = ['', '/es', '/hi'];
+
+function generateRoutes(prefix: string) {
+  return (
+    <React.Fragment key={prefix || 'en'}>
+      <Route path={`${prefix}/`} element={<Index />} />
+      <Route path={`${prefix}/how-it-works`} element={<HowItWorks />} />
+      <Route path={`${prefix}/auth`} element={<Auth />} />
+      <Route path={`${prefix}/deposit`} element={<Deposit />} />
+      <Route path={`${prefix}/withdraw`} element={<Withdraw />} />
+      <Route path={`${prefix}/games/:gameSlug`} element={<GameStart />} />
+      <Route path={`${prefix}/chess-lobby`} element={<ChessLobby />} />
+      <Route path={`${prefix}/chess`} element={<ChessHome />} />
+      <Route path={`${prefix}/terms`} element={<TermsAndConditions />} />
+      <Route path={`${prefix}/privacy`} element={<PrivacyPolicy />} />
+      <Route path={`${prefix}/stats`} element={<Stats />} />
+      <Route path={`${prefix}/settings`} element={<Settings />} />
+      <Route path={`${prefix}/compete`} element={<Compete />} />
+      <Route path={`${prefix}/search`} element={<Search />} />
+      <Route path={`${prefix}/leaderboard`} element={<Leaderboard />} />
+      <Route path={`${prefix}/game-history`} element={<GameHistory />} />
+      <Route path={`${prefix}/game/replay/:gameId`} element={<GameReplay />} />
+      <Route path={`${prefix}/admin`} element={<Admin />} />
+      <Route path={`${prefix}/game/lobby/:roomId`} element={<PrivateGameLobby />} />
+      <Route path={`${prefix}/game/live/:gameId`} element={
+        <GameErrorBoundary>
+          <LiveGame />
+        </GameErrorBoundary>
+      } />
+      <Route path={`${prefix}/affiliate`} element={<Affiliate />} />
+      <Route path={`${prefix}/vip`} element={<VIP />} />
+      <Route path={`${prefix}/friends`} element={<Friends />} />
+      <Route path={`${prefix}/clan`} element={<Clan />} />
+      <Route path={`${prefix}/clan/leaderboard`} element={<ClanLeaderboard />} />
+      <Route path={`${prefix}/game/spectate/:targetUserId`} element={<SpectateGame />} />
+    </React.Fragment>
+  );
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -209,51 +250,20 @@ const App = () => (
             <Sonner />
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
               <BrowserRouter>
-                <ScrollToTop />
-                <AppWithAuth>
-                  <ErrorBoundary>
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                      <Route path="/how-it-works" element={<HowItWorks />} />
-                      <Route path="/auth" element={<Auth />} />
-                      <Route path="/deposit" element={<Deposit />} />
-                      <Route path="/withdraw" element={<Withdraw />} />
-                      <Route path="/games/:gameSlug" element={<GameStart />} />
-                      <Route path="/chess-lobby" element={<ChessLobby />} />
-                      <Route path="/chess" element={<ChessHome />} />
-                      <Route path="/terms" element={<TermsAndConditions />} />
-                      <Route path="/privacy" element={<PrivacyPolicy />} />
-                      <Route path="/stats" element={<Stats />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/compete" element={<Compete />} />
-                      <Route path="/search" element={<Search />} />
-                      <Route path="/leaderboard" element={<Leaderboard />} />
-                      <Route path="/game-history" element={<GameHistory />} />
-                      <Route path="/game/replay/:gameId" element={<GameReplay />} />
-                      <Route path="/admin" element={<Admin />} />
-                      <Route path="/game/lobby/:roomId" element={<PrivateGameLobby />} />
-                      <Route path="/game/live/:gameId" element={
-                        <GameErrorBoundary>
-                          <LiveGame />
-                        </GameErrorBoundary>
-                      } />
-                      <Route path="/affiliate" element={<Affiliate />} />
-                      <Route path="/vip" element={<VIP />} />
-                      <Route path="/friends" element={<Friends />} />
-                      <Route path="/clan" element={<Clan />} />
-                      <Route path="/clan/leaderboard" element={<ClanLeaderboard />} />
-                      <Route path="/game/spectate/:targetUserId" element={<SpectateGame />} />
-                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </ErrorBoundary>
-                  {/* Wallet Modal - renders at root level */}
-                  <WalletModal />
-                  {/* Debug panel - only visible with ?debug=1 or in dev */}
-                  <AuthDebugPanel />
-                </AppWithAuth>
-                {/* Global loading overlay — OUTSIDE AppWithAuth so it renders during auth loading */}
-                <FullScreenLoaderOverlay />
+                <LanguageProvider>
+                  <ScrollToTop />
+                  <AppWithAuth>
+                    <ErrorBoundary>
+                      <Routes>
+                        {LANG_PREFIXES.map(prefix => generateRoutes(prefix))}
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </ErrorBoundary>
+                    <WalletModal />
+                    <AuthDebugPanel />
+                  </AppWithAuth>
+                  <FullScreenLoaderOverlay />
+                </LanguageProvider>
               </BrowserRouter>
             </ThemeProvider>
           </TooltipProvider>

@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
 import { useWalletModal } from '@/contexts/WalletModalContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import skilledLogo from '@/assets/skilled-logo.png';
 import { LogoLink } from './LogoLink';
 import { GameCategory } from './GameCategory';
@@ -98,6 +99,7 @@ export const LandingPage = ({
     return true;
   });
   const navigate = useNavigate();
+  const { t, localePath } = useLanguage();
   
   // Use centralized auth context (no duplicate listeners!)
   const { user, isAuthenticated, isPrivileged } = useAuth();
@@ -138,9 +140,8 @@ export const LandingPage = ({
   };
 
   const handleGameClick = (gameName: string) => {
-    // Chess has its own dedicated game mode selection page
     if (gameName === 'Chess') {
-      navigate('/chess');
+      navigate(localePath('/chess'));
       return;
     }
     
@@ -161,7 +162,7 @@ export const LandingPage = ({
       'Typing Race': 'typing-race'
     };
     const slug = slugMap[gameName] || gameName.toLowerCase().replace(/\s+/g, '-');
-    navigate(`/games/${slug}`);
+    navigate(localePath(`/games/${slug}`));
   };
 
   return (
@@ -217,15 +218,15 @@ export const LandingPage = ({
                 <>
                   {isPrivileged && (
                     <Button variant="ghost" size="sm" asChild className="hidden sm:flex text-purple-400 hover:text-purple-300 hover:bg-purple-500/10">
-                      <Link to="/admin">
+                      <Link to={localePath("/admin")}>
                         <Shield className="w-4 h-4 mr-1" />
-                        Admin
+                        {t('common.admin')}
                       </Link>
                     </Button>
                   )}
                   {/* Search icon */}
                   <Button variant="ghost" size="icon" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
-                    <Link to="/search">
+                    <Link to={localePath("/search")}>
                       <Search className="w-5 h-5" />
                     </Link>
                   </Button>
@@ -247,15 +248,15 @@ export const LandingPage = ({
               ) : (
                 <>
                   <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
-                    <Link to="/search">
+                    <Link to={localePath("/search")}>
                       <Search className="w-5 h-5" />
                     </Link>
                   </Button>
                   <Button variant="ghost" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
-                    <Link to="/auth">Sign In</Link>
+                    <Link to={localePath("/auth")}>{t('common.sign_in')}</Link>
                   </Button>
                   <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
-                    <Link to="/auth">Get Started</Link>
+                    <Link to={localePath("/auth")}>{t('common.get_started')}</Link>
                   </Button>
                 </>
               )}
@@ -288,30 +289,30 @@ export const LandingPage = ({
                 {/* Left Content */}
                 <div className="flex-1 text-center lg:text-left">
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-white leading-tight">
-                    Win Real Money
+                    {t('hero.title1')}
                     <br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                      With Your Skills
+                      {t('hero.title2')}
                     </span>
                   </h1>
 
                   <p className="text-lg text-slate-400 max-w-md mb-8">
-                    Not gambling. Beat real opponents in skill-based games and cash out your winnings. Your skill = your earnings.
+                    {t('hero.description')}
                   </p>
 
                   {/* CTA Buttons */}
                   <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4">
                     <Button 
                       size="lg" 
-                      onClick={() => navigate('/auth')} 
+                      onClick={() => navigate(localePath('/auth'))} 
                       className="h-14 px-8 text-lg font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-full shadow-lg shadow-emerald-500/25 transition-all"
                     >
-                      Register
+                      {t('hero.register')}
                       <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>
                     
                     <div className="flex items-center gap-3">
-                      <span className="text-slate-500 text-sm">Or</span>
+                      <span className="text-slate-500 text-sm">{t('hero.or')}</span>
                       <div className="flex items-center gap-2 bg-slate-800/80 rounded-full p-1.5 border border-slate-700">
                         <button 
                           onClick={async () => {
@@ -338,7 +339,7 @@ export const LandingPage = ({
                 {/* Right - Chess Game Card with tilt effect */}
                 <div className="flex-shrink-0 relative">
                   <div 
-                    onClick={() => navigate('/chess')} 
+                    onClick={() => navigate(localePath('/chess'))} 
                     className="relative cursor-pointer group"
                     style={{ transform: 'perspective(1000px) rotateY(-8deg) rotateX(4deg)' }}
                   >
@@ -392,7 +393,7 @@ export const LandingPage = ({
         {/* Games Section */}
         <section id="games" className="py-12 px-0 sm:px-4">
           <div className="max-w-7xl mx-auto">
-            <GameCategory title="Skilled Originals" icon="flame" games={skilledOriginals} onGameClick={handleGameClick} />
+            <GameCategory title={t('games.skilled_originals')} icon="flame" games={skilledOriginals} onGameClick={handleGameClick} />
           </div>
         </section>
 
@@ -413,15 +414,15 @@ export const LandingPage = ({
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <LogoLink className="h-7 opacity-70" />
             <div className="flex items-center gap-6">
-              <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Terms
+              <Link to={localePath("/terms")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                {t('footer.terms')}
               </Link>
-              <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Privacy
+              <Link to={localePath("/privacy")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                {t('footer.privacy')}
               </Link>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 Skilled. Skill-based competition only.
+              {t('footer.copyright')}
             </p>
           </div>
         </footer>
