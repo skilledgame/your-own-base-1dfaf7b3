@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Coins, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import coins100 from '@/assets/coins-100.png';
+import coins500 from '@/assets/coins-500.png';
+import coins1000 from '@/assets/coins-1000.png';
 
 interface Win {
   id: string;
   playerName: string;
   amount: number;
+  wager: number;
   game: string;
-  gameIcon: string;
+  tierImage: string;
   timestamp: Date;
   gradientFrom: string;
   gradientTo: string;
@@ -62,13 +66,20 @@ export const LiveWins = () => {
         if (profiles) for (const p of profiles) { if (p.display_name) profileMap.set(p.user_id, p.display_name); }
       }
 
+      const getTierImage = (wager: number) => {
+        if (wager >= 1000) return coins1000;
+        if (wager >= 500) return coins500;
+        return coins100;
+      };
+
       const recentWins: Win[] = games.map((game) => {
         const player = game.winner_id ? playerMap.get(game.winner_id) : null;
         const displayName = (player?.user_id && profileMap.get(player.user_id)) || player?.name || 'Player';
         const ts = game.settled_at || game.updated_at || game.created_at;
         return {
           id: game.id, playerName: displayName, amount: Math.floor(game.wager * 1.9),
-          game: 'Chess', gameIcon: '♟️', timestamp: new Date(ts),
+          wager: game.wager, game: 'Chess', tierImage: getTierImage(game.wager),
+          timestamp: new Date(ts),
           gradientFrom: '#5B3E99', gradientTo: '#3d2766',
         };
       });
@@ -160,15 +171,12 @@ export const LiveWins = () => {
                       background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})`,
                     }}
                   >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-4xl drop-shadow-lg">{win.gameIcon}</span>
-                    </div>
-                    <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
-                      <span className="text-white/90 text-xs font-bold uppercase tracking-wider drop-shadow">
-                        {win.game}
-                      </span>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <img
+                      src={win.tierImage}
+                      alt={`${win.wager} SC Chess`}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                   </div>
 
                   <div className="mt-2 flex items-center gap-2">
