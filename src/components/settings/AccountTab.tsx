@@ -2,7 +2,7 @@
  * Account Tab - Discord-inspired layout
  * 
  * Sections (top to bottom):
- * 1. Profile card: avatar (hoverable → navigate to Avatar tab) + editable display name
+ * 1. Profile card: avatar (hoverable → navigate to Avatar tab) + display name with edit popup
  * 2. Change Email
  * 3. Change Password
  * 4. Two-Factor Authentication (MFA)
@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Mail, User, Check, Loader2, Edit2, Save, X, Clock,
+  Mail, Check, Loader2, Edit2, Save, X, Clock,
   AlertTriangle, Lock, Shield, Smartphone, Eye, EyeOff, Pencil,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,6 +28,14 @@ import { z } from 'zod';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { MFAEnroll } from '@/components/MFAEnroll';
 import { clearEmailMfaVerified } from '@/lib/mfaStorage';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,15 +72,19 @@ interface MFAFactor {
 
 // ═══════════════════════════════════════════════════════════════
 export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { skinColor, skinIcon } = useProfile();
 
   // ── Display Name state ──────────────────────────────────────
   const [displayName, setDisplayName] = useState('');
   const [originalName, setOriginalName] = useState('');
-  const [isEditingName, setIsEditingName] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  // ── Edit Name Dialog ────────────────────────────────────────
+  const [showEditNameDialog, setShowEditNameDialog] = useState(false);
+  const [editNameValue, setEditNameValue] = useState('');
 
   const [isChecking, setIsChecking] = useState(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
@@ -83,7 +95,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
   const [cooldownLoading, setCooldownLoading] = useState(true);
 
   const [showConfirm, setShowConfirm] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const editNameInputRef = useRef<HTMLInputElement>(null);
 
   // ── Email change state ──────────────────────────────────────
   const [isEditingEmail, setIsEditingEmail] = useState(false);
@@ -118,6 +130,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
 
   // ── Profile fetch ───────────────────────────────────────────
   const fetchProfile = async () => {
+    setProfileLoading(true);
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -129,6 +142,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
       setDisplayName(data.display_name || '');
       setOriginalName(data.display_name || '');
     }
+    setProfileLoading(false);
   };
 
   // ── Cooldown ────────────────────────────────────────────────
@@ -181,32 +195,33 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
     [user?.id, originalName]
   );
 
+  // Debounce availability check inside the edit dialog
   useEffect(() => {
-    if (!isEditingName) return;
-    const trimmed = displayName.trim();
+    if (!showEditNameDialog) return;
+    const trimmed = editNameValue.trim();
     if (!trimmed) { setIsAvailable(null); setValidationError(null); return; }
     const timer = setTimeout(() => checkAvailability(trimmed), 400);
     return () => clearTimeout(timer);
-  }, [displayName, checkAvailability, isEditingName]);
+  }, [editNameValue, checkAvailability, showEditNameDialog]);
 
-  const startEditing = () => {
-    if (!cooldownAllowed) return;
-    setIsEditingName(true);
+  const openEditNameDialog = () => {
+    setEditNameValue(originalName);
     setIsAvailable(null);
     setValidationError(null);
-    setTimeout(() => inputRef.current?.focus(), 50);
+    setShowEditNameDialog(true);
+    setTimeout(() => editNameInputRef.current?.focus(), 100);
   };
 
-  const cancelEditing = () => {
-    setIsEditingName(false);
-    setDisplayName(originalName);
+  const closeEditNameDialog = () => {
+    setShowEditNameDialog(false);
+    setEditNameValue('');
     setIsAvailable(null);
     setValidationError(null);
   };
 
   const handleSaveClick = () => {
-    const trimmed = displayName.trim();
-    if (trimmed.toLowerCase() === originalName.toLowerCase()) { setIsEditingName(false); return; }
+    const trimmed = editNameValue.trim();
+    if (trimmed.toLowerCase() === originalName.toLowerCase()) { closeEditNameDialog(); return; }
     try { usernameSchema.parse(trimmed); } catch (error) {
       if (error instanceof z.ZodError) { setValidationError(error.errors[0].message); return; }
     }
@@ -216,7 +231,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
 
   const handleConfirmedSave = async () => {
     if (!user?.id) return;
-    const trimmed = displayName.trim();
+    const trimmed = editNameValue.trim();
     setShowConfirm(false);
     setSaving(true);
 
@@ -238,8 +253,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
         setCooldownAllowed(false);
         setNextChangeAt(cooldownData.next_change_at ? new Date(cooldownData.next_change_at) : null);
         toast.error('You can only change your username once every 14 days.');
-        setIsEditingName(false);
-        setDisplayName(originalName);
+        closeEditNameDialog();
         setSaving(false);
         return;
       }
@@ -260,10 +274,11 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
         await supabase.from('players').update({ name: trimmed }).eq('user_id', user.id);
         toast.success('Username updated!');
         setOriginalName(trimmed);
-        setIsEditingName(false);
+        setDisplayName(trimmed);
         setIsAvailable(null);
         setCooldownAllowed(false);
         setNextChangeAt(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000));
+        closeEditNameDialog();
         fetchProfile();
       }
     } catch { toast.error('Failed to update username'); } finally { setSaving(false); }
@@ -390,11 +405,12 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
     return days > 0 ? `${days}d ${hours}h` : `${hours}h`;
   };
 
-  const canSave =
-    isEditingName && !saving && !isChecking && !validationError &&
-    (displayName.trim().toLowerCase() !== originalName.toLowerCase()
+  const canSaveInDialog =
+    !saving && !isChecking && !validationError &&
+    editNameValue.trim().length >= 3 &&
+    (editNameValue.trim().toLowerCase() !== originalName.toLowerCase()
       ? isAvailable === true
-      : true);
+      : false);
 
   // ═══════════════════════════════════════════════════════════
   // RENDER
@@ -402,19 +418,15 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
   return (
     <div className="space-y-6">
 
-      {/* ─── Profile Card (Discord-style) ─────────────────────── */}
+      {/* ─── Profile Card ─────────────────────────────────────── */}
       <Card className="border-border bg-card overflow-hidden">
-        {/* Banner gradient */}
-        <div className="h-24 bg-gradient-to-r from-accent/60 via-primary/40 to-accent/60" />
-
-        <div className="px-6 pb-6">
-          {/* Avatar + Name row */}
-          <div className="flex items-end gap-4 -mt-10">
+        <CardContent className="pt-6 pb-6">
+          <div className="flex items-center gap-5">
             {/* Avatar with hover overlay */}
             <button
               type="button"
               onClick={onNavigateToAvatar}
-              className="group relative flex-shrink-0 rounded-full ring-4 ring-card"
+              className="group relative flex-shrink-0 rounded-full"
               title="Edit Avatar"
             >
               <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="xl" />
@@ -424,96 +436,32 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
               </div>
             </button>
 
-            {/* Name + edit */}
-            <div className="flex-1 min-w-0 pb-1">
-              {isEditingName ? (
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      ref={inputRef}
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      disabled={saving}
-                      placeholder="Enter display name"
-                      maxLength={20}
-                      autoComplete="off"
-                      className={cn(
-                        'pr-8 border-border text-foreground text-lg font-semibold h-10',
-                        validationError && 'border-destructive focus-visible:ring-destructive',
-                        !validationError && isAvailable === true && 'border-emerald-500 focus-visible:ring-emerald-500',
-                        !validationError && isAvailable === false && 'border-destructive focus-visible:ring-destructive',
-                      )}
-                    />
-                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                      {isChecking && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-                      {!isChecking && isAvailable === true && !validationError && <Check className="w-4 h-4 text-emerald-500" />}
-                      {!isChecking && (isAvailable === false || validationError) && displayName.trim().length >= 3 && displayName.trim().toLowerCase() !== originalName.toLowerCase() && (
-                        <X className="w-4 h-4 text-destructive" />
-                      )}
-                    </div>
-                  </div>
-                  <Button size="icon" onClick={handleSaveClick} disabled={!canSave || saving} className="bg-accent hover:bg-accent/90 text-accent-foreground h-10 w-10">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  </Button>
-                  <Button size="icon" variant="outline" onClick={cancelEditing} disabled={saving} className="border-border hover:bg-muted h-10 w-10">
-                    <X className="w-4 h-4" />
-                  </Button>
+            {/* Name + edit button */}
+            <div className="flex-1 min-w-0">
+              {profileLoading ? (
+                <div className="space-y-2">
+                  <div className="h-7 w-40 rounded-md bg-muted/50 animate-pulse" />
+                  <div className="h-4 w-24 rounded-md bg-muted/30 animate-pulse" />
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold truncate">{displayName || 'Player'}</h2>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={startEditing}
-                    disabled={cooldownLoading || !cooldownAllowed}
-                    className="text-muted-foreground hover:text-foreground h-8 w-8"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                  {!cooldownLoading && !cooldownAllowed && nextChangeAt && (
-                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs">
-                      <Clock className="w-3 h-3 mr-1" />
-                      Change available in {formatCooldownRemaining()}
-                    </Badge>
-                  )}
-                </div>
+                <>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold truncate">{displayName || 'Unknown'}</h2>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={openEditNameDialog}
+                      className="text-muted-foreground hover:text-foreground h-8 w-8"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">Display Name</p>
+                </>
               )}
             </div>
           </div>
-
-          {/* Validation / availability messages */}
-          {isEditingName && validationError && (
-            <p className="text-sm text-destructive mt-2 ml-[calc(6rem+1rem)]">{validationError}</p>
-          )}
-          {isEditingName && !validationError && isAvailable === false && (
-            <p className="text-sm text-destructive font-medium mt-2 ml-[calc(6rem+1rem)]">Username is already taken</p>
-          )}
-          {isEditingName && !validationError && isAvailable === true && (
-            <p className="text-sm text-emerald-500 mt-2 ml-[calc(6rem+1rem)]">Username is available!</p>
-          )}
-
-          {/* Cooldown info */}
-          <div className="flex items-start gap-2 p-3 mt-4 rounded-lg bg-muted/30 border border-border">
-            <Clock className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs text-muted-foreground">
-                You can only change your username <span className="text-foreground font-medium">once every 14 days</span>. Choose wisely!
-              </p>
-              {!cooldownAllowed && nextChangeAt && (
-                <p className="text-xs text-amber-500 mt-1">
-                  Next change available: {nextChangeAt.toLocaleDateString('en-US', {
-                    month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-                  })}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground mt-2">
-            3-20 characters. Letters, numbers, and underscores only.
-          </p>
-        </div>
+        </CardContent>
       </Card>
 
       {/* ─── Email Section ────────────────────────────────────── */}
@@ -853,6 +801,105 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
         </CardContent>
       </Card>
 
+      {/* ─── Edit Username Dialog ─────────────────────────────── */}
+      <Dialog open={showEditNameDialog} onOpenChange={(open) => { if (!open) closeEditNameDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Username</DialogTitle>
+            <DialogDescription>
+              Enter a new display name for your account.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Input */}
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block">Display Name</label>
+              <div className="relative">
+                <Input
+                  ref={editNameInputRef}
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  disabled={saving}
+                  placeholder="Enter display name"
+                  maxLength={20}
+                  autoComplete="off"
+                  className={cn(
+                    'pr-10 border-border text-foreground',
+                    validationError && 'border-destructive focus-visible:ring-destructive',
+                    !validationError && isAvailable === true && 'border-emerald-500 focus-visible:ring-emerald-500',
+                    !validationError && isAvailable === false && 'border-destructive focus-visible:ring-destructive',
+                  )}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {isChecking && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                  {!isChecking && isAvailable === true && !validationError && <Check className="w-4 h-4 text-emerald-500" />}
+                  {!isChecking && (isAvailable === false || validationError) && editNameValue.trim().length >= 3 && editNameValue.trim().toLowerCase() !== originalName.toLowerCase() && (
+                    <X className="w-4 h-4 text-destructive" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Validation / availability messages */}
+            {validationError && (
+              <p className="text-sm text-destructive">{validationError}</p>
+            )}
+            {!validationError && isAvailable === false && (
+              <p className="text-sm text-destructive font-medium">Username is already taken</p>
+            )}
+            {!validationError && isAvailable === true && (
+              <p className="text-sm text-emerald-500">Username is available!</p>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              3-20 characters. Letters, numbers, and underscores only.
+            </p>
+
+            {/* Cooldown info */}
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+              <Clock className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  You can only change your username <span className="text-foreground font-medium">once every 14 days</span>. Choose wisely!
+                </p>
+                {!cooldownAllowed && nextChangeAt && (
+                  <p className="text-xs text-amber-500 mt-1">
+                    Next change available: {nextChangeAt.toLocaleDateString('en-US', {
+                      month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Cooldown block message */}
+            {!cooldownLoading && !cooldownAllowed && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-500 font-medium">
+                  Username change is on cooldown. Try again in {formatCooldownRemaining()}.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditNameDialog} disabled={saving} className="border-border hover:bg-muted">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveClick}
+              disabled={!canSaveInDialog || saving || (!cooldownLoading && !cooldownAllowed)}
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ─── Confirmation Dialog ──────────────────────────────── */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>
@@ -865,7 +912,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
               <span className="block">
                 You're about to change your username from{' '}
                 <span className="font-semibold text-foreground">"{originalName}"</span> to{' '}
-                <span className="font-semibold text-foreground">"{displayName.trim()}"</span>.
+                <span className="font-semibold text-foreground">"{editNameValue.trim()}"</span>.
               </span>
               <span className="block text-amber-500 font-medium">
                 You won't be able to change it again for 14 days.
