@@ -387,6 +387,10 @@ export function ChessOnlineMode({ onBack }: ChessOnlineModeProps) {
                                 src={option.image}
                                 alt={option.label}
                                 className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
+                                style={{
+                                  mask: 'radial-gradient(circle, black 55%, transparent 80%)',
+                                  WebkitMask: 'radial-gradient(circle, black 55%, transparent 80%)',
+                                }}
                               />
                             </div>
 
