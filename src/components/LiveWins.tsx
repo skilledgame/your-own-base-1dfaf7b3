@@ -162,18 +162,18 @@ export const LiveWins = () => {
                   key={`${win.id}-${index}`}
                   className={`flex-shrink-0 w-[140px] group cursor-pointer${!isFirstRender && index === 0 ? ' win-card-pop' : ''}`}
                 >
-                  <div className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
+                  <div className="relative h-[140px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
                     <img
                       src={win.tierImage}
                       alt={`${win.wager} SC Chess`}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                     />
+                    <span className="absolute top-2 left-2 text-[10px] text-white/90 font-bold uppercase tracking-wider drop-shadow-lg">
+                      Chess
+                    </span>
                   </div>
 
-                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-1 block">
-                    Chess
-                  </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 mt-1">
                     <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
                       <Coins className="w-2.5 h-2.5 text-white" />
                     </div>
