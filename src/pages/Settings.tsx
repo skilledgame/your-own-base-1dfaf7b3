@@ -1,8 +1,5 @@
 /**
- * Settings Page - Full Account Settings with Multiple Tabs
- * 
- * Tabs: Account, Avatar, Security, Preferences, Subscriptions, Billing, Verification, Offers
- * Styled uniquely for Skilled with clean dark theme and green accents
+ * Settings Page - Grouped sidebar with Account & Payments sections
  */
 
 import { useState, useEffect } from 'react';
@@ -12,35 +9,48 @@ import { Button } from '@/components/ui/button';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
 import { useAuth } from '@/contexts/AuthContext';
-import skilledLogo from '@/assets/skilled-logo.png';
 
 // Tab Components
-import { AccountTab } from '@/components/settings/AccountTab';
-import { SecurityTab } from '@/components/settings/SecurityTab';
-import { PreferencesTab } from '@/components/settings/PreferencesTab';
+import { ProfileTab } from '@/components/settings/ProfileTab';
+import { PasswordTab } from '@/components/settings/PasswordTab';
+import { MFATab } from '@/components/settings/MFATab';
+import { DevicesTab } from '@/components/settings/DevicesTab';
 import { AvatarTab } from '@/components/settings/AvatarTab';
 import { SubscriptionsTab } from '@/components/settings/SubscriptionsTab';
 import { BillingTab } from '@/components/settings/BillingTab';
-import { VerificationTab } from '@/components/settings/VerificationTab';
-import { OffersTab } from '@/components/settings/OffersTab';
 
-type SettingsTabType = 'account' | 'avatar' | 'security' | 'preferences' | 'subscriptions' | 'billing' | 'verification' | 'offers';
+type SettingsTabType =
+  | 'profile' | 'password' | 'mfa' | 'devices' | 'avatar'
+  | 'subscriptions' | 'billing';
 
-const TABS: { id: SettingsTabType; label: string }[] = [
-  { id: 'account', label: 'Account' },
-  { id: 'avatar', label: 'Avatar' },
-  { id: 'security', label: 'Security' },
-  { id: 'preferences', label: 'Preferences' },
-  { id: 'subscriptions', label: 'Subscriptions' },
-  { id: 'billing', label: 'Billing' },
-  { id: 'verification', label: 'Verification' },
-  { id: 'offers', label: 'Offers' },
+interface SidebarSection {
+  label: string;
+  tabs: { id: SettingsTabType; label: string }[];
+}
+
+const SECTIONS: SidebarSection[] = [
+  {
+    label: 'Account',
+    tabs: [
+      { id: 'profile', label: 'Profile' },
+      { id: 'password', label: 'Password' },
+      { id: 'mfa', label: 'Multi-Factor Auth' },
+      { id: 'devices', label: 'Devices' },
+    ],
+  },
+  {
+    label: 'Payments',
+    tabs: [
+      { id: 'subscriptions', label: 'Subscriptions' },
+      { id: 'billing', label: 'Billing' },
+    ],
+  },
 ];
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isAuthReady } = useAuth();
-  const [activeTab, setActiveTab] = useState<SettingsTabType>('account');
+  const { isAuthenticated, isAuthReady } = useAuth();
+  const [activeTab, setActiveTab] = useState<SettingsTabType>('profile');
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -59,24 +69,22 @@ export default function Settings() {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'account':
-        return <AccountTab onNavigateToAvatar={() => setActiveTab('avatar')} />;
+      case 'profile':
+        return <ProfileTab onNavigateToAvatar={() => setActiveTab('avatar')} />;
       case 'avatar':
         return <AvatarTab />;
-      case 'security':
-        return <SecurityTab />;
-      case 'preferences':
-        return <PreferencesTab />;
+      case 'password':
+        return <PasswordTab />;
+      case 'mfa':
+        return <MFATab />;
+      case 'devices':
+        return <DevicesTab />;
       case 'subscriptions':
         return <SubscriptionsTab />;
       case 'billing':
         return <BillingTab />;
-      case 'verification':
-        return <VerificationTab />;
-      case 'offers':
-        return <OffersTab />;
       default:
-        return <AccountTab />;
+        return <ProfileTab />;
     }
   };
 
@@ -84,10 +92,10 @@ export default function Settings() {
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       {/* Desktop Side Menu */}
       <DesktopSideMenu isOpen={sideMenuOpen} onToggle={() => setSideMenuOpen(!sideMenuOpen)} />
-      
+
       {/* Overlay for mobile */}
       {sideMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setSideMenuOpen(false)}
         />
@@ -100,8 +108,8 @@ export default function Settings() {
             <SettingsIcon className="w-5 h-5 text-muted-foreground" />
             <h1 className="text-lg font-semibold">Settings</h1>
           </div>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             onClick={() => navigate(-1)}
             className="text-muted-foreground hover:text-foreground"
@@ -113,24 +121,36 @@ export default function Settings() {
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar Tabs */}
+          {/* Sidebar with grouped sections */}
           <nav className="md:w-56 shrink-0">
             <div className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    relative px-4 py-2.5 text-left font-medium rounded-lg
-                    transition-all duration-200 whitespace-nowrap
-                    ${activeTab === tab.id
-                      ? 'bg-accent/10 text-accent border-l-2 md:border-l-2 border-b-2 md:border-b-0 border-accent'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                    }
-                  `}
-                >
-                  {tab.label}
-                </button>
+              {/* On mobile: flat list. On desktop: grouped with section headers */}
+              {SECTIONS.map((section, sectionIdx) => (
+                <div key={section.label} className="contents md:block">
+                  {/* Section header (desktop only) */}
+                  {sectionIdx > 0 && (
+                    <div className="hidden md:block h-px bg-border my-2" />
+                  )}
+                  <p className="hidden md:block px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    {section.label}
+                  </p>
+                  {section.tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`
+                        relative px-4 py-2.5 text-left font-medium rounded-lg
+                        transition-all duration-200 whitespace-nowrap
+                        ${activeTab === tab.id
+                          ? 'bg-accent/10 text-accent border-l-2 md:border-l-2 border-b-2 md:border-b-0 border-accent'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        }
+                      `}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           </nav>

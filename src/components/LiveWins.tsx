@@ -14,15 +14,18 @@ interface Win {
 }
 
 const MAX_WINS = 6;
+const CARD_WIDTH = 140; // px
+const CARD_GAP = 12; // px (gap-3)
 
 export const LiveWins = () => {
   const [wins, setWins] = useState<Win[]>([]);
+  const [displayedWins, setDisplayedWins] = useState<Win[]>([]);
   const [loading, setLoading] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const lastFetchRef = useRef<number>(0);
   const isFetchingRef = useRef<boolean>(false);
   const previousWinIdsRef = useRef<Set<string>>(new Set());
-  const [newWinId, setNewWinId] = useState<string | null>(null);
+  const initialLoadDone = useRef(false);
+  const animatingRef = useRef(false);
 
   const fetchRecentWins = useCallback(async () => {
     if (isFetchingRef.current) return;
@@ -34,7 +37,6 @@ export const LiveWins = () => {
     lastFetchRef.current = now;
 
     try {
-      // Step 1: Get the 6 most recent finished games
       const { data: games, error } = await supabase
         .from('games')
         .select('id, wager, settled_at, updated_at, created_at, winner_id')
@@ -54,9 +56,8 @@ export const LiveWins = () => {
         return;
       }
 
-      // Step 2: Get player records for all winner IDs (RLS policy now allows this)
+      // Get player records for all winner IDs
       const winnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))] as string[];
-
       const playerMap = new Map<string, { name: string | null; user_id: string | null }>();
 
       if (winnerIds.length > 0) {
@@ -72,11 +73,10 @@ export const LiveWins = () => {
         }
       }
 
-      // Step 3: Get display names from profiles (publicly readable)
+      // Get display names from profiles
       const userIds = [...new Set(
         Array.from(playerMap.values()).map(p => p.user_id).filter(Boolean)
       )] as string[];
-
       const profileMap = new Map<string, string>();
 
       if (userIds.length > 0) {
@@ -92,9 +92,6 @@ export const LiveWins = () => {
         }
       }
 
-      const isInitialLoad = previousWinIdsRef.current.size === 0;
-
-      // Step 4: Build the win objects
       const recentWins: Win[] = games.map((game) => {
         const player = game.winner_id ? playerMap.get(game.winner_id) : null;
         const displayName =
@@ -115,17 +112,7 @@ export const LiveWins = () => {
         };
       });
 
-      // Sort newest first (leftmost)
       recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-      // Detect brand-new win for pop-in animation
-      if (!isInitialLoad) {
-        const incoming = recentWins[0];
-        if (incoming && !previousWinIdsRef.current.has(incoming.id)) {
-          setNewWinId(incoming.id);
-        }
-      }
-
       previousWinIdsRef.current = new Set(recentWins.map(w => w.id));
       setWins(recentWins);
     } catch (err) {
@@ -149,48 +136,40 @@ export const LiveWins = () => {
     return () => clearInterval(interval);
   }, [fetchRecentWins]);
 
-  // Clear pop-in animation flag after it finishes
+  // Staggered pop-in on initial load, then detect new wins
   useEffect(() => {
-    if (newWinId) {
-      const timer = setTimeout(() => setNewWinId(null), 700);
-      return () => clearTimeout(timer);
-    }
-  }, [newWinId]);
+    if (wins.length === 0) return;
 
-  // Continuous scroll loop
-  useEffect(() => {
-    const scrollContainer = scrollRef.current;
-    if (!scrollContainer || wins.length === 0) return;
+    if (!initialLoadDone.current) {
+      // First load: pop in wins one by one from left to right
+      initialLoadDone.current = true;
+      setDisplayedWins([]);
 
-    let animationId: number;
-    let scrollPosition = 0;
-    const scrollSpeed = 0.5;
-    const singleSetWidth = scrollContainer.scrollWidth / 2;
+      wins.forEach((win, i) => {
+        setTimeout(() => {
+          setDisplayedWins(prev => {
+            if (prev.find(w => w.id === win.id)) return prev;
+            return [...prev, win];
+          });
+        }, i * 200); // 200ms stagger between each card
+      });
+    } else {
+      // Subsequent fetches: check for new wins and pop them in
+      const currentIds = new Set(displayedWins.map(w => w.id));
+      const newWins = wins.filter(w => !currentIds.has(w.id));
 
-    const animate = () => {
-      scrollPosition += scrollSpeed;
-      if (scrollPosition >= singleSetWidth) {
-        scrollPosition -= singleSetWidth;
+      if (newWins.length > 0 && !animatingRef.current) {
+        animatingRef.current = true;
+        // Insert new wins at the front, trim to MAX_WINS
+        setDisplayedWins(wins.slice(0, MAX_WINS));
+        setTimeout(() => {
+          animatingRef.current = false;
+        }, 600);
+      } else if (newWins.length === 0) {
+        // Same wins, just update data (e.g. name corrections)
+        setDisplayedWins(wins.slice(0, MAX_WINS));
       }
-      scrollContainer.scrollLeft = scrollPosition;
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animationId = requestAnimationFrame(animate);
-
-    const handleMouseEnter = () => cancelAnimationFrame(animationId);
-    const handleMouseLeave = () => {
-      animationId = requestAnimationFrame(animate);
-    };
-
-    scrollContainer.addEventListener('mouseenter', handleMouseEnter);
-    scrollContainer.addEventListener('mouseleave', handleMouseLeave);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
-      scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
-    };
+    }
   }, [wins]);
 
   if (!loading && wins.length === 0) return null;
@@ -201,7 +180,7 @@ export const LiveWins = () => {
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
           <span className="text-sm font-semibold text-foreground bg-accent/20 px-3 py-1 rounded-full">
-            Recent Wins 🏆
+            Recent Wins
           </span>
         </div>
       </div>
@@ -213,52 +192,51 @@ export const LiveWins = () => {
           </div>
         ) : (
           <div
-            ref={scrollRef}
             className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
-            style={{ scrollBehavior: 'auto' }}
           >
-            {[...wins, ...wins].map((win, index) => {
-              const shouldPop = win.id === newWinId && index < MAX_WINS;
-
-              return (
+            {displayedWins.map((win, index) => (
+              <div
+                key={win.id}
+                className="flex-shrink-0 w-[140px] group cursor-pointer win-card-pop"
+                style={{
+                  animationDelay: `${index * 50}ms`,
+                }}
+              >
+                {/* Game Card */}
                 <div
-                  key={`${win.id}-${index}`}
-                  className={`flex-shrink-0 w-[140px] group cursor-pointer${shouldPop ? ' win-pop-in' : ''}`}
+                  className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105"
+                  style={{
+                    background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})`,
+                  }}
                 >
-                  <div
-                    className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105"
-                    style={{
-                      background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})`,
-                    }}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-4xl drop-shadow-lg">{win.gameIcon}</span>
-                    </div>
-                    <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
-                      <span className="text-white/90 text-xs font-bold uppercase tracking-wider drop-shadow">
-                        {win.game}
-                      </span>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-4xl drop-shadow-lg">{win.gameIcon}</span>
                   </div>
+                  <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
+                    <span className="text-white/90 text-xs font-bold uppercase tracking-wider drop-shadow">
+                      {win.game}
+                    </span>
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                </div>
 
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
-                        <Coins className="w-2.5 h-2.5 text-white" />
-                      </div>
-                      <span className="text-xs text-muted-foreground truncate max-w-[60px]">
-                        {win.playerName}
-                      </span>
+                {/* Win Info */}
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
+                      <Coins className="w-2.5 h-2.5 text-white" />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1 text-accent font-bold text-sm">
-                    {win.amount.toLocaleString()} SC
-                    <Coins className="w-4 h-4 text-yellow-500" />
+                    <span className="text-xs text-muted-foreground truncate max-w-[60px]">
+                      {win.playerName}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-1 text-accent font-bold text-sm">
+                  {win.amount.toLocaleString()} SC
+                  <Coins className="w-4 h-4 text-yellow-500" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
