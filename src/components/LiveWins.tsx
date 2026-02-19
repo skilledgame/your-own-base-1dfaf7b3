@@ -74,10 +74,16 @@ export const LiveWins = () => {
         const displayName = profile?.displayName || player?.name || 'Player';
         const rankInfo = getRankFromTotalWagered(profile?.totalWagered ?? 0);
         const ts = game.settled_at || game.updated_at || game.created_at;
+        // Tier colors: 100=blue, 500=purple, 1000=gold
+        const [gFrom, gTo] = game.wager >= 1000
+          ? ['#d97706', '#ea580c']   // gold/orange
+          : game.wager >= 500
+          ? ['#7c3aed', '#6d28d9']   // purple
+          : ['#2563eb', '#3b82f6'];  // blue
         return {
           id: game.id, playerName: displayName, amount: Math.floor(game.wager * 1.9),
           wager: game.wager, game: 'Chess', gameIcon: '♟️',
-          gradientFrom: '#1e3a5f', gradientTo: '#0d1b2a',
+          gradientFrom: gFrom, gradientTo: gTo,
           rankInfo, timestamp: new Date(ts),
         };
       });
