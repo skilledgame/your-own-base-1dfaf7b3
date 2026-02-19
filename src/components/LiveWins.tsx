@@ -13,8 +13,6 @@ interface Win {
   game: string;
   tierImage: string;
   timestamp: Date;
-  gradientFrom: string;
-  gradientTo: string;
 }
 
 const MAX_WINS = 18;
@@ -46,7 +44,7 @@ export const LiveWins = () => {
         .select('id, wager, settled_at, updated_at, created_at, winner_id')
         .eq('status', 'finished')
         .not('winner_id', 'is', null)
-        .order('settled_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(MAX_WINS);
 
       if (error) { console.error('Error fetching recent wins:', error); return; }
@@ -80,7 +78,6 @@ export const LiveWins = () => {
           id: game.id, playerName: displayName, amount: Math.floor(game.wager * 1.9),
           wager: game.wager, game: 'Chess', tierImage: getTierImage(game.wager),
           timestamp: new Date(ts),
-          gradientFrom: '#5B3E99', gradientTo: '#3d2766',
         };
       });
 
@@ -165,29 +162,24 @@ export const LiveWins = () => {
                   key={`${win.id}-${index}`}
                   className={`flex-shrink-0 w-[140px] group cursor-pointer${!isFirstRender && index === 0 ? ' win-card-pop' : ''}`}
                 >
-                  <div
-                    className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105"
-                    style={{
-                      background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})`,
-                    }}
-                  >
+                  <div className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
                     <img
                       src={win.tierImage}
                       alt={`${win.wager} SC Chess`}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                   </div>
 
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
-                        <Coins className="w-2.5 h-2.5 text-white" />
-                      </div>
-                      <span className="text-xs text-muted-foreground truncate max-w-[60px]">
-                        {win.playerName}
-                      </span>
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-1 block">
+                    Chess
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
+                      <Coins className="w-2.5 h-2.5 text-white" />
                     </div>
+                    <span className="text-xs text-muted-foreground truncate max-w-[60px]">
+                      {win.playerName}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1 text-accent font-bold text-sm">
                     {win.amount.toLocaleString()} SC
