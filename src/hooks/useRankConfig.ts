@@ -15,7 +15,7 @@ export interface RankTier {
 
 // Default fallback tiers (matches current hardcoded values)
 const DEFAULT_TIERS: RankTier[] = [
-  { id: '', tier_name: 'unranked', display_name: 'Unranked', threshold: 0, perks: DEFAULT_PERKS.unranked, rakeback_percentage: 0, sort_order: 0, updated_at: null },
+  { id: '', tier_name: 'unranked', display_name: 'Noob', threshold: 0, perks: DEFAULT_PERKS.unranked, rakeback_percentage: 0, sort_order: 0, updated_at: null },
   { id: '', tier_name: 'bronze', display_name: 'Bronze', threshold: DEFAULT_THRESHOLDS.bronze, perks: DEFAULT_PERKS.bronze, rakeback_percentage: 2, sort_order: 1, updated_at: null },
   { id: '', tier_name: 'silver', display_name: 'Silver', threshold: DEFAULT_THRESHOLDS.silver, perks: DEFAULT_PERKS.silver, rakeback_percentage: 5, sort_order: 2, updated_at: null },
   { id: '', tier_name: 'gold', display_name: 'Gold', threshold: DEFAULT_THRESHOLDS.gold, perks: DEFAULT_PERKS.gold, rakeback_percentage: 8, sort_order: 3, updated_at: null },

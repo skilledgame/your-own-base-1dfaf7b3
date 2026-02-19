@@ -509,7 +509,7 @@ function PlayerCard({
         {getRankImage(player?.rank?.tierName || '') ? (
           <img
             src={getRankImage(player?.rank?.tierName || '')!}
-            alt={`${player?.rank?.displayName || 'Unranked'} rank`}
+            alt={`${player?.rank?.displayName || 'Noob'} rank`}
             className="w-20 h-20 object-contain drop-shadow-lg"
             draggable={false}
           />
@@ -535,7 +535,7 @@ function PlayerCard({
             />
           )}
           <span className={`px-3 py-1 rounded-full bg-gradient-to-r ${rankColor} text-white text-xs font-bold uppercase`}>
-            {player?.rank?.displayName || 'Unranked'}
+            {player?.rank?.displayName || 'Noob'}
           </span>
         </div>
 

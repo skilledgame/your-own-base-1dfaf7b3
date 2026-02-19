@@ -2379,7 +2379,7 @@ export default function Admin() {
                 className="bg-purple-950/30 border-purple-500/30 text-white"
                 placeholder="0"
               />
-              <p className="text-purple-200/40 text-xs mt-1">Lower number = lower rank. E.g. Unranked=0, Bronze=1, etc.</p>
+              <p className="text-purple-200/40 text-xs mt-1">Lower number = lower rank. E.g. Noob=0, Bronze=1, etc.</p>
             </div>
             <div>
               <label className="text-sm text-purple-200/60 mb-2 block">

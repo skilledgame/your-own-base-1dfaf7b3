@@ -103,7 +103,7 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
 
   return {
     tierName: "unranked",
-    displayName: "Unranked",
+    displayName: "Noob",
     currentMin: RANK_THRESHOLDS.unranked,
     nextMin: RANK_THRESHOLDS.bronze,
     perks: RANK_PERKS.unranked,
