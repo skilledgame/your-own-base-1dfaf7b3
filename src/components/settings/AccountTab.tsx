@@ -457,17 +457,16 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
 
       {/* ─── Profile Card ─────────────────────────────────────── */}
       <Card className={cn("border-2 bg-card overflow-hidden", getRankBorderClass(rankInfo.tierName))}>
-        {/* Rank gradient bar */}
-        <div className={cn("h-2 bg-gradient-to-r", getRankGradientClass(rankInfo.tierName))} />
+        {/* Discord-style rank banner */}
+        <div className={cn("h-24 bg-gradient-to-r relative", getRankGradientClass(rankInfo.tierName))} />
 
-        <CardContent className="pt-6 pb-6 space-y-5">
-          {/* Avatar + Name row */}
-          <div className="flex items-center gap-5">
-            {/* Avatar with hover overlay */}
+        {/* Avatar overlapping the banner */}
+        <div className="relative px-6">
+          <div className="-mt-10 flex items-end gap-5">
             <button
               type="button"
               onClick={onNavigateToAvatar}
-              className="group relative flex-shrink-0 rounded-full"
+              className="group relative flex-shrink-0 rounded-full ring-4 ring-card"
               title="Edit Avatar"
             >
               <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="xl" />
@@ -477,33 +476,31 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
               </div>
             </button>
 
-            {/* Name + edit button */}
-            <div className="flex-1 min-w-0">
+            {/* Name + edit button (aligned to avatar bottom) */}
+            <div className="flex-1 min-w-0 pb-1">
               {profileLoading ? (
-                <div className="space-y-2">
-                  <div className="h-7 w-40 rounded-md bg-muted/50 animate-pulse" />
-                  <div className="h-4 w-24 rounded-md bg-muted/30 animate-pulse" />
+                <div className="space-y-1.5">
+                  <div className="h-6 w-40 rounded-md bg-muted/50 animate-pulse" />
                 </div>
               ) : (
-                <>
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold truncate">{displayName || 'Unknown'}</h2>
-                    <RankBadge rank={rankInfo} size="sm" />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={openEditNameDialog}
-                      className="text-muted-foreground hover:text-foreground h-8 w-8"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">Display Name</p>
-                </>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-bold truncate">{displayName || 'Unknown'}</h2>
+                  <RankBadge rank={rankInfo} size="sm" />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={openEditNameDialog}
+                    className="text-muted-foreground hover:text-foreground h-8 w-8"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
             </div>
           </div>
+        </div>
 
+        <CardContent className="pt-4 pb-6 space-y-4">
           <Separator className="bg-border" />
 
           {/* Email row */}
