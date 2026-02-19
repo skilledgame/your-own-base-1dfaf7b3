@@ -4,7 +4,7 @@
  */
 
 import { memo, useEffect, useState } from 'react';
-import { Bell, Check, X, Gamepad2 } from 'lucide-react';
+import { Bell, BellOff, Check, X, Gamepad2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useFriendStore } from '@/stores/friendStore';
 import { toast } from 'sonner';
+import { getAppSettings } from '@/components/settings/AppSettingsTab';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +44,20 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
   const [loading, setLoading] = useState(true);
   const acceptRequest = useFriendStore(state => state.acceptRequest);
   const declineRequest = useFriendStore(state => state.declineRequest);
+
+  // ── Respect App Settings: in-app notifications toggle ──
+  const [inAppEnabled, setInAppEnabled] = useState(() => getAppSettings().inAppNotifications);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && typeof detail.inAppNotifications === 'boolean') {
+        setInAppEnabled(detail.inAppNotifications);
+      }
+    };
+    window.addEventListener('app-settings-change', handler);
+    return () => window.removeEventListener('app-settings-change', handler);
+  }, []);
   
   // Fetch notifications
   useEffect(() => {
@@ -211,7 +226,7 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
   
   const unreadCount = notifications.filter(n => !n.read).length;
   
-  if (!isAuthReady || !isAuthenticated || !user) {
+  if (!isAuthReady || !isAuthenticated || !user || !inAppEnabled) {
     return null;
   }
   

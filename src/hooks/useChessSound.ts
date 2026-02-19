@@ -1,18 +1,14 @@
 /**
  * Chess Sound Effects Hook
- * Plays sounds for moves, captures, checks, and game events
+ * Plays sounds for moves, captures, checks, and game events.
+ *
+ * Reads "Game Sounds" toggle + Master / Game volume sliders from App Settings.
+ * Listens to the `app-settings-change` custom event so changes apply in real-time
+ * without reloading the page.
  */
 
-import { useCallback, useRef, useEffect } from 'react';
-
-// Sound URLs - using base64 encoded short sounds for reliability
-// These are simple tones that work across browsers
-const SOUNDS = {
-  move: '/sounds/move.mp3',
-  capture: '/sounds/capture.mp3',
-  check: '/sounds/check.mp3',
-  gameEnd: '/sounds/game-end.mp3',
-} as const;
+import { useCallback, useRef, useEffect, useState } from 'react';
+import { getAppSettings, type AppSettings } from '@/components/settings/AppSettingsTab';
 
 // Fallback: Generate sounds using Web Audio API
 const createAudioContext = () => {
@@ -28,6 +24,18 @@ export const useChessSound = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastPlayedRef = useRef<number>(0);
   const minIntervalMs = 50; // Prevent double-plays
+
+  // Live settings — re-render when they change
+  const [settings, setSettings] = useState<AppSettings>(getAppSettings);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<AppSettings>).detail;
+      if (detail) setSettings(detail);
+    };
+    window.addEventListener('app-settings-change', handler);
+    return () => window.removeEventListener('app-settings-change', handler);
+  }, []);
 
   // Initialize audio context on first interaction
   useEffect(() => {
@@ -47,7 +55,13 @@ export const useChessSound = () => {
     };
   }, []);
 
+  // Compute the effective gain: master × game volume (both 0–100 → 0–1)
+  const effectiveGain = (settings.masterVolume / 100) * (settings.gameSoundsVolume / 100);
+
   const playTone = useCallback((frequency: number, duration: number, type: OscillatorType = 'sine') => {
+    // Bail out if game sounds are disabled or effective volume is zero
+    if (!settings.gameSounds || effectiveGain === 0) return;
+
     const ctx = audioContextRef.current;
     if (!ctx) return;
 
@@ -66,18 +80,25 @@ export const useChessSound = () => {
       oscillator.frequency.value = frequency;
       oscillator.type = type;
 
+      // Peak gain scales with effective volume (default was 0.3)
+      const peakGain = 0.3 * effectiveGain;
+
       // Envelope for nice sound
       gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.01);
+      gainNode.gain.linearRampToValueAtTime(peakGain, ctx.currentTime + 0.01);
       gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
 
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + duration);
     } catch (e) {
+      // ignore
     }
-  }, []);
+  }, [settings.gameSounds, effectiveGain]);
 
   const playSound = useCallback((type: SoundType) => {
+    // Bail out early if sounds are off
+    if (!settings.gameSounds || effectiveGain === 0) return;
+
     // Prevent double-plays
     const now = Date.now();
     if (now - lastPlayedRef.current < minIntervalMs) {
@@ -111,7 +132,7 @@ export const useChessSound = () => {
         playTone(495, 0.2, 'sine');
         break;
     }
-  }, [playTone]);
+  }, [playTone, settings.gameSounds, effectiveGain]);
 
   return {
     playMove: useCallback(() => playSound('move'), [playSound]),
