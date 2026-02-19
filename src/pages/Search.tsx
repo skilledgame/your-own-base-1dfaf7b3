@@ -17,10 +17,10 @@ const categories = [
 
 // Games matching Skilled Originals from LandingPage
 const games = [
-  { id: 'chess', name: 'Chess', provider: 'Skilled', category: 'skilled', image: '♟️', isLive: true },
-  { id: 'game2', name: 'Coming Soon', provider: 'Skilled', category: 'skilled', image: '🎯', comingSoon: true },
-  { id: 'game3', name: 'Coming Soon', provider: 'Skilled', category: 'skilled', image: '🎮', comingSoon: true },
-  { id: 'game4', name: 'Coming Soon', provider: 'Skilled', category: 'skilled', image: '🏆', comingSoon: true },
+  { id: 'chess', name: 'Chess', provider: 'Skilled', category: 'skilled', image: '♟️', gradientFrom: '#1e3a5f', gradientTo: '#0d1b2a', isLive: true },
+  { id: 'game2', name: '', provider: 'Skilled', category: 'skilled', image: '🪿', gradientFrom: '#6b5c5c', gradientTo: '#4a3f3f', comingSoon: true },
+  { id: 'game3', name: '', provider: 'Skilled', category: 'skilled', image: '🦖', gradientFrom: '#4a6b5c', gradientTo: '#3a5248', comingSoon: true },
+  { id: 'game4', name: '', provider: 'Skilled', category: 'skilled', image: '🏓', gradientFrom: '#6b5a4a', gradientTo: '#524638', comingSoon: true },
 ];
 
 export default function Search() {
@@ -136,7 +136,10 @@ export default function Search() {
                 }`}
               >
                 {/* Emoji-based game image */}
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                <div
+                  className="w-full h-full flex items-center justify-center"
+                  style={{ background: `linear-gradient(135deg, ${game.gradientFrom}, ${game.gradientTo})` }}
+                >
                   <span className="text-6xl sm:text-7xl">{game.image}</span>
                 </div>
                 {game.comingSoon && (

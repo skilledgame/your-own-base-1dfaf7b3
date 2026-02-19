@@ -160,34 +160,28 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
   };
 
   const handleJoinGame = async (notif: Notification) => {
-    const roomId = notif.metadata?.game_id;
-    if (!roomId || roomId === 'pending' || roomId === 'chess') {
+    const lobbyCode = notif.metadata?.game_id;
+    if (!lobbyCode || lobbyCode === 'pending' || lobbyCode === 'chess') {
       navigate('/chess');
       return;
     }
 
     try {
-      // Look up the lobby code from the room so we can join properly
-      const { data: room } = await supabase
-        .from('private_rooms')
-        .select('code')
-        .eq('id', roomId)
-        .maybeSingle();
+      // game_id contains the lobby code — join via the edge function
+      const response = await supabase.functions.invoke('join-lobby', {
+        body: { lobbyCode },
+      });
 
-      if (room?.code) {
-        const response = await supabase.functions.invoke('join-lobby', {
-          body: { lobbyCode: room.code },
-        });
-
-        if (response.error || response.data?.success === false) {
-          // If join fails (already joined, etc.) still try navigating
-          navigate(`/game/lobby/${roomId}`);
-        } else {
-          const targetRoomId = response.data?.roomId || roomId;
-          navigate(`/game/lobby/${targetRoomId}`);
-        }
+      if (response.error || response.data?.success === false) {
+        toast.error(response.data?.error || response.data?.details || 'Failed to join game');
+        navigate('/chess');
       } else {
-        navigate(`/game/lobby/${roomId}`);
+        const targetRoomId = response.data?.roomId;
+        if (targetRoomId) {
+          navigate(`/game/lobby/${targetRoomId}`);
+        } else {
+          navigate('/chess');
+        }
       }
 
       // Mark notification as acted upon
@@ -196,7 +190,8 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
         .update({ action_taken: true })
         .eq('id', notif.id);
     } catch {
-      navigate(`/game/lobby/${roomId}`);
+      toast.error('Failed to join game');
+      navigate('/chess');
     }
   };
   

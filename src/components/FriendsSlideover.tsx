@@ -20,6 +20,7 @@ import {
   SmilePlus,
   ChevronDown,
   ChevronUp,
+  X,
   ArrowLeft,
   Send,
   BarChart3,
@@ -91,10 +92,10 @@ function FriendAvatar({
 }
 
 const INVITE_GAMES = [
-  { id: "chess", label: "Chess", emoji: "♟️", available: true },
-  { id: "game2", label: "Game 2", emoji: "🎯", available: false },
-  { id: "game3", label: "Game 3", emoji: "🎮", available: false },
-  { id: "game4", label: "Game 4", emoji: "🏆", available: false },
+  { id: "chess", label: "Chess", emoji: "♟️", gradientFrom: "#1e3a5f", gradientTo: "#0d1b2a", available: true },
+  { id: "game2", label: "", emoji: "🪿", gradientFrom: "#6b5c5c", gradientTo: "#4a3f3f", available: false },
+  { id: "game3", label: "", emoji: "🦖", gradientFrom: "#4a6b5c", gradientTo: "#3a5248", available: false },
+  { id: "game4", label: "", emoji: "🏓", gradientFrom: "#6b5a4a", gradientTo: "#524638", available: false },
 ] as const;
 
 const WAGER_OPTIONS = [100, 500, 1000] as const;
@@ -190,12 +191,18 @@ function GameInvitePicker({
   const inviteToGame = useFriendStore((s) => s.inviteToGame);
   const { balance } = useBalance();
 
-  const [step, setStep] = useState<"game" | "wager">("game");
+  const [step, setStep] = useState<"game" | "wager" | "waiting">("game");
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [selectedWager, setSelectedWager] = useState<number>(100);
   const [customWager, setCustomWager] = useState("");
   const [useCustom, setUseCustom] = useState(false);
   const [sending, setSending] = useState(false);
+
+  // Waiting state
+  const [lobbyRoomId, setLobbyRoomId] = useState<string | null>(null);
+  const [lobbyCode, setLobbyCode] = useState<string | null>(null);
+  const [friendJoined, setFriendJoined] = useState(false);
+  const [gameStarting, setGameStarting] = useState(false);
 
   const effectiveWager = useCustom
     ? parseInt(customWager, 10) || 0
@@ -205,6 +212,53 @@ function GameInvitePicker({
     setSelectedGame(gameId);
     setStep("wager");
   };
+
+  // Subscribe to room updates when waiting
+  useEffect(() => {
+    if (step !== "waiting" || !lobbyRoomId) return;
+
+    const channel = supabase
+      .channel(`invite-room-${lobbyRoomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "private_rooms",
+          filter: `id=eq.${lobbyRoomId}`,
+        },
+        (payload) => {
+          const room = payload.new as any;
+          if (room.joiner_id && !friendJoined) {
+            setFriendJoined(true);
+            // Auto-ready the creator, then navigate to the lobby
+            setTimeout(async () => {
+              setGameStarting(true);
+              try {
+                await supabase.rpc("toggle_ready", {
+                  p_room_id: lobbyRoomId,
+                });
+              } catch {
+                // Continue to lobby even if auto-ready fails
+              }
+              setTimeout(() => {
+                closePanel();
+                navigate(`/game/lobby/${lobbyRoomId}`);
+              }, 1200);
+            }, 800);
+          }
+          if (room.status === "started" && room.game_id) {
+            closePanel();
+            navigate(`/game/live/${room.game_id}`);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [step, lobbyRoomId, friendJoined, navigate, closePanel]);
 
   const handleSendInvite = async () => {
     if (effectiveWager <= 0) {
@@ -232,21 +286,19 @@ function GameInvitePicker({
         return;
       }
 
-      const { lobbyCode, roomId } = response.data;
-      if (!lobbyCode || !roomId) {
+      const { lobbyCode: code, roomId } = response.data;
+      if (!code || !roomId) {
         toast.error("Invalid response from server");
         setSending(false);
         return;
       }
 
-      await inviteToGame(friend.friend_user_id, roomId);
+      // Send invite with the lobbyCode (not roomId) so the friend can join
+      await inviteToGame(friend.friend_user_id, code);
 
-      toast.success(
-        `Invited ${friend.display_name} to Chess for ${effectiveWager} SC!`,
-      );
-
-      closePanel();
-      navigate(`/game/lobby/${roomId}`);
+      setLobbyRoomId(roomId);
+      setLobbyCode(code);
+      setStep("waiting");
     } catch {
       toast.error("Failed to send invite");
     } finally {
@@ -254,6 +306,7 @@ function GameInvitePicker({
     }
   };
 
+  // Step: game selection
   if (step === "game") {
     return (
       <div className="flex flex-col h-full">
@@ -284,21 +337,26 @@ function GameInvitePicker({
                 onClick={() => game.available && handleSelectGame(game.id)}
                 disabled={!game.available}
                 className={cn(
-                  "relative flex flex-col items-center justify-center rounded-xl border aspect-square overflow-hidden transition-all",
+                  "relative flex flex-col items-center justify-center rounded-2xl aspect-square overflow-hidden transition-all",
                   game.available
-                    ? "bg-gradient-to-br from-amber-500/10 to-orange-600/10 border-amber-500/20 hover:border-amber-400/40 hover:scale-[1.03] cursor-pointer"
-                    : "bg-white/[0.02] border-slate-700/20 opacity-50 cursor-not-allowed",
+                    ? "hover:scale-[1.03] cursor-pointer ring-1 ring-white/10 hover:ring-white/25"
+                    : "opacity-50 cursor-not-allowed",
                 )}
+                style={{
+                  background: `linear-gradient(135deg, ${game.gradientFrom}, ${game.gradientTo})`,
+                }}
               >
-                <span className="text-4xl mb-1.5">{game.emoji}</span>
+                <span className="text-4xl mb-1.5 drop-shadow-lg">{game.emoji}</span>
                 {game.available ? (
-                  <p className="text-xs font-bold text-white">{game.label}</p>
+                  <p className="text-xs font-bold text-white drop-shadow">{game.label}</p>
                 ) : (
                   <>
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <Lock className="w-5 h-5 text-white/50" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <div className="bg-black/50 backdrop-blur-sm rounded-full p-2">
+                        <Lock className="w-4 h-4 text-white/60" />
+                      </div>
                     </div>
-                    <p className="relative text-[10px] font-semibold text-slate-500 mt-0.5">
+                    <p className="relative text-[10px] font-semibold text-white/50 mt-0.5">
                       Coming Soon
                     </p>
                   </>
@@ -307,6 +365,75 @@ function GameInvitePicker({
             ))}
           </div>
         </ScrollArea>
+      </div>
+    );
+  }
+
+  // Step: waiting for friend
+  if (step === "waiting") {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center px-3 py-2.5 border-b border-slate-700/25 flex-shrink-0">
+          <button
+            onClick={() => {
+              closePanel();
+              if (lobbyRoomId) navigate(`/game/lobby/${lobbyRoomId}`);
+            }}
+            className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <span className="ml-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+            Waiting
+          </span>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          {gameStarting ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                <Check className="w-8 h-8 text-emerald-400" />
+              </div>
+              <p className="text-base font-bold text-white mb-1">
+                {friend.display_name} joined!
+              </p>
+              <p className="text-sm text-slate-400">
+                Setting up the game...
+              </p>
+              <Loader2 className="w-5 h-5 text-purple-400 animate-spin mt-4" />
+            </>
+          ) : friendJoined ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                <Check className="w-8 h-8 text-emerald-400" />
+              </div>
+              <p className="text-base font-bold text-white mb-1">
+                {friend.display_name} joined!
+              </p>
+              <p className="text-sm text-slate-400">
+                Preparing the match...
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center mb-4 animate-pulse">
+                <Users className="w-8 h-8 text-purple-400" />
+              </div>
+              <p className="text-base font-bold text-white mb-1">
+                Invite sent!
+              </p>
+              <p className="text-sm text-slate-400 mb-4">
+                Waiting for {friend.display_name} to join...
+              </p>
+              <div className="px-4 py-3 rounded-xl bg-white/[0.04] border border-slate-700/25">
+                <p className="text-[11px] text-slate-500 mb-1">Wager</p>
+                <p className="text-lg font-bold text-white">
+                  {effectiveWager} SC
+                </p>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     );
   }
@@ -1144,21 +1271,30 @@ export function FriendsSlideover({ isOpen, onClose }: FriendsSlideoverProps) {
       ) : (
         <>
           {/* Header bar — always visible, even when collapsed */}
-          <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+          <div className="flex items-center justify-between px-4 h-[44px] flex-shrink-0">
             <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {activeTab === "friends" ? "Friends" : "Messages"}
             </span>
-            <button
-              onClick={toggleCollapse}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
-              title={collapsed ? "Expand" : "Collapse"}
-            >
-              {collapsed ? (
-                <ChevronUp className="w-5 h-5" />
-              ) : (
-                <ChevronDown className="w-5 h-5" />
-              )}
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={toggleCollapse}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                title={collapsed ? "Expand" : "Collapse"}
+              >
+                {collapsed ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Content below header — hidden when collapsed */}
