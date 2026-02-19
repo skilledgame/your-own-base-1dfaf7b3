@@ -430,6 +430,16 @@ export const LandingPage = ({
             </p>
           </div>
         </footer>
+
+        {/* Legal Disclaimer */}
+        <div className="bg-[#0a0e1a] border-t border-white/5">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+            <img src={skilledLogo} alt="Skilled" className="h-7 w-auto opacity-60 mb-4" />
+            <p className="text-xs text-slate-500 leading-relaxed max-w-5xl">
+              {t('legal.disclaimer')}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Mobile Bottom Navigation */}
