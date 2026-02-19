@@ -440,11 +440,11 @@ export const LandingPage = ({
         {/* FAQ Section */}
         <FAQSection />
 
-        {/* Site Footer Links + Social Media */}
-        <SiteFooterLinks />
-
         {/* Crypto Section */}
         <CryptoSection />
+
+        {/* Site Footer Links + Social Media */}
+        <SiteFooterLinks />
 
         {/* Language Selector */}
         <LanguageFooterSelector />
