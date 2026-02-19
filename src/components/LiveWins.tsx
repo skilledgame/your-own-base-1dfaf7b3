@@ -11,39 +11,28 @@ interface Win {
   timestamp: Date;
   gradientFrom: string;
   gradientTo: string;
+  isNew?: boolean;
 }
-
-// Cache for player names to avoid repeated lookups
-const playerNameCache = new Map<string, { name: string | null; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export const LiveWins = () => {
   const [wins, setWins] = useState<Win[]>([]);
   const [loading, setLoading] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const lastFetchRef = useRef<number>(0);
   const isFetchingRef = useRef<boolean>(false);
+  const previousWinIdsRef = useRef<Set<string>>(new Set());
 
-  // Fetch recent finished games - with deduplication and caching
+  // Fetch recent finished games using FK joins for accurate player names
   const fetchRecentWins = useCallback(async () => {
-    // Prevent concurrent fetches
-    if (isFetchingRef.current) {
-      return;
-    }
-    
-    // Throttle: minimum 60 seconds between fetches (except initial)
+    if (isFetchingRef.current) return;
+
     const now = Date.now();
-    if (lastFetchRef.current > 0 && now - lastFetchRef.current < 60000) {
-      return;
-    }
-    
+    if (lastFetchRef.current > 0 && now - lastFetchRef.current < 60000) return;
+
     isFetchingRef.current = true;
     lastFetchRef.current = now;
-    
-    try {
 
-      
-      // Get the most recent finished games
+    try {
+      // Use Supabase FK join: games.winner_id -> players.id -> players.user_id -> profiles.user_id
       const { data: games, error } = await supabase
         .from('games')
         .select(`
@@ -52,7 +41,12 @@ export const LiveWins = () => {
           settled_at,
           updated_at,
           created_at,
-          winner_id
+          winner_id,
+          winner:players!winner_id(
+            id,
+            name,
+            user_id
+          )
         `)
         .eq('status', 'finished')
         .not('winner_id', 'is', null)
@@ -70,78 +64,60 @@ export const LiveWins = () => {
         return;
       }
 
-      // Get unique winner IDs - filter out cached ones
-      const uniqueWinnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))] as string[];
-      const uncachedIds = uniqueWinnerIds.filter(id => {
-        const cached = playerNameCache.get(id);
-        return !cached || (now - cached.timestamp > CACHE_TTL);
-      });
+      // Collect user_ids from winners to batch-fetch display names from profiles
+      const userIds = games
+        .map((g: any) => g.winner?.user_id)
+        .filter(Boolean) as string[];
+      const uniqueUserIds = [...new Set(userIds)];
 
-      // Batch fetch player -> user_id mappings for uncached IDs
-      if (uncachedIds.length > 0) {
+      // Profiles table is publicly readable - fetch display names
+      const profileMap = new Map<string, string>();
+      if (uniqueUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name')
+          .in('user_id', uniqueUserIds);
 
-        
-        const { data: players } = await supabase
-          .from('players')
-          .select('id, user_id')
-          .in('id', uncachedIds);
-        
-        if (players && players.length > 0) {
-          const userIds = players.map(p => p.user_id).filter(Boolean);
-          
-          if (userIds.length > 0) {
-
-            
-            // Batch fetch profiles
-            const { data: profiles } = await supabase
-              .from('profiles')
-              .select('user_id, display_name')
-              .in('user_id', userIds);
-            
-            // Build mapping
-            const userToName = new Map<string, string | null>();
-            if (profiles) {
-              for (const p of profiles) {
-                userToName.set(p.user_id, p.display_name);
-              }
+        if (profiles) {
+          for (const p of profiles) {
+            if (p.display_name) {
+              profileMap.set(p.user_id, p.display_name);
             }
-            
-            // Update cache
-            for (const player of players) {
-              const name = player.user_id ? userToName.get(player.user_id) : null;
-              playerNameCache.set(player.id, { name, timestamp: now });
-            }
-          }
-        }
-        
-        // Mark uncached IDs that weren't found
-        for (const id of uncachedIds) {
-          if (!playerNameCache.has(id)) {
-            playerNameCache.set(id, { name: null, timestamp: now });
           }
         }
       }
 
-      const recentWins: Win[] = games.map((game) => {
-        const cached = playerNameCache.get(game.winner_id);
-        const displayName = cached?.name || 'Skilled Player';
+      const isInitialLoad = previousWinIdsRef.current.size === 0;
+
+      const recentWins: Win[] = games.map((game: any) => {
+        const winner = game.winner;
+        // Priority: profile display_name > player name > 'Player'
+        const displayName =
+          (winner?.user_id && profileMap.get(winner.user_id)) ||
+          winner?.name ||
+          'Player';
+
         const timestampSource = game.settled_at || game.updated_at || game.created_at || Date.now();
 
         return {
           id: game.id,
           playerName: displayName,
-          amount: game.wager,
+          amount: game.wager * 2, // Winner takes the full pot (both wagers)
           game: 'Chess',
           gameIcon: '♟️',
           timestamp: new Date(timestampSource),
           gradientFrom: '#5B3E99',
           gradientTo: '#3d2766',
+          isNew: !isInitialLoad && !previousWinIdsRef.current.has(game.id),
         };
       });
 
-      // Sort by timestamp
+      // Sort by timestamp (newest first = leftmost)
       const sortedWins = recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      
+
+      // Update the previous IDs ref
+      previousWinIdsRef.current = new Set(sortedWins.map(w => w.id));
+
       setWins(sortedWins);
     } catch (err) {
       console.error('Failed to fetch recent wins:', err);
@@ -151,67 +127,29 @@ export const LiveWins = () => {
     }
   }, []);
 
-  // Initial fetch only
+  // Initial fetch
   useEffect(() => {
     fetchRecentWins();
   }, [fetchRecentWins]);
 
-  // REPLACED Realtime subscription with a lightweight polling interval.
-  // The old approach subscribed to ALL games table updates (status=eq.finished)
-  // which fires for EVERY finished game by ANY user — creating massive Realtime
-  // overhead on the server. A simple 2-minute refresh is far cheaper.
+  // Lightweight polling every 2 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       fetchRecentWins();
-    }, 120_000); // Refresh every 2 minutes (the throttle inside fetchRecentWins is 60s)
-
+    }, 120_000);
     return () => clearInterval(interval);
   }, [fetchRecentWins]);
 
-  // Auto-scroll animation with continuous loop
+  // Clear "isNew" flag after the pop animation completes
   useEffect(() => {
-    const scrollContainer = scrollRef.current;
-    if (!scrollContainer || wins.length === 0) return;
-
-    let animationId: number;
-    let scrollPosition = 0;
-    const scrollSpeed = 0.5;
-    
-    // Calculate the width of one set of wins for seamless looping
-    const singleSetWidth = scrollContainer.scrollWidth / 2;
-
-    const animate = () => {
-      scrollPosition += scrollSpeed;
-      
-      // When we've scrolled past the first set, reset to start invisibly
-      // This creates a seamless infinite loop
-      if (scrollPosition >= singleSetWidth) {
-        scrollPosition = scrollPosition - singleSetWidth;
-      }
-
-      scrollContainer.scrollLeft = scrollPosition;
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animationId = requestAnimationFrame(animate);
-
-    // Pause on hover
-    const handleMouseEnter = () => cancelAnimationFrame(animationId);
-    const handleMouseLeave = () => {
-      animationId = requestAnimationFrame(animate);
-    };
-
-    scrollContainer.addEventListener('mouseenter', handleMouseEnter);
-    scrollContainer.addEventListener('mouseleave', handleMouseLeave);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
-      scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
-    };
+    if (wins.some(w => w.isNew)) {
+      const timer = setTimeout(() => {
+        setWins(prev => prev.map(w => ({ ...w, isNew: false })));
+      }, 600);
+      return () => clearTimeout(timer);
+    }
   }, [wins]);
 
-  // Don't render anything if no wins
   if (!loading && wins.length === 0) {
     return null;
   }
@@ -226,29 +164,30 @@ export const LiveWins = () => {
           </span>
         </div>
       </div>
-      
+
       <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-16">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         ) : (
-          <div 
-            ref={scrollRef}
+          <div
             className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
-            style={{ scrollBehavior: 'auto' }}
           >
-            {/* Render wins twice for seamless infinite scrolling */}
-            {[...wins, ...wins].map((win, index) => (
+            {/* Newest win is first (leftmost). New wins pop in, pushing older ones right. */}
+            {wins.map((win) => (
               <div
-                key={`${win.id}-${index}`}
+                key={win.id}
                 className="flex-shrink-0 w-[140px] group cursor-pointer"
+                style={{
+                  animation: win.isNew ? 'pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : undefined,
+                }}
               >
                 {/* Game Card */}
-                <div 
+                <div
                   className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105"
-                  style={{ 
-                    background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})` 
+                  style={{
+                    background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})`,
                   }}
                 >
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -261,7 +200,7 @@ export const LiveWins = () => {
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 </div>
-                
+
                 {/* Win Info */}
                 <div className="mt-2 flex items-center gap-2">
                   <div className="flex items-center gap-1">
