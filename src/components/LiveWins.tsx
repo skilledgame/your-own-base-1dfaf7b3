@@ -3,9 +3,6 @@ import { Coins, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getRankFromTotalWagered, type RankInfo } from '@/lib/rankSystem';
 import { RankBadge } from '@/components/RankBadge';
-import coins100 from '@/assets/coins-100.png';
-import coins500 from '@/assets/coins-500.png';
-import coins1000 from '@/assets/coins-1000.png';
 
 interface Win {
   id: string;
@@ -13,7 +10,9 @@ interface Win {
   amount: number;
   wager: number;
   game: string;
-  tierImage: string;
+  gameIcon: string;
+  gradientFrom: string;
+  gradientTo: string;
   rankInfo: RankInfo;
   timestamp: Date;
 }
@@ -69,12 +68,6 @@ export const LiveWins = () => {
         }
       }
 
-      const getTierImage = (wager: number) => {
-        if (wager >= 1000) return coins1000;
-        if (wager >= 500) return coins500;
-        return coins100;
-      };
-
       const recentWins: Win[] = games.map((game) => {
         const player = game.winner_id ? playerMap.get(game.winner_id) : null;
         const profile = player?.user_id ? profileMap.get(player.user_id) : null;
@@ -83,7 +76,8 @@ export const LiveWins = () => {
         const ts = game.settled_at || game.updated_at || game.created_at;
         return {
           id: game.id, playerName: displayName, amount: Math.floor(game.wager * 1.9),
-          wager: game.wager, game: 'Chess', tierImage: getTierImage(game.wager),
+          wager: game.wager, game: 'Chess', gameIcon: '♟️',
+          gradientFrom: '#1e3a5f', gradientTo: '#0d1b2a',
           rankInfo, timestamp: new Date(ts),
         };
       });
@@ -169,15 +163,17 @@ export const LiveWins = () => {
                   key={`${win.id}-${index}`}
                   className={`flex-shrink-0 w-[180px] group cursor-pointer${!isFirstRender && index === 0 ? ' win-card-pop' : ''}`}
                 >
-                  <div className="relative h-[100px] rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105">
-                    <img
-                      src={win.tierImage}
-                      alt={`${win.wager} SC Chess`}
-                      className="w-full h-full object-cover"
-                    />
+                  <div
+                    className="relative h-[100px] rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105"
+                    style={{ background: `linear-gradient(135deg, ${win.gradientFrom}, ${win.gradientTo})` }}
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-4xl drop-shadow-lg">{win.gameIcon}</span>
+                    </div>
                     <span className="absolute top-1.5 left-2 text-[10px] text-white/90 font-bold uppercase tracking-wider drop-shadow-lg">
                       Chess
                     </span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                   </div>
 
                   <div className="flex items-center gap-1 mt-1">
