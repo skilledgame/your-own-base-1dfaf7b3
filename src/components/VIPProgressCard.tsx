@@ -39,10 +39,10 @@ export const VIPProgressCard = () => {
   const getRankBarColors = (tier: string): [string, string, string] => {
     switch (tier) {
       case 'goat':     return ['#7c3aed', '#c084fc', '#7c3aed'];
-      case 'diamond':  return ['#0ea5e9', '#7dd3fc', '#0ea5e9'];
-      case 'platinum': return ['#5eead4', '#99f6e4', '#5eead4'];
+      case 'diamond':  return ['#2563eb', '#60a5fa', '#2563eb'];
+      case 'platinum': return ['#0ea5e9', '#7dd3fc', '#0ea5e9'];
       case 'gold':     return ['#d97706', '#fbbf24', '#d97706'];
-      case 'silver':   return ['#6b7280', '#d1d5db', '#6b7280'];
+      case 'silver':   return ['#94a3b8', '#cbd5e1', '#94a3b8'];
       case 'bronze':   return ['#92400e', '#d97706', '#92400e'];
       default:         return ['#6b7280', '#9ca3af', '#6b7280'];
     }
@@ -53,13 +53,13 @@ export const VIPProgressCard = () => {
       case 'goat':
         return 'from-purple-400 to-violet-600';
       case 'diamond':
-        return 'from-cyan-400 to-blue-500';
+        return 'from-blue-400 to-blue-600';
       case 'platinum':
-        return 'from-slate-300 to-slate-500';
+        return 'from-sky-300 to-sky-500';
       case 'gold':
         return 'from-yellow-400 to-amber-500';
       case 'silver':
-        return 'from-gray-300 to-gray-400';
+        return 'from-slate-300 to-slate-400';
       case 'bronze':
         return 'from-orange-600 to-orange-800';
       default:

@@ -175,16 +175,24 @@ export const NotificationDropdown = memo(({ className }: NotificationDropdownPro
         body: { lobbyCode },
       });
 
-      if (response.error || response.data?.success === false) {
-        toast.error(response.data?.error || response.data?.details || 'Failed to join game');
+      if (response.error) {
+        toast.error(response.data?.error || response.data?.details || response.error.message || 'Failed to join game');
         navigate('/chess');
+        return;
+      }
+
+      const data = response.data;
+
+      if (data?.success === false || data?.error) {
+        toast.error(data.details || data.error || 'Failed to join game');
+        navigate('/chess');
+        return;
+      }
+
+      if ((data?.game || data?.gameId) && data?.roomId) {
+        navigate(`/game/lobby/${data.roomId}`);
       } else {
-        const targetRoomId = response.data?.roomId;
-        if (targetRoomId) {
-          navigate(`/game/lobby/${targetRoomId}`);
-        } else {
-          navigate('/chess');
-        }
+        navigate('/chess');
       }
 
       await supabase

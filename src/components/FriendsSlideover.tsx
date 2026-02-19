@@ -231,21 +231,11 @@ function GameInvitePicker({
           const room = payload.new as any;
           if (room.joiner_id && !friendJoined) {
             setFriendJoined(true);
-            // Auto-ready the creator, then navigate to the lobby
-            setTimeout(async () => {
-              setGameStarting(true);
-              try {
-                await supabase.rpc("toggle_ready", {
-                  p_room_id: lobbyRoomId,
-                });
-              } catch {
-                // Continue to lobby even if auto-ready fails
-              }
-              setTimeout(() => {
-                closePanel();
-                navigate(`/game/lobby/${lobbyRoomId}`);
-              }, 1200);
-            }, 800);
+            setGameStarting(true);
+            setTimeout(() => {
+              closePanel();
+              navigate(`/game/lobby/${lobbyRoomId}`);
+            }, 1500);
           }
           if (room.status === "started" && room.game_id) {
             closePanel();
