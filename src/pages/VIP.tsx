@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Crown, Trophy, Sparkles, ArrowLeft, Check, Lock, X,
-  Coins, Star, ChevronLeft, ChevronRight, Award, Gem, Swords, Target, Flame, Shield, LayoutGrid, Zap, Gift, Calendar
+  Coins, Star, ChevronLeft, ChevronRight, Award, Gem, Flame, Zap, Gift, Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,57 +26,6 @@ const TIER_ICON_MAP: Record<string, LucideIcon> = {
   diamond: Trophy,
   goat: Trophy,
 };
-
-const RANK_CHALLENGES = [
-  { 
-    id: 'bronze_challenge', 
-    title: 'Bronze Challenge', 
-    description: 'Win 10 wager matches at 500 SC or higher',
-    icon: Swords, 
-    reward: 500,
-    requiredRank: 'bronze',
-  },
-  { 
-    id: 'silver_challenge', 
-    title: 'Silver Challenge', 
-    description: 'Win 25 wager matches at 1,000 SC',
-    icon: Target, 
-    reward: 1500,
-    requiredRank: 'silver',
-  },
-  { 
-    id: 'gold_challenge', 
-    title: 'Gold Challenge', 
-    description: 'Win 50 wager matches with a 60%+ win rate',
-    icon: Flame, 
-    reward: 5000,
-    requiredRank: 'gold',
-  },
-  { 
-    id: 'platinum_challenge', 
-    title: 'Platinum Challenge', 
-    description: 'Win 100 wager matches and maintain a 10-game streak',
-    icon: Shield, 
-    reward: 15000,
-    requiredRank: 'platinum',
-  },
-  { 
-    id: 'diamond_challenge', 
-    title: 'Diamond Challenge', 
-    description: 'Win 250 wager matches with a 65%+ win rate',
-    icon: Gem, 
-    reward: 50000,
-    requiredRank: 'diamond',
-  },
-  { 
-    id: 'goat_challenge', 
-    title: 'GOAT Challenge', 
-    description: 'Win 500 wager matches and reach a 25-game win streak',
-    icon: Crown, 
-    reward: 200000,
-    requiredRank: 'goat',
-  },
-];
 
 const RANK_UNLOCKS: Record<string, string[]> = {
   unranked: ['100 SC wager games'],
@@ -117,7 +66,6 @@ export default function VIP() {
   const navigate = useNavigate();
   const { totalWageredSc, displayName, isLoading, dailyPlayStreak } = useProfile();
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
-  const [showAllChallenges, setShowAllChallenges] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const { tiers, loading: rankConfigLoading } = useRankConfig();
 
@@ -138,17 +86,6 @@ export default function VIP() {
     : 100;
   const remaining = rankInfo.nextMin ? rankInfo.nextMin - totalWageredSc : 0;
 
-  const checkRankRequirement = (requiredRank: string) => {
-    const requiredIndex = RANK_ORDER.indexOf(requiredRank);
-    return currentRankIndex >= requiredIndex;
-  };
-
-  const currentChallenge = RANK_CHALLENGES.find(c => c.requiredRank === rankInfo.tierName)
-    || RANK_CHALLENGES[0];
-
-  const handleClaimReward = (rewardId: string) => {
-    // TODO: Implement reward claiming logic
-  };
 
   if (isLoading || rankConfigLoading) {
     return (
@@ -174,7 +111,7 @@ export default function VIP() {
           </Button>
           <div className="flex items-center gap-2">
             <Crown className="w-5 h-5 text-yellow-500" />
-            <h1 className="text-xl font-bold">Ranks & Rewards</h1>
+            <h1 className="text-xl font-bold">Ranks</h1>
           </div>
         </div>
       </header>
@@ -274,98 +211,6 @@ export default function VIP() {
             )}
           </CardContent>
         </Card>
-
-        {/* Challenges - Current Rank + Show All */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <Target className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-foreground">Challenges</h2>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            {/* Current rank challenge */}
-            {(() => {
-              const challenge = currentChallenge;
-              const ChallengeIcon = challenge.icon;
-              const hasRank = checkRankRequirement(challenge.requiredRank);
-              
-              return (
-                <Card 
-                  className={cn(
-                    "relative overflow-hidden transition-all",
-                    hasRank 
-                      ? "bg-gradient-to-br from-primary/5 to-primary/10 border-primary/30 hover:border-primary/50" 
-                      : "bg-muted/20 border-border/50"
-                  )}
-                >
-                  {!hasRank && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-                      <div className="text-center">
-                        <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                        <span className="text-sm font-medium text-muted-foreground capitalize">
-                          Unlocks at {challenge.requiredRank}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center",
-                        hasRank ? "bg-primary/20" : "bg-muted"
-                      )}>
-                        <ChallengeIcon className={cn(
-                          "w-6 h-6",
-                          hasRank ? "text-primary" : "text-muted-foreground"
-                        )} />
-                      </div>
-                      <Badge variant="outline" className={cn(
-                        "text-xs capitalize",
-                        hasRank ? "border-primary/40 text-primary" : ""
-                      )}>
-                        {challenge.requiredRank}
-                      </Badge>
-                    </div>
-                    
-                    <h3 className="font-bold text-foreground mb-1">{challenge.title}</h3>
-                    <p className="text-xs text-muted-foreground mb-4">{challenge.description}</p>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <Coins className="w-4 h-4 text-yellow-500" />
-                        <span className="font-bold text-yellow-500">+{formatSkilledCoins(challenge.reward)}</span>
-                      </div>
-                      <Button 
-                        size="sm"
-                        className="h-8"
-                        disabled={!hasRank}
-                        onClick={() => handleClaimReward(challenge.id)}
-                      >
-                        {hasRank ? 'Start' : 'Locked'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })()}
-
-            {/* Show All card */}
-            <Card 
-              className="relative overflow-hidden transition-all border-dashed border-2 border-primary/30 hover:border-primary/50 cursor-pointer group"
-              onClick={() => setShowAllChallenges(true)}
-            >
-              <CardContent className="p-5 flex flex-col items-center justify-center h-full min-h-[200px]">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center mb-3 transition-colors">
-                  <LayoutGrid className="w-7 h-7 text-primary" />
-                </div>
-                <h3 className="font-bold text-foreground mb-1">Show All</h3>
-                <p className="text-xs text-muted-foreground text-center">View all {RANK_CHALLENGES.length} rank challenges</p>
-                <ChevronRight className="w-5 h-5 text-primary mt-3 group-hover:translate-x-1 transition-transform" />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
 
         {/* Rank Ladder */}
         <div>
@@ -523,106 +368,6 @@ export default function VIP() {
           </CardContent>
         </Card>
       </div>
-
-      {/* All Challenges Modal */}
-      {showAllChallenges && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => setShowAllChallenges(false)}
-          />
-
-          {/* Modal panel */}
-          <div className="relative z-10 w-full max-w-lg mx-auto max-h-[85vh] flex flex-col bg-background border border-border/60 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300">
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border/50">
-              <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-bold text-foreground">All Challenges</h2>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => setShowAllChallenges(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Scrollable challenge list */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-              {RANK_CHALLENGES.map((challenge) => {
-                const ChallengeIcon = challenge.icon;
-                const hasRank = checkRankRequirement(challenge.requiredRank);
-                const isCurrent = challenge.requiredRank === rankInfo.tierName;
-
-                return (
-                  <div
-                    key={challenge.id}
-                    className={cn(
-                      "relative rounded-xl border p-4 transition-all",
-                      isCurrent
-                        ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
-                        : hasRank
-                          ? "border-border bg-card"
-                          : "border-border/40 bg-muted/10 opacity-60"
-                    )}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={cn(
-                        "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
-                        hasRank ? "bg-primary/15" : "bg-muted"
-                      )}>
-                        {hasRank ? (
-                          <ChallengeIcon className="w-5 h-5 text-primary" />
-                        ) : (
-                          <Lock className="w-5 h-5 text-muted-foreground" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className="font-bold text-sm text-foreground truncate">{challenge.title}</h3>
-                          {isCurrent && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-primary/15 text-primary shrink-0">
-                              Your Rank
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-2">{challenge.description}</p>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <Coins className="w-3.5 h-3.5 text-yellow-500" />
-                            <span className="text-sm font-bold text-yellow-500">+{formatSkilledCoins(challenge.reward)}</span>
-                          </div>
-                          <Badge variant="outline" className={cn(
-                            "text-[10px] capitalize",
-                            hasRank ? "border-primary/40 text-primary" : ""
-                          )}>
-                            {hasRank ? challenge.requiredRank : `Unlocks at ${challenge.requiredRank}`}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Modal footer */}
-            <div className="px-6 py-4 border-t border-border/50">
-              <Button
-                className="w-full"
-                onClick={() => setShowAllChallenges(false)}
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Streak Detail Modal */}
       {showStreakModal && <StreakModal currentStreak={dailyPlayStreak} onClose={() => setShowStreakModal(false)} />}

@@ -137,7 +137,7 @@ const en: TranslationDict = {
   'rewards.leaderboard_desc': 'Top players on the weekly leaderboard receive bonus SC prizes at the end of each week.',
 
   // Legal disclaimer
-  'legal.disclaimer': 'Skilled is a skill-based gaming platform operating in compliance with the laws and regulations of Norway. Skilled is not a gambling site — all game outcomes are determined entirely by player skill, strategy, and performance, not by luck or chance. There is no house edge and no games of chance. Skilled Coins are used exclusively within the platform for competitive play and do not constitute real currency. You must be 18 years or older to use this platform. Please play responsibly.',
+  'legal.disclaimer': 'Skilled is a skill-based gaming platform operating in compliance with the laws and regulations of Norway. Skilled is not a gambling site — all game outcomes are determined entirely by player skill, strategy, and performance, not by luck or chance. There is no house edge and no games of chance. Players can earn Skilled Coins through competitive play and withdraw their winnings for real money. Please play responsibly.',
 };
 
 const es: TranslationDict = {
@@ -241,7 +241,7 @@ const es: TranslationDict = {
   'rewards.leaderboard': 'Premios del Ranking',
   'rewards.leaderboard_desc': 'Los mejores jugadores del ranking semanal reciben premios de SC extra al final de cada semana.',
 
-  'legal.disclaimer': 'Skilled es una plataforma de juegos basada en habilidad que opera en cumplimiento con las leyes y regulaciones de Noruega. Skilled no es un sitio de apuestas — todos los resultados de los juegos se determinan completamente por la habilidad, estrategia y rendimiento del jugador, no por suerte o azar. No hay ventaja de la casa ni juegos de azar. Las Skilled Coins se utilizan exclusivamente dentro de la plataforma para el juego competitivo y no constituyen moneda real. Debes tener 18 años o más para usar esta plataforma. Por favor, juega responsablemente.',
+  'legal.disclaimer': 'Skilled es una plataforma de juegos basada en habilidad que opera en cumplimiento con las leyes y regulaciones de Noruega. Skilled no es un sitio de apuestas — todos los resultados de los juegos se determinan completamente por la habilidad, estrategia y rendimiento del jugador, no por suerte o azar. No hay ventaja de la casa ni juegos de azar. Los jugadores pueden ganar Skilled Coins a través del juego competitivo y retirar sus ganancias por dinero real. Por favor, juega responsablemente.',
 };
 
 const hi: TranslationDict = {
@@ -345,7 +345,7 @@ const hi: TranslationDict = {
   'rewards.leaderboard': 'लीडरबोर्ड पुरस्कार',
   'rewards.leaderboard_desc': 'साप्ताहिक लीडरबोर्ड पर शीर्ष खिलाड़ियों को प्रत्येक सप्ताह के अंत में बोनस SC पुरस्कार मिलते हैं।',
 
-  'legal.disclaimer': 'Skilled एक कौशल-आधारित गेमिंग प्लेटफॉर्म है जो नॉर्वे के कानूनों और नियमों के अनुसार संचालित होता है। Skilled एक जुआ साइट नहीं है — सभी खेल परिणाम पूरी तरह से खिलाड़ी के कौशल, रणनीति और प्रदर्शन से निर्धारित होते हैं, भाग्य या संयोग से नहीं। कोई हाउस एज नहीं है और कोई संयोग का खेल नहीं है। Skilled Coins का उपयोग विशेष रूप से प्लेटफॉर्म के भीतर प्रतिस्पर्धी खेल के लिए किया जाता है और ये वास्तविक मुद्रा नहीं हैं। इस प्लेटफॉर्म का उपयोग करने के लिए आपकी आयु 18 वर्ष या उससे अधिक होनी चाहिए। कृपया जिम्मेदारी से खेलें।',
+  'legal.disclaimer': 'Skilled एक कौशल-आधारित गेमिंग प्लेटफॉर्म है जो नॉर्वे के कानूनों और नियमों के अनुसार संचालित होता है। Skilled एक जुआ साइट नहीं है — सभी खेल परिणाम पूरी तरह से खिलाड़ी के कौशल, रणनीति और प्रदर्शन से निर्धारित होते हैं, भाग्य या संयोग से नहीं। कोई हाउस एज नहीं है और कोई संयोग का खेल नहीं है। खिलाड़ी प्रतिस्पर्धी खेल के माध्यम से Skilled Coins कमा सकते हैं और अपनी जीत को असली पैसे के लिए निकाल सकते हैं। कृपया जिम्मेदारी से खेलें।',
 };
 
 export const translations: Record<Language, TranslationDict> = { en, es, hi };

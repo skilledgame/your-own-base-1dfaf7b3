@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
 import { useWalletModal } from '@/contexts/WalletModalContext';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage, SUPPORTED_LANGUAGES } from '@/contexts/LanguageContext';
 import skilledLogo from '@/assets/skilled-logo.png';
 import { LogoLink } from './LogoLink';
 import { GameCategory } from './GameCategory';
@@ -73,6 +73,39 @@ const MobileBalancePill = ({ isPrivileged }: { isPrivileged: boolean }) => {
       <button onClick={() => openWallet('deposit')}>
         <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
       </button>
+    </div>
+  );
+};
+
+const LanguageFooterSelector = () => {
+  const { lang, setLanguage } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const current = SUPPORTED_LANGUAGES.find(l => l.code === lang);
+
+  return (
+    <div className="bg-background py-8 flex justify-center">
+      <div className="relative">
+        <button
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          {current?.nativeName || 'English'}
+          <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 border border-white/10 rounded-lg overflow-hidden shadow-xl min-w-[140px]">
+            {SUPPORTED_LANGUAGES.map(l => (
+              <button
+                key={l.code}
+                onClick={() => { setLanguage(l.code); setOpen(false); }}
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${l.code === lang ? 'text-white bg-white/5' : 'text-slate-400'}`}
+              >
+                {l.nativeName}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -413,30 +446,18 @@ export const LandingPage = ({
         {/* Crypto Section */}
         <CryptoSection />
 
-        {/* Footer */}
-        <footer className="border-t border-border py-6">
-          <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <LogoLink className="h-7 opacity-70" />
-            <div className="flex items-center gap-6">
-              <Link to={localePath("/terms")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                {t('footer.terms')}
-              </Link>
-              <Link to={localePath("/privacy")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                {t('footer.privacy')}
-              </Link>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {t('footer.copyright')}
-            </p>
-          </div>
-        </footer>
+        {/* Language Selector */}
+        <LanguageFooterSelector />
 
-        {/* Legal Disclaimer */}
-        <div className="bg-[#0a0e1a] border-t border-white/5">
+        {/* Legal Disclaimer + Copyright */}
+        <div className="bg-background border-t border-border/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
             <img src={skilledLogo} alt="Skilled" className="h-7 w-auto opacity-60 mb-4" />
-            <p className="text-xs text-slate-500 leading-relaxed max-w-5xl">
+            <p className="text-xs text-muted-foreground/60 leading-relaxed max-w-5xl">
               {t('legal.disclaimer')}
+            </p>
+            <p className="text-xs text-muted-foreground/40 mt-6">
+              {t('footer.copyright')}
             </p>
           </div>
         </div>

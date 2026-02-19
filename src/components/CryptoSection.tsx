@@ -13,7 +13,7 @@ export const CryptoSection = () => {
   const { t } = useLanguage();
 
   return (
-    <section className="relative py-12 px-4 overflow-hidden bg-background">
+    <section className="relative pt-12 pb-16 px-4 overflow-hidden bg-background">
       <div className="relative max-w-7xl mx-auto">
         <p className="text-center text-sm text-muted-foreground mb-8 uppercase tracking-wider font-medium">
           {t('footer.supported_crypto')}
