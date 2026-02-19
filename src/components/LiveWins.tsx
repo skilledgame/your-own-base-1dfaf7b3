@@ -162,14 +162,14 @@ export const LiveWins = () => {
           >
             <div
               key={isFirstRender ? 'initial' : animKey}
-              className={`flex gap-3${!isFirstRender ? ' win-row-shift' : ''}`}
+              className={`flex gap-1.5${!isFirstRender ? ' win-row-shift' : ''}`}
             >
               {displayQueue.map((win, index) => (
                 <div
                   key={`${win.id}-${index}`}
-                  className={`flex-shrink-0 w-[140px] group cursor-pointer${!isFirstRender && index === 0 ? ' win-card-pop' : ''}`}
+                  className={`flex-shrink-0 w-[180px] group cursor-pointer${!isFirstRender && index === 0 ? ' win-card-pop' : ''}`}
                 >
-                  <div className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
+                  <div className="relative h-[100px] rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105">
                     <img
                       src={win.tierImage}
                       alt={`${win.wager} SC Chess`}
@@ -182,7 +182,7 @@ export const LiveWins = () => {
 
                   <div className="flex items-center gap-1 mt-1">
                     <RankBadge rank={win.rankInfo} size="xs" />
-                    <span className="text-xs text-muted-foreground truncate max-w-[70px]">
+                    <span className="text-xs text-muted-foreground truncate max-w-[100px]">
                       {win.playerName}
                     </span>
                   </div>
