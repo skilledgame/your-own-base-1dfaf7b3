@@ -21,6 +21,7 @@ import { useUserDataStore } from '@/stores/userDataStore';
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { getAppSettings } from '@/components/settings/AppSettingsTab';
 
 import { getRankFromTotalWagered } from '@/lib/rankSystem';
 import type { 
@@ -560,6 +561,30 @@ function initializeGlobalMessageHandler(): void {
             isOpponentLeft,
             creditsChange,
           });
+
+          // ── Real in-app notifications (respects App Settings toggle) ──
+          if (getAppSettings().inAppNotifications) {
+            const isWin = myColor !== null && payload.winnerColor === myColor;
+            const isDraw = payload.winnerColor === null && payload.reason !== "disconnect" && payload.reason !== "opponent_disconnect";
+
+            if (payload.reason === "abort") {
+              toast.info("Game aborted — no moves were made");
+            } else if (isWin) {
+              if (creditsChange > 0) {
+                toast.success(`🏆 You won! +${creditsChange} credits`);
+              } else {
+                toast.success("🏆 You won!");
+              }
+            } else if (isDraw) {
+              toast.info("🤝 Game ended in a draw");
+            } else {
+              if (creditsChange < 0) {
+                toast(`💀 You lost. ${Math.abs(creditsChange)} credits deducted`);
+              } else {
+                toast("💀 You lost. Better luck next time!");
+              }
+            }
+          }
           
         } catch {
           // Only show error for admin users
@@ -584,18 +609,6 @@ function initializeGlobalMessageHandler(): void {
         } else {
           if (balanceRefreshCallback) {
             balanceRefreshCallback();
-          }
-        }
-        
-        if (isOpponentLeft) {
-          // Only show for admin users
-          if (isAdminCallback && isAdminCallback()) {
-            toast.info("Opponent left the game");
-          }
-        } else if (payload.winnerColor === null || payload.winnerColor === undefined) {
-          // Only show for admin users
-          if (isAdminCallback && isAdminCallback()) {
-            toast.info(`Game over: ${payload.reason}`);
           }
         }
         break;

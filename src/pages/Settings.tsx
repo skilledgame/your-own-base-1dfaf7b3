@@ -1,5 +1,5 @@
 /**
- * Settings Page - Sidebar with Account & Payments section headers
+ * Settings Page - Sidebar with Profile, Security, App & Payments section headers
  */
 
 import { useState, useEffect } from 'react';
@@ -32,9 +32,15 @@ interface SidebarSection {
 
 const SECTIONS: SidebarSection[] = [
   {
-    label: 'Account',
+    label: 'Profile',
     tabs: [
       { id: 'profile', label: 'Profile' },
+      { id: 'avatar', label: 'Avatar' },
+    ],
+  },
+  {
+    label: 'Security',
+    tabs: [
       { id: 'password', label: 'Password' },
       { id: 'mfa', label: 'Multi-Factor Auth' },
       { id: 'devices', label: 'Devices' },

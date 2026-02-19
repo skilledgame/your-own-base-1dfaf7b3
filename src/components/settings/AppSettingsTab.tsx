@@ -1,14 +1,13 @@
 /**
- * App Settings Tab — Notifications, Sound Effects & Volume
+ * App Settings Tab — In-App Notifications, Sound Effects & Volume
  *
  * Persists all preferences to localStorage so they survive page reloads.
- * Other parts of the app can read these values via the exported helpers.
+ * Other parts of the app read these via getAppSettings().
  */
 
 import { useState, useCallback } from 'react';
 import {
   Bell, BellOff, Volume2, VolumeX, Volume1,
-  Mail, MessageSquare, Smartphone,
   Swords, MousePointerClick, Music,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -23,8 +22,6 @@ const STORAGE_KEY = 'app_settings';
 
 export interface AppSettings {
   // Notifications
-  pushNotifications: boolean;
-  emailNotifications: boolean;
   inAppNotifications: boolean;
 
   // Sound
@@ -38,8 +35,6 @@ export interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  pushNotifications: true,
-  emailNotifications: true,
   inAppNotifications: true,
   gameSounds: true,
   uiSounds: true,
@@ -94,7 +89,7 @@ export function AppSettingsTab() {
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              {settings.pushNotifications || settings.emailNotifications || settings.inAppNotifications ? (
+              {settings.inAppNotifications ? (
                 <Bell className="w-5 h-5 text-primary" />
               ) : (
                 <BellOff className="w-5 h-5 text-primary" />
@@ -102,44 +97,15 @@ export function AppSettingsTab() {
             </div>
             <div>
               <CardTitle className="text-lg font-semibold">Notifications</CardTitle>
-              <CardDescription>Choose how you want to be notified</CardDescription>
+              <CardDescription>Control in-app notifications</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Push */}
           <SettingRow
-            icon={<Smartphone className="w-4 h-4" />}
-            label="Push Notifications"
-            description="Receive browser push notifications"
-          >
-            <Switch
-              checked={settings.pushNotifications}
-              onCheckedChange={(v) => update('pushNotifications', v)}
-            />
-          </SettingRow>
-
-          <Separator />
-
-          {/* Email */}
-          <SettingRow
-            icon={<Mail className="w-4 h-4" />}
-            label="Email Notifications"
-            description="Get important updates via email"
-          >
-            <Switch
-              checked={settings.emailNotifications}
-              onCheckedChange={(v) => update('emailNotifications', v)}
-            />
-          </SettingRow>
-
-          <Separator />
-
-          {/* In-app */}
-          <SettingRow
-            icon={<MessageSquare className="w-4 h-4" />}
+            icon={<Bell className="w-4 h-4" />}
             label="In-App Notifications"
-            description="Show notification bell and toasts in the app"
+            description="Show game results, credit changes, and notification bell"
           >
             <Switch
               checked={settings.inAppNotifications}
