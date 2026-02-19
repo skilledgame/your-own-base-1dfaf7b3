@@ -10,8 +10,6 @@ import { COLOR_THEMES, ANIMAL_ICONS } from '@/lib/skinConfig';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-export { AvatarTab as SkinsTab };
-
 export function AvatarTab() {
   const { user } = useAuth();
   const { skinColor, skinIcon, displayName } = useProfile();

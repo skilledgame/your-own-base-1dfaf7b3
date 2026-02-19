@@ -1,7 +1,7 @@
 /**
  * Settings Page - Full Account Settings with Multiple Tabs
  * 
- * Tabs: Account, Security, Preferences, API, Verification, Offers
+ * Tabs: Account, Avatar, Security, Preferences, Subscriptions, Billing, Verification, Offers
  * Styled uniquely for Skilled with clean dark theme and green accents
  */
 
@@ -18,19 +18,21 @@ import skilledLogo from '@/assets/skilled-logo.png';
 import { AccountTab } from '@/components/settings/AccountTab';
 import { SecurityTab } from '@/components/settings/SecurityTab';
 import { PreferencesTab } from '@/components/settings/PreferencesTab';
-import { AvatarTab } from '@/components/settings/SkinsTab';
-import { APITab } from '@/components/settings/APITab';
+import { AvatarTab } from '@/components/settings/AvatarTab';
+import { SubscriptionsTab } from '@/components/settings/SubscriptionsTab';
+import { BillingTab } from '@/components/settings/BillingTab';
 import { VerificationTab } from '@/components/settings/VerificationTab';
 import { OffersTab } from '@/components/settings/OffersTab';
 
-type SettingsTabType = 'account' | 'avatar' | 'security' | 'preferences' | 'api' | 'verification' | 'offers';
+type SettingsTabType = 'account' | 'avatar' | 'security' | 'preferences' | 'subscriptions' | 'billing' | 'verification' | 'offers';
 
 const TABS: { id: SettingsTabType; label: string }[] = [
   { id: 'account', label: 'Account' },
   { id: 'avatar', label: 'Avatar' },
   { id: 'security', label: 'Security' },
   { id: 'preferences', label: 'Preferences' },
-  { id: 'api', label: 'API' },
+  { id: 'subscriptions', label: 'Subscriptions' },
+  { id: 'billing', label: 'Billing' },
   { id: 'verification', label: 'Verification' },
   { id: 'offers', label: 'Offers' },
 ];
@@ -65,8 +67,10 @@ export default function Settings() {
         return <SecurityTab />;
       case 'preferences':
         return <PreferencesTab />;
-      case 'api':
-        return <APITab />;
+      case 'subscriptions':
+        return <SubscriptionsTab />;
+      case 'billing':
+        return <BillingTab />;
       case 'verification':
         return <VerificationTab />;
       case 'offers':
