@@ -1,3 +1,5 @@
+import { useLanguage } from '@/contexts/LanguageContext';
+
 const cryptoIcons = [
   { name: 'Bitcoin', logo: 'https://cryptologos.cc/logos/bitcoin-btc-logo.svg' },
   { name: 'Ethereum', logo: 'https://cryptologos.cc/logos/ethereum-eth-logo.svg' },
@@ -8,11 +10,13 @@ const cryptoIcons = [
 ];
 
 export const CryptoSection = () => {
+  const { t } = useLanguage();
+
   return (
     <section className="relative py-12 px-4 overflow-hidden bg-background">
       <div className="relative max-w-7xl mx-auto">
         <p className="text-center text-sm text-muted-foreground mb-8 uppercase tracking-wider font-medium">
-          Supported Cryptocurrencies
+          {t('footer.supported_crypto')}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
           {cryptoIcons.map((crypto, index) => (

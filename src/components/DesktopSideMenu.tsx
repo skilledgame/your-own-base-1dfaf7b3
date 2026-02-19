@@ -4,7 +4,7 @@ import {
   Menu, X, Gamepad2, HelpCircle,
   FileText, Shield, Mail, Crown,
   LogOut, Moon, Sun, ChevronDown,
-  Settings, Swords, Globe
+  Settings, Globe, Gift
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -50,7 +50,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
     return true;
   });
 
-  const [gamesExpanded, setGamesExpanded] = useState(false);
+  const [gamesExpanded, setGamesExpanded] = useState(true);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [totalSCEarned, setTotalSCEarned] = useState(0);
   const langDropdownRef = useRef<HTMLDivElement>(null);
@@ -272,19 +272,19 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                     </div>
                   </div>
 
-                  {/* Clan */}
+                  {/* Rewards */}
                   <button
-                    onClick={() => handleNavigation('/clan')}
+                    onClick={() => handleNavigation('/rewards')}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
                       transition-colors duration-200 text-left whitespace-nowrap
-                      ${currentPath === '/clan'
+                      ${currentPath === '/rewards'
                         ? 'bg-primary/10 text-primary'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
                     `}
                   >
-                    <Swords className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">{t('nav.clan')}</span>
+                    <Gift className="w-5 h-5 flex-shrink-0" />
+                    <span className="font-medium">{t('nav.rewards')}</span>
                   </button>
                 </nav>
               </div>
@@ -361,24 +361,24 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                     </TooltipContent>
                   </Tooltip>
 
-                  {/* Clan icon */}
+                  {/* Rewards icon */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() => handleNavigation('/clan')}
+                        onClick={() => handleNavigation('/rewards')}
                         className={`
                           w-full flex items-center justify-center p-3 rounded-lg
                           transition-colors duration-200
-                          ${currentPath === '/clan'
+                          ${currentPath === '/rewards'
                             ? 'bg-primary/10 text-primary'
                             : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
                         `}
                       >
-                        <Swords className="w-5 h-5" />
+                        <Gift className="w-5 h-5" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p>{t('nav.clan')}</p>
+                      <p>{t('nav.rewards')}</p>
                     </TooltipContent>
                   </Tooltip>
                 </nav>

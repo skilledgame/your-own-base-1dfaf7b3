@@ -40,6 +40,7 @@ import Friends from "./pages/Friends";
 import Clan from "./pages/Clan";
 import ClanLeaderboard from "./pages/ClanLeaderboard";
 import SpectateGame from "./pages/SpectateGame";
+import Rewards from "./pages/Rewards";
 import { useEnsureUser } from "./hooks/useEnsureUser";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { useEffect, useState } from "react";
@@ -236,6 +237,7 @@ function generateRoutes(prefix: string) {
       <Route path={`${prefix}/clan`} element={<Clan />} />
       <Route path={`${prefix}/clan/leaderboard`} element={<ClanLeaderboard />} />
       <Route path={`${prefix}/game/spectate/:targetUserId`} element={<SpectateGame />} />
+      <Route path={`${prefix}/rewards`} element={<Rewards />} />
     </React.Fragment>
   );
 }
