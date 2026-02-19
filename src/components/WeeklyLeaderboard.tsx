@@ -3,6 +3,7 @@ import { Trophy, Medal, Crown, ChevronRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { UserBadges } from '@/components/UserBadge';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 interface LeaderboardEntry {
   rank: number;
@@ -11,6 +12,8 @@ interface LeaderboardEntry {
   gamesWon: number;
   userId: string;
   badges: string[];
+  skinColor: string;
+  skinIcon: string;
 }
 
 const getRankIcon = (rank: number) => {
@@ -93,6 +96,8 @@ export const WeeklyLeaderboard = ({ compact = false }: WeeklyLeaderboardProps) =
           total_won: number;
           games_won: number;
           user_id: string;
+          skin_color: string;
+          skin_icon: string;
         }) => ({
           rank: Number(row.rank),
           playerName: row.player_name || 'Anonymous',
@@ -100,6 +105,8 @@ export const WeeklyLeaderboard = ({ compact = false }: WeeklyLeaderboardProps) =
           gamesWon: Number(row.games_won),
           userId: row.user_id,
           badges: badgesByUser[row.user_id] || [],
+          skinColor: row.skin_color || 'purple',
+          skinIcon: row.skin_icon || 'cat',
         }));
 
         setLeaderboard(entries);
@@ -166,9 +173,12 @@ export const WeeklyLeaderboard = ({ compact = false }: WeeklyLeaderboardProps) =
                     {getRankIcon(entry.rank)}
                   </div>
                   <div className="col-span-5 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                      {entry.playerName[0]?.toUpperCase() || '?'}
-                    </div>
+                    <PlayerAvatar
+                      skinColor={entry.skinColor}
+                      skinIcon={entry.skinIcon}
+                      size="sm"
+                      fallbackInitial={entry.playerName[0] || '?'}
+                    />
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="font-medium text-foreground truncate">{entry.playerName}</span>
                       {entry.badges.length > 0 && <UserBadges badges={entry.badges} size="sm" />}
