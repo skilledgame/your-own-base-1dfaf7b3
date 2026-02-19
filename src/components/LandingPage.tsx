@@ -451,9 +451,9 @@ export const LandingPage = ({
 
         {/* Legal Disclaimer + Copyright */}
         <div className="bg-background border-t border-border/30">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col items-center text-center">
             <img src={skilledLogo} alt="Skilled" className="h-7 w-auto opacity-60 mb-4" />
-            <p className="text-xs text-muted-foreground/60 leading-relaxed max-w-5xl">
+            <p className="text-xs text-muted-foreground/60 leading-relaxed max-w-3xl">
               {t('legal.disclaimer')}
             </p>
             <p className="text-xs text-muted-foreground/40 mt-6">

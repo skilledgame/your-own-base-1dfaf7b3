@@ -85,7 +85,7 @@ export const SiteFooterLinks = () => {
         </div>
 
         {/* Community / Social */}
-        <div className="mt-10 pt-8 border-t border-border/30">
+        <div className="mt-10 pt-8 border-t border-border/30 flex flex-col items-center text-center">
           <h4 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">
             {t('footer.community')}
           </h4>
