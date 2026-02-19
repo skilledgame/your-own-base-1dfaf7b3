@@ -24,7 +24,6 @@ export const LiveWins = () => {
   const previousWinIdsRef = useRef<Set<string>>(new Set());
   const [newWinId, setNewWinId] = useState<string | null>(null);
 
-  // Fetch recent finished games
   const fetchRecentWins = useCallback(async () => {
     if (isFetchingRef.current) return;
 
@@ -35,21 +34,10 @@ export const LiveWins = () => {
     lastFetchRef.current = now;
 
     try {
+      // Step 1: Get the 6 most recent finished games
       const { data: games, error } = await supabase
         .from('games')
-        .select(`
-          id,
-          wager,
-          settled_at,
-          updated_at,
-          created_at,
-          winner_id,
-          winner:players!winner_id(
-            id,
-            name,
-            user_id
-          )
-        `)
+        .select('id, wager, settled_at, updated_at, created_at, winner_id')
         .eq('status', 'finished')
         .not('winner_id', 'is', null)
         .order('settled_at', { ascending: false })
@@ -66,18 +54,36 @@ export const LiveWins = () => {
         return;
       }
 
-      // Batch-fetch display names from profiles
-      const userIds = games
-        .map((g: any) => g.winner?.user_id)
-        .filter(Boolean) as string[];
-      const uniqueUserIds = [...new Set(userIds)];
+      // Step 2: Get player records for all winner IDs (RLS policy now allows this)
+      const winnerIds = [...new Set(games.map(g => g.winner_id).filter(Boolean))] as string[];
+
+      const playerMap = new Map<string, { name: string | null; user_id: string | null }>();
+
+      if (winnerIds.length > 0) {
+        const { data: players } = await supabase
+          .from('players')
+          .select('id, name, user_id')
+          .in('id', winnerIds);
+
+        if (players) {
+          for (const p of players) {
+            playerMap.set(p.id, { name: p.name, user_id: p.user_id });
+          }
+        }
+      }
+
+      // Step 3: Get display names from profiles (publicly readable)
+      const userIds = [...new Set(
+        Array.from(playerMap.values()).map(p => p.user_id).filter(Boolean)
+      )] as string[];
 
       const profileMap = new Map<string, string>();
-      if (uniqueUserIds.length > 0) {
+
+      if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('user_id, display_name')
-          .in('user_id', uniqueUserIds);
+          .in('user_id', userIds);
 
         if (profiles) {
           for (const p of profiles) {
@@ -88,13 +94,14 @@ export const LiveWins = () => {
 
       const isInitialLoad = previousWinIdsRef.current.size === 0;
 
-      const recentWins: Win[] = games.map((game: any) => {
-        const winner = game.winner;
+      // Step 4: Build the win objects
+      const recentWins: Win[] = games.map((game) => {
+        const player = game.winner_id ? playerMap.get(game.winner_id) : null;
         const displayName =
-          (winner?.user_id && profileMap.get(winner.user_id)) ||
-          winner?.name ||
+          (player?.user_id && profileMap.get(player.user_id)) ||
+          player?.name ||
           'Player';
-        const timestampSource = game.settled_at || game.updated_at || game.created_at || Date.now();
+        const timestampSource = game.settled_at || game.updated_at || game.created_at;
 
         return {
           id: game.id,
@@ -111,7 +118,7 @@ export const LiveWins = () => {
       // Sort newest first (leftmost)
       recentWins.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-      // Detect if there's a brand-new win that wasn't in the previous set
+      // Detect brand-new win for pop-in animation
       if (!isInitialLoad) {
         const incoming = recentWins[0];
         if (incoming && !previousWinIdsRef.current.has(incoming.id)) {
@@ -150,7 +157,7 @@ export const LiveWins = () => {
     }
   }, [newWinId]);
 
-  // Continuous scroll loop (right-to-left marquee, newest starts on left)
+  // Continuous scroll loop
   useEffect(() => {
     const scrollContainer = scrollRef.current;
     if (!scrollContainer || wins.length === 0) return;
@@ -210,9 +217,7 @@ export const LiveWins = () => {
             className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
             style={{ scrollBehavior: 'auto' }}
           >
-            {/* Duplicate for seamless loop. Newest first (leftmost). */}
             {[...wins, ...wins].map((win, index) => {
-              // Only pop the first copy when it's the brand-new win
               const shouldPop = win.id === newWinId && index < MAX_WINS;
 
               return (
@@ -220,7 +225,6 @@ export const LiveWins = () => {
                   key={`${win.id}-${index}`}
                   className={`flex-shrink-0 w-[140px] group cursor-pointer${shouldPop ? ' win-pop-in' : ''}`}
                 >
-                  {/* Game Card */}
                   <div
                     className="relative h-[100px] rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105"
                     style={{
@@ -238,7 +242,6 @@ export const LiveWins = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                   </div>
 
-                  {/* Win Info */}
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex items-center gap-1">
                       <div className="w-4 h-4 rounded-full bg-gradient-rainbow flex items-center justify-center overflow-hidden">
