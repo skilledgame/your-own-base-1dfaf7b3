@@ -465,7 +465,7 @@ const ChessBoardComponent = ({
               >
                 {/* ── Normal turn: valid move indicator (non-capture dot) ── */}
                 {isValidMove && !piece && !isCaptureMove && (
-                  <div className={`absolute w-5 h-5 rounded-full ${isLightSquare(row, col) ? 'bg-blue-500/60' : 'bg-white/60'}`} />
+                  <div className={`absolute w-5 h-5 rounded-full ${isLightSquare(row, col) ? 'bg-green-500/60' : 'bg-green-300/60'}`} />
                 )}
                 
                 {/* Normal turn: valid move indicator for squares with pieces */}
@@ -485,7 +485,7 @@ const ChessBoardComponent = ({
 
                 {/* ── Premove: valid target dots (shown while selecting piece) ── */}
                 {isPremoveTarget && !isPremoveCaptureTarget && !piece && (
-                  <div className={`absolute w-5 h-5 rounded-full ${isLightSquare(row, col) ? 'bg-red-500/60' : 'bg-red-300/60'}`} />
+                  <div className={`absolute w-5 h-5 rounded-full ${isLightSquare(row, col) ? 'bg-green-500/60' : 'bg-green-300/60'}`} />
                 )}
                 {/* Premove: capture ring around opponent pieces */}
                 {isPremoveCaptureTarget && (
