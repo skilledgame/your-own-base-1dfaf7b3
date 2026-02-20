@@ -9,8 +9,6 @@ import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useChessStore } from '@/stores/chessStore';
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { LogoLink } from '@/components/LogoLink';
-import { MultiplayerGameView } from '@/components/MultiplayerGameView';
-import { GameResultModal } from '@/components/GameResultModal';
 import { 
   ArrowLeft, 
   Loader2, 
@@ -201,6 +199,22 @@ export default function GameStart() {
   const game = gameSlug ? GAMES[gameSlug] : null;
   const selectedOption = STAKE_OPTIONS.find(opt => opt.coins === selectedStake);
   const isChess = gameSlug === 'chess';
+
+  // Chess has its own dedicated flow at /chess — redirect immediately
+  useEffect(() => {
+    if (isChess) {
+      navigate('/chess', { replace: true });
+    }
+  }, [isChess, navigate]);
+
+  // Prevent old chess UI from flashing during redirect
+  if (isChess) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {

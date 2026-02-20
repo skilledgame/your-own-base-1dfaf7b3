@@ -11,7 +11,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LogoLink } from '@/components/LogoLink';
-import { ChessOnlineMode } from '@/components/chess/ChessOnlineMode';
 import { ChessPrivateMode } from '@/components/chess/ChessPrivateMode';
 import { OnlineModeCard } from '@/components/chess/OnlineModeCard';
 import { PrivateModeCard } from '@/components/chess/PrivateModeCard';

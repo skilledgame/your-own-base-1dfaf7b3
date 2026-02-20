@@ -27,13 +27,13 @@ export const RANK_THRESHOLDS = {
 
 // Perks per tier
 export const RANK_PERKS: Record<string, string[]> = {
-  unranked: ["Basic access", "Standard matchmaking"],
-  bronze: ["Exclusive badge", "Basic leaderboard access"],
-  silver: ["Reduced fee (coming soon)", "Priority matchmaking (coming soon)"],
-  gold: ["VIP badge", "Monthly bonus drops (coming soon)"],
-  platinum: ["Lower house fee (coming soon)", "VIP support (coming soon)"],
-  diamond: ["Best fee tier (coming soon)", "Early access features (coming soon)"],
-  goat: ["GOAT status", "Exclusive GOAT badge", "Best possible perks (coming soon)"],
+  unranked: ["100 SC wager games"],
+  bronze: ["500 & 1,000 SC wager games", "Bronze badge", "Bronze skin"],
+  silver: ["Silver badge", "Silver skin"],
+  gold: ["Gold badge", "Gold skin"],
+  platinum: ["Platinum badge", "Platinum skin"],
+  diamond: ["Diamond badge", "Diamond skin"],
+  goat: ["GOAT badge", "GOAT skin"],
 };
 
 /**
