@@ -94,10 +94,12 @@ export default function ChessHome() {
     }
   };
 
-  // Show sub-screens based on selected mode
-  if (selectedMode === 'online') {
-    return <ChessOnlineMode onBack={handleBack} />;
-  }
+  // Online mode navigates to the unified chess play page
+  useEffect(() => {
+    if (selectedMode === 'online') {
+      navigate('/chess/play');
+    }
+  }, [selectedMode, navigate]);
 
   if (selectedMode === 'private') {
     return <ChessPrivateMode onBack={handleBack} />;

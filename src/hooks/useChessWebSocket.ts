@@ -376,8 +376,16 @@ function initializeGlobalMessageHandler(): void {
         // For private games (dbMatchId present), the user is likely already on /game/live/{UUID}.
         // DON'T navigate to /game/live/g_xxx — it causes a URL change mid-render (React error #310).
         // The gameState is already set with dbGameId matching the URL, so the board will render.
+        //
+        // If user is on /chess/play, the ChessPlay page handles the transition via
+        // phase changes — no navigation needed (it updates URL via replace internally).
         if (navigationCallback && matchId) {
-          if (dbMatchId) {
+          const currentPath = window.location.pathname;
+          const isOnChessPlay = currentPath.startsWith('/chess/play');
+
+          if (isOnChessPlay) {
+            // ChessPlay page reacts to phase/gameState changes — no navigation needed
+          } else if (dbMatchId) {
             // Private game: user is already on /game/live/{UUID}, stay there
           } else {
             if (navigatedToGameId === matchId) {
