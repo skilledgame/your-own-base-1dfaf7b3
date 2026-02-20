@@ -33,6 +33,7 @@ import GameReplay from "./pages/GameReplay";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import LiveGame from "./pages/LiveGame";
+import ChessPlay from "./pages/ChessPlay";
 import PrivateGameLobby from "./pages/PrivateGameLobby";
 import Affiliate from "./pages/Affiliate";
 import VIP from "./pages/VIP";
@@ -215,6 +216,11 @@ function generateRoutes(prefix: string) {
       <Route path={`${prefix}/games/:gameSlug`} element={<GameStart />} />
       <Route path={`${prefix}/chess-lobby`} element={<ChessLobby />} />
       <Route path={`${prefix}/chess`} element={<ChessHome />} />
+      <Route path={`${prefix}/chess/play/:gameId?`} element={
+        <GameErrorBoundary>
+          <ChessPlay />
+        </GameErrorBoundary>
+      } />
       <Route path={`${prefix}/terms`} element={<TermsAndConditions />} />
       <Route path={`${prefix}/privacy`} element={<PrivacyPolicy />} />
       <Route path={`${prefix}/stats`} element={<Stats />} />
