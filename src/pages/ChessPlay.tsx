@@ -61,6 +61,7 @@ import { CryptoSection } from '@/components/CryptoSection';
 import { SiteFooterLinks } from '@/components/SiteFooterLinks';
 import { useLanguage, SUPPORTED_LANGUAGES } from '@/contexts/LanguageContext';
 import skilledLogo from '@/assets/skilled-logo.png';
+import skilledMascot from '@/assets/skilled-mascot.png';
 
 // ---------------------------------------------------------------------------
 // Idle board overlay (shown when no game is active)
@@ -601,7 +602,7 @@ function GameInfoSection() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 text-white/40 text-xs">
-            <Crown className="w-3.5 h-3.5" />
+            <img src={skilledMascot} alt="Skilled" className="w-4 h-4 object-contain" />
             <span>Skilled Originals</span>
           </div>
           <h3 className="text-white font-bold text-lg leading-none">Chess</h3>
@@ -1117,8 +1118,8 @@ export default function ChessPlay() {
                   {/* Two-panel layout */}
                   <div className="flex flex-col md:flex-row gap-4 md:gap-6">
                     {/* Left panel: Wager selection */}
-                    <div className="w-full md:w-[280px] lg:w-[320px] shrink-0">
-                      <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                    <div className="w-full md:w-[280px] lg:w-[320px] shrink-0 flex">
+                      <div className="w-full bg-[#0a0f1a] border border-white/[0.06] rounded-xl p-4 flex flex-col">
                         <WagerPanel />
                       </div>
                     </div>
