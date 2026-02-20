@@ -92,7 +92,7 @@ export function AvatarTab() {
                 key={key}
                 onClick={() => setSelectedColor(key)}
                 className={cn(
-                  'relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                  'relative flex flex-col items-center gap-2 p-3 rounded-md border-2 transition-all',
                   selectedColor === key
                     ? 'border-accent bg-accent/10'
                     : 'border-border hover:border-muted-foreground/50',
@@ -133,7 +133,7 @@ export function AvatarTab() {
                   key={key}
                   onClick={() => setSelectedIcon(key)}
                   className={cn(
-                    'relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                    'relative flex flex-col items-center gap-2 p-3 rounded-md border-2 transition-all',
                     selectedIcon === key
                       ? 'border-accent bg-accent/10'
                       : 'border-border hover:border-muted-foreground/50',
@@ -162,7 +162,7 @@ export function AvatarTab() {
             onClick={handleSave}
             disabled={saving}
             className={cn(
-              'px-8 py-3 rounded-xl font-semibold text-sm transition-all shadow-lg',
+              'px-8 py-3 rounded-md font-semibold text-sm transition-all shadow-lg',
               'bg-accent text-white hover:bg-accent/90',
               'disabled:opacity-50 disabled:cursor-not-allowed',
             )}

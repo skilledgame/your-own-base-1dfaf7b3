@@ -28,7 +28,7 @@ export function APITab() {
         <div className="h-1 bg-gradient-to-r from-accent via-primary to-accent" />
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-md bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center">
               <Code className="w-6 h-6 text-accent" />
             </div>
             <div>
@@ -124,15 +124,15 @@ export function APITab() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
+            <div className="p-4 rounded-md bg-muted/30 border border-border text-center">
               <p className="text-2xl font-bold text-foreground">0</p>
               <p className="text-xs text-muted-foreground mt-1">Requests Today</p>
             </div>
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
+            <div className="p-4 rounded-md bg-muted/30 border border-border text-center">
               <p className="text-2xl font-bold text-foreground">0</p>
               <p className="text-xs text-muted-foreground mt-1">This Month</p>
             </div>
-            <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 text-center md:col-span-1 col-span-2">
+            <div className="p-4 rounded-md bg-accent/10 border border-accent/20 text-center md:col-span-1 col-span-2">
               <p className="text-2xl font-bold text-accent">∞</p>
               <p className="text-xs text-muted-foreground mt-1">Rate Limit</p>
             </div>
@@ -154,7 +154,7 @@ export function APITab() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="p-8 rounded-xl border border-dashed border-border text-center">
+          <div className="p-8 rounded-md border border-dashed border-border text-center">
             <Code className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
               Configure webhooks to receive game events, match results, and more.

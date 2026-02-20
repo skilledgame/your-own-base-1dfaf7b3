@@ -42,7 +42,7 @@ export function SubscriptionsTab() {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Free Plan */}
-            <div className="rounded-xl border-2 border-accent/50 bg-accent/5 p-5">
+            <div className="rounded-md border-2 border-accent/50 bg-accent/5 p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Free</h3>
                 <Badge className="bg-accent/20 text-accent border-accent/30 hover:bg-accent/20">Current</Badge>
@@ -62,7 +62,7 @@ export function SubscriptionsTab() {
             </div>
 
             {/* Premium Plan */}
-            <div className="rounded-xl border border-border bg-muted/10 p-5 opacity-60">
+            <div className="rounded-md border border-border bg-muted/10 p-5 opacity-60">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Premium</h3>
                 <Badge variant="secondary" className="bg-muted text-muted-foreground">Coming Soon</Badge>

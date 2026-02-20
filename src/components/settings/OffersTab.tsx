@@ -92,7 +92,7 @@ export function OffersTab() {
         <div className="h-1 bg-gradient-to-r from-accent via-primary to-accent" />
         <CardHeader className="pb-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-md bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center">
               <Users className="w-7 h-7 text-accent" />
             </div>
             <div className="flex-1">
@@ -103,15 +103,15 @@ export function OffersTab() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
+            <div className="p-4 rounded-md bg-muted/30 border border-border text-center">
               <p className="text-2xl font-bold text-foreground">0</p>
               <p className="text-xs text-muted-foreground mt-1">Referrals</p>
             </div>
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
+            <div className="p-4 rounded-md bg-muted/30 border border-border text-center">
               <p className="text-2xl font-bold text-foreground">0</p>
               <p className="text-xs text-muted-foreground mt-1">Pending</p>
             </div>
-            <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 text-center">
+            <div className="p-4 rounded-md bg-accent/10 border border-accent/20 text-center">
               <p className="text-2xl font-bold text-accent">0 SC</p>
               <p className="text-xs text-muted-foreground mt-1">Earned</p>
             </div>
@@ -177,10 +177,10 @@ export function OffersTab() {
             return (
               <div 
                 key={offer.id}
-                className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-all"
+                className="p-4 rounded-md border border-border bg-muted/30 hover:bg-muted/50 transition-all"
               >
                 <div className="flex items-start gap-4">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
+                  <div className={`w-12 h-12 rounded-md bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -244,7 +244,7 @@ export function OffersTab() {
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-md bg-primary/20 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div>

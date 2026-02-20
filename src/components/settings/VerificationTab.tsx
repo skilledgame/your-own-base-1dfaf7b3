@@ -98,7 +98,7 @@ export function VerificationTab() {
         <div className="h-1 bg-gradient-to-r from-accent via-primary to-accent" />
         <CardHeader className="pb-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-md bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center">
               <BadgeCheck className="w-7 h-7 text-accent" />
             </div>
             <div className="flex-1">
@@ -117,12 +117,12 @@ export function VerificationTab() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-4 rounded-xl bg-muted/30 border border-border">
+            <div className="p-4 rounded-md bg-muted/30 border border-border">
               <p className="text-xs text-muted-foreground mb-1">Withdrawal Limit</p>
               <p className="text-lg font-bold text-foreground">$500/day</p>
               <p className="text-xs text-accent mt-1">+$10,000 after full verification</p>
             </div>
-            <div className="p-4 rounded-xl bg-muted/30 border border-border">
+            <div className="p-4 rounded-md bg-muted/30 border border-border">
               <p className="text-xs text-muted-foreground mb-1">Deposit Limit</p>
               <p className="text-lg font-bold text-foreground">$1,000/day</p>
               <p className="text-xs text-accent mt-1">Unlimited after verification</p>
@@ -141,14 +141,14 @@ export function VerificationTab() {
           {verificationSteps.map((step, index) => (
             <div 
               key={step.id}
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-4 rounded-md border transition-all ${
                 step.status === 'verified' 
                   ? 'bg-accent/5 border-accent/20' 
                   : 'bg-muted/30 border-border hover:border-muted-foreground/30'
               }`}
             >
               <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                <div className={`w-10 h-10 rounded-md flex items-center justify-center ${
                   step.status === 'verified' 
                     ? 'bg-accent/20' 
                     : 'bg-muted'

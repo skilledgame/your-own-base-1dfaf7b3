@@ -181,8 +181,8 @@ export default function Settings() {
             </div>
           </nav>
 
-          {/* Tab Content */}
-          <main className="flex-1 min-w-0">
+          {/* Tab Content — local --radius override keeps settings sharp */}
+          <main className="flex-1 min-w-0" style={{ '--radius': '0.375rem' } as React.CSSProperties}>
             <div key={activeTab} className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
               {renderTabContent()}
             </div>

@@ -67,7 +67,7 @@ export function PreferencesTab() {
           <div className="grid grid-cols-3 gap-3">
             <button
               onClick={() => handleThemeChange('light')}
-              className={`p-4 rounded-xl border-2 transition-all ${
+              className={`p-4 rounded-md border-2 transition-all ${
                 theme === 'light' 
                   ? 'border-accent bg-accent/10' 
                   : 'border-border hover:border-muted-foreground/50'
@@ -80,7 +80,7 @@ export function PreferencesTab() {
             </button>
             <button
               onClick={() => handleThemeChange('dark')}
-              className={`p-4 rounded-xl border-2 transition-all ${
+              className={`p-4 rounded-md border-2 transition-all ${
                 theme === 'dark' 
                   ? 'border-accent bg-accent/10' 
                   : 'border-border hover:border-muted-foreground/50'
@@ -93,7 +93,7 @@ export function PreferencesTab() {
             </button>
             <button
               onClick={() => handleThemeChange('system')}
-              className={`p-4 rounded-xl border-2 transition-all ${
+              className={`p-4 rounded-md border-2 transition-all ${
                 theme === 'system' 
                   ? 'border-accent bg-accent/10' 
                   : 'border-border hover:border-muted-foreground/50'

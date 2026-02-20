@@ -709,7 +709,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
                     onClick={mfaMethod !== 'email' ? handleSwitchToEmail : undefined}
                     disabled={switchingMethod || mfaMethod === 'email'}
                     className={cn(
-                      'relative p-4 rounded-xl border-2 transition-all text-left disabled:opacity-60 disabled:cursor-default',
+                      'relative p-4 rounded-md border-2 transition-all text-left disabled:opacity-60 disabled:cursor-default',
                       mfaMethod === 'email'
                         ? 'border-accent bg-accent/5'
                         : 'border-border bg-muted/30 hover:border-muted-foreground/30 hover:bg-muted/50',
@@ -737,7 +737,7 @@ export function AccountTab({ onNavigateToAvatar }: AccountTabProps) {
                     onClick={mfaMethod !== 'totp' ? handleSwitchToApp : undefined}
                     disabled={switchingMethod || (mfaMethod === 'totp' && mfaStatus === 'enrolled')}
                     className={cn(
-                      'relative p-4 rounded-xl border-2 transition-all text-left disabled:opacity-60 disabled:cursor-default',
+                      'relative p-4 rounded-md border-2 transition-all text-left disabled:opacity-60 disabled:cursor-default',
                       mfaMethod === 'totp'
                         ? 'border-accent bg-accent/5'
                         : 'border-border bg-muted/30 hover:border-muted-foreground/30 hover:bg-muted/50',
