@@ -445,7 +445,7 @@ export const WSMultiplayerGameView = ({
         {/* Header */}
         <header 
           className={`
-            fixed top-0 z-40 bg-[#172c46] border-b-[3px] border-black
+            fixed top-0 z-40 bg-[#0a0f1a] border-b-[3px] border-black
             transition-all duration-300 ease-out
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
@@ -515,13 +515,15 @@ export const WSMultiplayerGameView = ({
           </div>
         </header>
 
-        {/* Black outer border → theme-colored inner panel */}
+        {/* Bordered game layout: black border → navy border → black game area */}
         <div className="pt-16 sm:pt-[60px]">
-          {/* Black border strip (top) is the black bg showing through */}
-          <div className="bg-black p-1 sm:p-2 md:p-3 min-h-[calc(100vh-64px)]">
-            {/* Inner theme panel */}
-            <div className="bg-[#172c46] rounded-sm min-h-[calc(100vh-64px-8px)] sm:min-h-[calc(100vh-60px-16px)] md:min-h-[calc(100vh-60px-24px)] p-4 sm:p-8">
-              <div className="max-w-4xl mx-auto mt-2 sm:mt-6">
+          {/* Outer black border */}
+          <div className="bg-black p-2 sm:p-3 md:p-[14px] min-h-[calc(100vh-64px)]">
+            {/* Inner navy border */}
+            <div className="bg-[#0a0f1a] rounded-lg p-2 sm:p-3 md:p-[14px] min-h-[calc(100vh-64px-16px)] sm:min-h-[calc(100vh-60px-24px)] md:min-h-[calc(100vh-60px-28px)]">
+              {/* Game screen area */}
+              <div className="bg-black rounded-md min-h-[calc(100vh-64px-48px)] sm:min-h-[calc(100vh-60px-72px)] md:min-h-[calc(100vh-60px-84px)] p-4 sm:p-8">
+                <div className="max-w-4xl mx-auto mt-2 sm:mt-6">
             {/* Game Area */}
             <div className="flex flex-col items-center gap-2.5">
               {/* Opponent Info Row — compact name box + badges outside + timer + resign */}
@@ -669,6 +671,7 @@ export const WSMultiplayerGameView = ({
               </div>
             </div>
           </div>
+              </div>
             </div>
           </div>
         </div>
