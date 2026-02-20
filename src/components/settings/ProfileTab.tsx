@@ -432,6 +432,25 @@ export function ProfileTab({ onNavigateToAvatar }: ProfileTabProps) {
         </CardContent>
       </Card>
 
+      {/* ─── Danger Zone ──────────────────────────────────────── */}
+      <Card className="border-destructive/30 bg-destructive/5">
+        <CardContent className="py-4">
+          <div className="flex items-center gap-3 mb-3">
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+            <h3 className="text-lg font-semibold text-destructive">Danger Zone</h3>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Delete Account</p>
+              <p className="text-xs text-muted-foreground">Permanently delete your account and all data</p>
+            </div>
+            <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground">
+              Delete
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ─── Edit Username Dialog ─────────────────────────────── */}
       <Dialog open={showEditNameDialog} onOpenChange={(open) => { if (!open) closeEditNameDialog(); }}>
         <DialogContent className="sm:max-w-md">

@@ -1,6 +1,7 @@
 /**
  * Settings Page — redesigned sidebar with icons, sections, and polished UX
- * Now uses the same site-wide header (logo, balance, user controls) as other pages.
+ * Uses the same site-wide header (logo, balance, user controls) as other pages.
+ * Sidebar aligns under the logo, content aligns under the right-hand controls.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -30,6 +31,9 @@ import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletModal } from '@/contexts/WalletModalContext';
+import { useProfile } from '@/hooks/useProfile';
+import { getRankFromTotalWagered } from '@/lib/rankSystem';
+import { getRankBorderClass } from '@/components/settings/ProfileTab';
 import { cn } from '@/lib/utils';
 
 // Tab Components
@@ -92,6 +96,8 @@ export default function Settings() {
   const navigate = useNavigate();
   const { isAuthenticated, isAuthReady, isPrivileged } = useAuth();
   const { openWallet } = useWalletModal();
+  const { totalWageredSc } = useProfile();
+  const rankInfo = getRankFromTotalWagered(totalWageredSc);
   const [activeTab, setActiveTab] = useState<SettingsTabType>('profile');
 
   // Layout state — mirrors LandingPage / ChessHome pattern
@@ -124,26 +130,39 @@ export default function Settings() {
   }
 
   const renderTabContent = () => {
-    switch (activeTab) {
-      case 'profile':
-        return <ProfileTab onNavigateToAvatar={() => setActiveTab('avatar')} />;
-      case 'avatar':
-        return <AvatarTab />;
-      case 'password':
-        return <PasswordTab />;
-      case 'mfa':
-        return <MFATab />;
-      case 'devices':
-        return <DevicesTab />;
-      case 'subscriptions':
-        return <SubscriptionsTab />;
-      case 'billing':
-        return <BillingTab />;
-      case 'app':
-        return <AppSettingsTab />;
-      default:
-        return <ProfileTab />;
+    const content = (() => {
+      switch (activeTab) {
+        case 'profile':
+          return <ProfileTab onNavigateToAvatar={() => setActiveTab('avatar')} />;
+        case 'avatar':
+          return <AvatarTab />;
+        case 'password':
+          return <PasswordTab />;
+        case 'mfa':
+          return <MFATab />;
+        case 'devices':
+          return <DevicesTab />;
+        case 'subscriptions':
+          return <SubscriptionsTab />;
+        case 'billing':
+          return <BillingTab />;
+        case 'app':
+          return <AppSettingsTab />;
+        default:
+          return <ProfileTab />;
+      }
+    })();
+
+    // Wrap Subscriptions tab in rank-colored outline
+    if (activeTab === 'subscriptions') {
+      return (
+        <div className={cn('rounded-xl border-2 p-4 sm:p-6', getRankBorderClass(rankInfo.tierName))}>
+          {content}
+        </div>
+      );
     }
+
+    return content;
   };
 
   return (
@@ -250,46 +269,52 @@ export default function Settings() {
         </header>
 
         {/* ─── Settings Content ───────────────────────────────────────── */}
-        <div className="max-w-6xl mx-auto px-4 py-6 pt-24">
-          {/* Page title */}
-          <div className="flex items-center gap-3 mb-6">
-            <SettingsIcon className="w-6 h-6 text-muted-foreground" />
-            <h1 className="text-2xl font-bold">Settings</h1>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-8">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-10">
 
-          <div className="flex flex-col md:flex-row gap-8">
-
-            {/* ─── Settings Sidebar ─────────────────────────────────── */}
-            <nav className="md:w-56 shrink-0">
-              {/* Mobile: horizontal scroll strip */}
-              <div className="flex md:hidden gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
-                {SECTIONS.flatMap((s) => s.tabs).map((tab) => {
-                  const Icon = tab.icon;
-                  const active = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={cn(
-                        'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded whitespace-nowrap',
-                        'border transition-colors duration-150',
-                        active
-                          ? 'border-primary/40 bg-primary/10 text-foreground'
-                          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40',
-                      )}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
+            {/* ─── Settings Sidebar (aligned under logo — left side) ──── */}
+            <nav className="md:w-52 shrink-0">
+              {/* Page title above sidebar on desktop */}
+              <div className="hidden md:flex items-center gap-2.5 mb-4">
+                <SettingsIcon className="w-5 h-5 text-muted-foreground" />
+                <h1 className="text-xl font-bold">Settings</h1>
               </div>
 
-              {/* Desktop: vertical sticky nav — extends to fill viewport height */}
-              <div className="hidden md:flex flex-col gap-px rounded border border-border bg-card/50 p-1.5 backdrop-blur-sm sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto scrollbar-sidebar">
+              {/* Mobile: page title + horizontal scroll strip */}
+              <div className="md:hidden mb-4">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <SettingsIcon className="w-5 h-5 text-muted-foreground" />
+                  <h1 className="text-xl font-bold">Settings</h1>
+                </div>
+                <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
+                  {SECTIONS.flatMap((s) => s.tabs).map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={cn(
+                          'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded whitespace-nowrap',
+                          'border transition-colors duration-150',
+                          active
+                            ? 'border-primary/40 bg-primary/10 text-foreground'
+                            : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40',
+                        )}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Desktop: vertical sticky nav — full height */}
+              <div className="hidden md:flex flex-col gap-px rounded-lg border border-border bg-card/50 p-2 backdrop-blur-sm sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto scrollbar-sidebar">
                 {SECTIONS.map((section, idx) => (
                   <div key={section.label}>
-                    {idx > 0 && <div className="h-px bg-border/60 mx-2 my-2" />}
+                    {idx > 0 && <div className="h-px bg-border/60 mx-2 my-2.5" />}
 
                     <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/40 select-none">
                       {section.label}
@@ -303,7 +328,7 @@ export default function Settings() {
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id)}
                           className={cn(
-                            'group relative flex items-center gap-2.5 w-full px-2.5 py-2.5 text-[13px] rounded',
+                            'group relative flex items-center gap-2.5 w-full px-2.5 py-2.5 text-[13px] rounded-md',
                             'transition-all duration-150 ease-out',
                             active
                               ? 'bg-primary/10 text-foreground font-medium'
@@ -328,11 +353,11 @@ export default function Settings() {
                 ))}
 
                 {/* Spacer to extend sidebar visually */}
-                <div className="flex-1 min-h-[8rem]" />
+                <div className="flex-1 min-h-[10rem]" />
               </div>
             </nav>
 
-            {/* ─── Tab Content ──────────────────────────────────────── */}
+            {/* ─── Tab Content (aligned right — under user controls) ──── */}
             <main className="flex-1 min-w-0" style={{ '--radius': '0.375rem' } as React.CSSProperties}>
               <div key={activeTab} className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 {renderTabContent()}
