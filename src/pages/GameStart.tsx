@@ -500,32 +500,7 @@ export default function GameStart() {
     return null;
   }
 
-  // Show multiplayer game when matched
-  if (currentGame && opponent && player && player.id) {
-    return (
-      <>
-        <MultiplayerGameView
-          player={{ ...player, skilledCoins: balance }}
-          opponent={opponent}
-          game={currentGame}
-          onMove={handleMove}
-          onTimeUpdate={handleTimeUpdate}
-          onGameEnd={handleGameEnd}
-          onBack={handleBackFromGame}
-        />
-        {gameResult && (
-          <GameResultModal
-            isWin={gameResult.isWin}
-            coinsChange={gameResult.tokensChange}
-            newBalance={gameResult.newBalance}
-            reason={gameResult.reason}
-            onPlayAgain={handlePlayAgain}
-            onGoHome={handleGoHome}
-          />
-        )}
-      </>
-    );
-  }
+  // Old multiplayer game view was here — chess now redirects to /chess, so this is unreachable
 
   // Chess-specific gaming design
   if (isChess && game.isLive) {
