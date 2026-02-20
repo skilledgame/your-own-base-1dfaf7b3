@@ -388,7 +388,21 @@ export function ProfileTab({ onNavigateToAvatar }: ProfileTabProps) {
         <CardContent className="pt-4 pb-6 space-y-4">
           <Separator className="bg-border" />
 
-          {/* Email row */}
+          {/* Member since row */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Member since</span>
+            <span className="text-foreground font-medium">
+              {user?.created_at
+                ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                : 'Unknown'}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── Email ─────────────────────────────────────────────── */}
+      <Card className={cn('border bg-card', getRankBorderClass(rankInfo.tierName))}>
+        <CardContent className="py-4">
           <div className="flex items-center gap-5">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
@@ -414,20 +428,6 @@ export function ProfileTab({ onNavigateToAvatar }: ProfileTabProps) {
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">Email Address</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ─── Member Since ─────────────────────────────────────── */}
-      <Card className={cn('border bg-card', getRankBorderClass(rankInfo.tierName))}>
-        <CardContent className="py-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Member since</span>
-            <span className="text-foreground font-medium">
-              {user?.created_at
-                ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                : 'Unknown'}
-            </span>
           </div>
         </CardContent>
       </Card>

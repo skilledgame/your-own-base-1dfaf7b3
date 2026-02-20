@@ -1,10 +1,22 @@
 /**
- * Settings Page - Sidebar with Profile, Security, App & Payments section headers
+ * Settings Page — redesigned sidebar with icons, sections, and polished UX
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, X } from 'lucide-react';
+import {
+  Settings as SettingsIcon,
+  X,
+  User,
+  ImageIcon,
+  Lock,
+  ShieldCheck,
+  Monitor,
+  Sliders,
+  CreditCard,
+  Receipt,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
@@ -25,38 +37,44 @@ type SettingsTabType =
   | 'profile' | 'password' | 'mfa' | 'devices' | 'avatar'
   | 'subscriptions' | 'billing' | 'app';
 
+interface TabItem {
+  id: SettingsTabType;
+  label: string;
+  icon: LucideIcon;
+}
+
 interface SidebarSection {
   label: string;
-  tabs: { id: SettingsTabType; label: string }[];
+  tabs: TabItem[];
 }
 
 const SECTIONS: SidebarSection[] = [
   {
     label: 'Profile',
     tabs: [
-      { id: 'profile', label: 'Profile' },
-      { id: 'avatar', label: 'Avatar' },
+      { id: 'profile', label: 'Profile', icon: User },
+      { id: 'avatar', label: 'Avatar', icon: ImageIcon },
     ],
   },
   {
     label: 'Security',
     tabs: [
-      { id: 'password', label: 'Password' },
-      { id: 'mfa', label: 'Multi-Factor Auth' },
-      { id: 'devices', label: 'Devices' },
+      { id: 'password', label: 'Password', icon: Lock },
+      { id: 'mfa', label: 'Multi-Factor Auth', icon: ShieldCheck },
+      { id: 'devices', label: 'Devices', icon: Monitor },
     ],
   },
   {
     label: 'App',
     tabs: [
-      { id: 'app', label: 'App Settings' },
+      { id: 'app', label: 'App Settings', icon: Sliders },
     ],
   },
   {
     label: 'Payments',
     tabs: [
-      { id: 'subscriptions', label: 'Subscriptions' },
-      { id: 'billing', label: 'Billing' },
+      { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
+      { id: 'billing', label: 'Billing', icon: Receipt },
     ],
   },
 ];
@@ -106,10 +124,8 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Desktop Side Menu */}
       <DesktopSideMenu isOpen={sideMenuOpen} onToggle={() => setSideMenuOpen(!sideMenuOpen)} />
 
-      {/* Overlay for mobile */}
       {sideMenuOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -137,56 +153,84 @@ export default function Settings() {
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Sidebar */}
-          <nav className="md:w-52 shrink-0">
-            <div className="flex md:flex-col gap-0.5 overflow-x-auto pb-2 md:pb-0 scrollbar-hide md:border-r md:border-border md:pr-4">
-              {SECTIONS.map((section, idx) => (
-                <div key={section.label} className="contents md:block">
-                  {/* Spacer between sections */}
-                  {idx > 0 && <div className="hidden md:block h-5" />}
 
-                  {/* Section header */}
-                  <p className="hidden md:block px-3 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 select-none">
+          {/* ─── Sidebar ─────────────────────────────────────────── */}
+          <nav className="md:w-56 shrink-0">
+            {/* Mobile: horizontal scroll strip */}
+            <div className="flex md:hidden gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
+              {SECTIONS.flatMap((s) => s.tabs).map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded whitespace-nowrap',
+                      'border transition-colors duration-150',
+                      active
+                        ? 'border-primary/40 bg-primary/10 text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40',
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Desktop: vertical nav */}
+            <div className="hidden md:flex flex-col gap-px rounded border border-border bg-card/50 p-1.5 backdrop-blur-sm">
+              {SECTIONS.map((section, idx) => (
+                <div key={section.label}>
+                  {idx > 0 && <div className="h-px bg-border/60 mx-2 my-1.5" />}
+
+                  <p className="px-2.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/40 select-none">
                     {section.label}
                   </p>
 
-                  {/* Tabs */}
-                  {section.tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={cn(
-                        'group relative px-3 py-1.5 text-left text-sm rounded-md w-full',
-                        'transition-colors duration-150 ease-out whitespace-nowrap',
-                        activeTab === tab.id
-                          ? 'text-foreground bg-muted/80 font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal',
-                      )}
-                    >
-                      {/* Active indicator bar */}
-                      <span
+                  {section.tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
                         className={cn(
-                          'absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-sm',
-                          'transition-all duration-200 ease-out',
-                          activeTab === tab.id
-                            ? 'h-4 bg-primary opacity-100'
-                            : 'h-0 bg-primary opacity-0 group-hover:h-2 group-hover:opacity-40',
+                          'group relative flex items-center gap-2.5 w-full px-2.5 py-[7px] text-[13px] rounded',
+                          'transition-all duration-150 ease-out',
+                          active
+                            ? 'bg-primary/10 text-foreground font-medium'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-normal',
                         )}
-                      />
-                      {tab.label}
-                    </button>
-                  ))}
+                      >
+                        <Icon
+                          className={cn(
+                            'w-4 h-4 shrink-0 transition-colors duration-150',
+                            active ? 'text-primary' : 'text-muted-foreground/60 group-hover:text-muted-foreground',
+                          )}
+                        />
+                        {tab.label}
+                        {/* Right edge accent */}
+                        {active && (
+                          <span className="absolute right-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-primary rounded-l" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               ))}
             </div>
           </nav>
 
-          {/* Tab Content — local --radius override keeps settings sharp */}
+          {/* ─── Tab Content ──────────────────────────────────────── */}
           <main className="flex-1 min-w-0" style={{ '--radius': '0.375rem' } as React.CSSProperties}>
             <div key={activeTab} className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
               {renderTabContent()}
             </div>
           </main>
+
         </div>
       </div>
 
