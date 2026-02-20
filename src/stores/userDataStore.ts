@@ -158,7 +158,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             email: data.email,
             chess_elo: data.chess_elo ?? 800,
             daily_play_streak: data.daily_play_streak ?? 0,
-            skin_color: data.skin_color ?? 'purple',
+            skin_color: data.skin_color ?? 'normal',
             skin_icon: data.skin_icon ?? 'cat',
           };
           
@@ -225,7 +225,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
             email: data.email,
             chess_elo: data.chess_elo ?? 800,
             daily_play_streak: data.daily_play_streak ?? 0,
-            skin_color: data.skin_color ?? 'purple',
+            skin_color: data.skin_color ?? 'normal',
             skin_icon: data.skin_icon ?? 'cat',
           };
           
@@ -368,7 +368,7 @@ export const useUserDataStore = create<UserDataStore>((set, get) => {
               email: data.email,
               chess_elo: data.chess_elo ?? 800,
               daily_play_streak: data.daily_play_streak ?? 0,
-              skin_color: data.skin_color ?? 'purple',
+              skin_color: data.skin_color ?? 'normal',
               skin_icon: data.skin_icon ?? 'cat',
             };
             

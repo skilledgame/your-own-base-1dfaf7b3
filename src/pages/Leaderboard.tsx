@@ -108,7 +108,7 @@ const Leaderboard = () => {
           gamesWon: Number(row.games_won),
           userId: row.user_id,
           badges: badgesByUser[row.user_id] || [],
-          skinColor: row.skin_color || 'purple',
+          skinColor: row.skin_color || 'normal',
           skinIcon: row.skin_icon || 'cat',
         }));
 

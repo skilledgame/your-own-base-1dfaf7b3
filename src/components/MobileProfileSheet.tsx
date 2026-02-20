@@ -28,7 +28,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
   const navigate = useNavigate();
   
   const displayName = useUserDataStore(state => state.profile?.display_name ?? null);
-  const skinColor = useUserDataStore(state => state.profile?.skin_color ?? 'purple');
+  const skinColor = useUserDataStore(state => state.profile?.skin_color ?? 'normal');
   const skinIcon = useUserDataStore(state => state.profile?.skin_icon ?? 'cat');
   const loading = useUserDataStore(state => state.loading);
 

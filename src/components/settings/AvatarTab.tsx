@@ -1,21 +1,49 @@
 import { useState } from 'react';
-import { Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles, Lock, Crown, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useUserDataStore } from '@/stores/userDataStore';
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
-import { COLOR_THEMES, ANIMAL_ICONS } from '@/lib/skinConfig';
+import {
+  COLOR_THEMES,
+  ANIMAL_ICONS,
+  FREE_THEMES,
+  RANK_THEMES,
+  PREMIUM_THEMES,
+  hasReachedRank,
+} from '@/lib/skinConfig';
+import { getRankFromTotalWagered } from '@/lib/rankSystem';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+/** Inline rainbow preview style (mirrors PlayerAvatar rainbow) */
+const RAINBOW_PREVIEW_STYLE: React.CSSProperties = {
+  background: `linear-gradient(
+    135deg,
+    hsl(0, 85%, 60%),
+    hsl(45, 90%, 55%),
+    hsl(90, 80%, 50%),
+    hsl(180, 80%, 50%),
+    hsl(225, 85%, 60%),
+    hsl(270, 80%, 60%),
+    hsl(315, 85%, 60%),
+    hsl(360, 85%, 60%)
+  )`,
+  backgroundSize: '300% 300%',
+  animation: 'avatar-rainbow 4s linear infinite',
+};
+
 export function AvatarTab() {
   const { user } = useAuth();
-  const { skinColor, skinIcon, displayName } = useProfile();
+  const { skinColor, skinIcon, displayName, totalWageredSc } = useProfile();
   const [selectedColor, setSelectedColor] = useState(skinColor);
   const [selectedIcon, setSelectedIcon] = useState(skinIcon);
   const [saving, setSaving] = useState(false);
+
+  const rankInfo = getRankFromTotalWagered(totalWageredSc);
+  const currentTier = rankInfo.tierName;
 
   const hasChanges = selectedColor !== skinColor || selectedIcon !== skinIcon;
 
@@ -50,9 +78,25 @@ export function AvatarTab() {
     }
   };
 
+  /** Try to select a color — guard against locked themes */
+  const handleColorSelect = (key: string) => {
+    const theme = COLOR_THEMES[key];
+    if (!theme) return;
+
+    // Premium themes are locked
+    if (theme.isPremium) return;
+
+    // Rank themes need the rank
+    if (theme.category === 'rank' && theme.requiredRank) {
+      if (!hasReachedRank(currentTier, theme.requiredRank)) return;
+    }
+
+    setSelectedColor(key);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Preview */}
+      {/* ─── Preview ──────────────────────────────────────────── */}
       <Card className="border-border bg-card">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
@@ -79,46 +123,155 @@ export function AvatarTab() {
         </CardContent>
       </Card>
 
-      {/* Color Theme */}
+      {/* ─── Free Color Themes ────────────────────────────────── */}
       <Card className="border-border bg-card">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-semibold">Color Theme</CardTitle>
-          <CardDescription>Choose your avatar gradient</CardDescription>
+          <CardDescription>Choose your avatar color</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-3">
-            {Object.entries(COLOR_THEMES).map(([key, theme]) => (
-              <button
-                key={key}
-                onClick={() => setSelectedColor(key)}
-                className={cn(
-                  'relative flex flex-col items-center gap-2 p-3 rounded-md border-2 transition-all',
-                  selectedColor === key
-                    ? 'border-accent bg-accent/10'
-                    : 'border-border hover:border-muted-foreground/50',
-                )}
-              >
-                <div
+            {FREE_THEMES.map(([key, theme]) => {
+              const isSelected = selectedColor === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleColorSelect(key)}
                   className={cn(
-                    'w-10 h-10 rounded-full',
-                    theme.preview,
+                    'relative flex flex-col items-center gap-2 p-3 rounded-md border-2 transition-all',
+                    isSelected
+                      ? 'border-accent bg-accent/10'
+                      : 'border-border hover:border-muted-foreground/50',
                   )}
-                />
-                {selectedColor === key && (
-                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
-                    <Check className="w-2.5 h-2.5 text-white" />
-                  </div>
-                )}
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  {theme.label}
-                </span>
-              </button>
-            ))}
+                >
+                  <div className={cn('w-10 h-10 rounded-full', theme.preview)} />
+                  {isSelected && (
+                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
+                      <Check className="w-2.5 h-2.5 text-white" />
+                    </div>
+                  )}
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    {theme.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
-      {/* Animal Icon */}
+      {/* ─── Rank Color Themes (unlockable) ───────────────────── */}
+      <Card className="border-border bg-card">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-yellow-500" />
+            <div>
+              <CardTitle className="text-lg font-semibold">Rank Colors</CardTitle>
+              <CardDescription>
+                Unlock exclusive colors by reaching higher ranks
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {RANK_THEMES.map(([key, theme]) => {
+              const isUnlocked = hasReachedRank(currentTier, theme.requiredRank!);
+              const isSelected = selectedColor === key;
+
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleColorSelect(key)}
+                  disabled={!isUnlocked}
+                  className={cn(
+                    'relative flex flex-col items-center gap-2 p-3 rounded-md border-2 transition-all',
+                    isSelected
+                      ? 'border-accent bg-accent/10'
+                      : isUnlocked
+                      ? 'border-border hover:border-muted-foreground/50'
+                      : 'border-border/50 opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  <div className="relative">
+                    <div className={cn('w-10 h-10 rounded-full', theme.preview)} />
+                    {!isUnlocked && (
+                      <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                        <Lock className="w-4 h-4 text-white/80" />
+                      </div>
+                    )}
+                  </div>
+                  {isSelected && isUnlocked && (
+                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
+                      <Check className="w-2.5 h-2.5 text-white" />
+                    </div>
+                  )}
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    {theme.label}
+                  </span>
+                  {!isUnlocked && (
+                    <span className="text-[9px] text-muted-foreground/60 capitalize">
+                      {theme.requiredRank} rank
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── Premium / Rainbow (subscription-locked) ──────────── */}
+      <Card className="border-border bg-card overflow-hidden">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
+            <Crown className="w-5 h-5 text-purple-400" />
+            <div>
+              <CardTitle className="text-lg font-semibold">Premium</CardTitle>
+              <CardDescription>Exclusive animated themes for subscribers</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-3">
+            {PREMIUM_THEMES.map(([key, theme]) => {
+              const isSelected = selectedColor === key;
+
+              return (
+                <button
+                  key={key}
+                  disabled
+                  className={cn(
+                    'relative flex flex-col items-center gap-2 p-3 rounded-md border-2 transition-all',
+                    isSelected
+                      ? 'border-accent bg-accent/10'
+                      : 'border-border/50 opacity-70 cursor-not-allowed',
+                  )}
+                >
+                  <div className="relative">
+                    <div
+                      className="w-10 h-10 rounded-full"
+                      style={RAINBOW_PREVIEW_STYLE}
+                    />
+                    {/* Lock overlay */}
+                    <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-[1px]">
+                      <Lock className="w-4 h-4 text-white/90" />
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    {theme.label}
+                  </span>
+                  <span className="text-[9px] text-purple-400 font-semibold uppercase tracking-wider">
+                    Coming Soon
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── Animal Icon ──────────────────────────────────────── */}
       <Card className="border-border bg-card">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-semibold">Animal Icon</CardTitle>
@@ -155,7 +308,7 @@ export function AvatarTab() {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
+      {/* ─── Save Button ──────────────────────────────────────── */}
       {hasChanges && (
         <div className="sticky bottom-4 flex justify-center">
           <button

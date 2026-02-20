@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { getColorTheme, getAnimalIcon, type ColorTheme } from '@/lib/skinConfig';
+import { getColorTheme, getAnimalIcon, isRainbow, type ColorTheme } from '@/lib/skinConfig';
 import type { UserStatus } from '@/stores/presenceStore';
 
 type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -21,6 +21,22 @@ const SIZE_CONFIG: Record<AvatarSize, { dim: string; icon: string; text: string;
   xl: { dim: 'w-24 h-24', icon: 'w-12 h-12', text: 'text-4xl', dot: 'w-4 h-4 border-[3px]' },
 };
 
+const RAINBOW_STYLE: React.CSSProperties = {
+  background: `linear-gradient(
+    135deg,
+    hsl(0, 85%, 60%),
+    hsl(45, 90%, 55%),
+    hsl(90, 80%, 50%),
+    hsl(180, 80%, 50%),
+    hsl(225, 85%, 60%),
+    hsl(270, 80%, 60%),
+    hsl(315, 85%, 60%),
+    hsl(360, 85%, 60%)
+  )`,
+  backgroundSize: '300% 300%',
+  animation: 'avatar-rainbow 4s linear infinite',
+};
+
 export function PlayerAvatar({
   skinColor,
   skinIcon,
@@ -33,6 +49,7 @@ export function PlayerAvatar({
   const theme: ColorTheme = getColorTheme(skinColor);
   const animal = getAnimalIcon(skinIcon);
   const IconComponent = animal.icon;
+  const rainbow = isRainbow(skinColor);
 
   const useFallback = !skinIcon && fallbackInitial;
 
@@ -41,10 +58,12 @@ export function PlayerAvatar({
       <div
         className={cn(
           config.dim,
-          'rounded-full bg-gradient-to-br flex items-center justify-center',
-          theme.from,
-          theme.to,
+          'rounded-full flex items-center justify-center',
+          !rainbow && 'bg-gradient-to-br',
+          !rainbow && theme.from,
+          !rainbow && theme.to,
         )}
+        style={rainbow ? RAINBOW_STYLE : undefined}
       >
         {useFallback ? (
           <span className={cn('text-white font-bold', config.text)}>

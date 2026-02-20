@@ -23,7 +23,7 @@ export function useProfile() {
   const displayName = profile?.display_name ?? null;
   const chessElo = profile?.chess_elo ?? 800;
   const dailyPlayStreak = profile?.daily_play_streak ?? 0;
-  const skinColor = profile?.skin_color ?? 'purple';
+  const skinColor = profile?.skin_color ?? 'normal';
   const skinIcon = profile?.skin_icon ?? 'cat';
   
   return {
