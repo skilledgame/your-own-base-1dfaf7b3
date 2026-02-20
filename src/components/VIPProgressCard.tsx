@@ -119,7 +119,7 @@ export const VIPProgressCard = () => {
               );
             })()}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Next: {rankInfo.displayName}</span>
+              <span>Next: {rankInfo.nextDisplayName}</span>
               <span>{formatSkilledCoins(remaining)} SC to go</span>
             </div>
           </div>

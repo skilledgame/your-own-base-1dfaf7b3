@@ -10,6 +10,7 @@ export interface RankInfo {
   displayName: string;
   currentMin: number;
   nextMin: number | null; // null if max rank
+  nextDisplayName: string | null; // null if max rank
   perks: string[];
 }
 
@@ -47,6 +48,7 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
       displayName: "GOAT",
       currentMin: RANK_THRESHOLDS.goat,
       nextMin: null,
+      nextDisplayName: null,
       perks: RANK_PERKS.goat,
     };
   }
@@ -57,6 +59,7 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
       displayName: "Diamond",
       currentMin: RANK_THRESHOLDS.diamond,
       nextMin: RANK_THRESHOLDS.goat,
+      nextDisplayName: "GOAT",
       perks: RANK_PERKS.diamond,
     };
   }
@@ -67,6 +70,7 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
       displayName: "Platinum",
       currentMin: RANK_THRESHOLDS.platinum,
       nextMin: RANK_THRESHOLDS.diamond,
+      nextDisplayName: "Diamond",
       perks: RANK_PERKS.platinum,
     };
   }
@@ -77,6 +81,7 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
       displayName: "Gold",
       currentMin: RANK_THRESHOLDS.gold,
       nextMin: RANK_THRESHOLDS.platinum,
+      nextDisplayName: "Platinum",
       perks: RANK_PERKS.gold,
     };
   }
@@ -87,6 +92,7 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
       displayName: "Silver",
       currentMin: RANK_THRESHOLDS.silver,
       nextMin: RANK_THRESHOLDS.gold,
+      nextDisplayName: "Gold",
       perks: RANK_PERKS.silver,
     };
   }
@@ -97,6 +103,7 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
       displayName: "Bronze",
       currentMin: RANK_THRESHOLDS.bronze,
       nextMin: RANK_THRESHOLDS.silver,
+      nextDisplayName: "Silver",
       perks: RANK_PERKS.bronze,
     };
   }
@@ -106,6 +113,7 @@ export function getRankFromTotalWagered(totalWageredSc: number | null | undefine
     displayName: "Noob",
     currentMin: RANK_THRESHOLDS.unranked,
     nextMin: RANK_THRESHOLDS.bronze,
+    nextDisplayName: "Bronze",
     perks: RANK_PERKS.unranked,
   };
 }
@@ -133,6 +141,7 @@ export function getRankFromDynamicConfig(
         displayName: tier.display_name,
         currentMin: tier.threshold,
         nextMin: nextTier ? nextTier.threshold : null,
+        nextDisplayName: nextTier ? nextTier.display_name : null,
         perks: tier.perks,
       };
     }
@@ -147,6 +156,7 @@ export function getRankFromDynamicConfig(
       displayName: lowest.display_name,
       currentMin: lowest.threshold,
       nextMin: nextTier ? nextTier.threshold : null,
+      nextDisplayName: nextTier ? nextTier.display_name : null,
       perks: lowest.perks,
     };
   }
