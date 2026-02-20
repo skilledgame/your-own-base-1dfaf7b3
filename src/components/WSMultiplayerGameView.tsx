@@ -417,19 +417,7 @@ export const WSMultiplayerGameView = ({
   // Rank display is handled by the RankBadge component
 
   return (
-    <div className="relative min-h-screen bg-[#0a0f1a] overflow-x-hidden pb-16 md:pb-0">
-      {/* Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at 50% 30%, #0c4a6e 0%, #0a0f1a 70%)'
-          }}
-        />
-        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />
-        <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-cyan-500/15 rounded-full blur-[120px] animate-pulse" />
-      </div>
-
+    <div className="min-h-screen bg-black overflow-x-hidden pb-16 md:pb-0">
       {/* Desktop Side Menu */}
       <DesktopSideMenu 
         isOpen={sideMenuOpen} 
@@ -450,14 +438,14 @@ export const WSMultiplayerGameView = ({
       {/* Main content wrapper */}
       <div 
         className={`
-          relative z-10 transition-all duration-300 ease-out
+          transition-all duration-300 ease-out
           ${sideMenuOpen ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-72') : 'md:ml-0'}
         `}
       >
         {/* Header */}
         <header 
           className={`
-            fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl border-b border-white/5
+            fixed top-0 z-40 bg-[#172c46] border-b-[3px] border-black
             transition-all duration-300 ease-out
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
@@ -527,9 +515,13 @@ export const WSMultiplayerGameView = ({
           </div>
         </header>
 
-        {/* Game Content — pushed down for breathing room between header and game */}
-        <div className="pt-16 p-4 sm:p-8 sm:pt-20">
-          <div className="max-w-4xl mx-auto mt-4 sm:mt-8">
+        {/* Black outer border → theme-colored inner panel */}
+        <div className="pt-16 sm:pt-[60px]">
+          {/* Black border strip (top) is the black bg showing through */}
+          <div className="bg-black p-1 sm:p-2 md:p-3 min-h-[calc(100vh-64px)]">
+            {/* Inner theme panel */}
+            <div className="bg-[#172c46] rounded-sm min-h-[calc(100vh-64px-8px)] sm:min-h-[calc(100vh-60px-16px)] md:min-h-[calc(100vh-60px-24px)] p-4 sm:p-8">
+              <div className="max-w-4xl mx-auto mt-2 sm:mt-6">
             {/* Game Area */}
             <div className="flex flex-col items-center gap-2.5">
               {/* Opponent Info Row — compact name box + badges outside + timer + resign */}
@@ -675,6 +667,8 @@ export const WSMultiplayerGameView = ({
                   )}
                 </div>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </div>
