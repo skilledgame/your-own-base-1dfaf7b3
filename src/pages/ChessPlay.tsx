@@ -24,7 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye, Volume2, Settings, Maximize, HelpCircle, Users, Loader2 } from 'lucide-react';
+import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye, Volume2, VolumeX, Settings, Maximize, Minimize, HelpCircle, Users, Loader2, X, Clock, Gamepad2, Info } from 'lucide-react';
+import { getAppSettings } from '@/components/settings/AppSettingsTab';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { useProfile } from '@/hooks/useProfile';
 import { UserBadges } from '@/components/UserBadge';
@@ -61,7 +62,7 @@ import { toast } from 'sonner';
 // ---------------------------------------------------------------------------
 function IdleBoardOverlay() {
   return (
-    <div className="relative w-full">
+    <div className="relative w-full max-w-[480px] mx-auto">
       <div className="opacity-30 pointer-events-none">
         <ChessBoard
           game={new Chess()}
@@ -74,7 +75,8 @@ function IdleBoardOverlay() {
         />
       </div>
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="text-center space-y-2 bg-black/60 backdrop-blur-sm rounded-xl px-6 py-4">
+        <div className="text-center space-y-3 bg-black/70 backdrop-blur-sm rounded-xl px-8 py-6">
+          <Gamepad2 className="w-8 h-8 text-white/40 mx-auto" />
           <p className="text-white/70 text-sm font-medium">Select a tier and find a match</p>
         </div>
       </div>
@@ -89,7 +91,7 @@ function SearchingOverlay() {
   const { queueEstimate } = useChessStore();
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full max-w-[480px] mx-auto">
       <div className="opacity-20 pointer-events-none">
         <ChessBoard
           game={new Chess()}
@@ -456,6 +458,74 @@ function ActiveGamePanel({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Settings overlay
+// ---------------------------------------------------------------------------
+function SettingsOverlay({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur-sm rounded-xl flex items-center justify-center">
+      <div className="w-full max-w-md p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Settings className="w-5 h-5" /> Game Settings
+          </h2>
+          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-white/70">Time Control</h3>
+            <p className="text-white/50 text-xs">1 minute per player + 3 second increment per move</p>
+          </div>
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-white/70">Board Theme</h3>
+            <p className="text-white/50 text-xs">Navy blue — matching the game UI</p>
+          </div>
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-white/70">Sound</h3>
+            <p className="text-white/50 text-xs">Toggle sound using the speaker icon in the footer bar, or visit the full settings page for volume controls.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Help overlay
+// ---------------------------------------------------------------------------
+function HelpOverlay({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur-sm rounded-xl flex items-center justify-center">
+      <div className="w-full max-w-md p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <HelpCircle className="w-5 h-5" /> How to Play
+          </h2>
+          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-white/70 flex items-center gap-2"><Info className="w-4 h-4" /> Select a Tier</h3>
+            <p className="text-white/50 text-xs">Choose your entry fee from Tier I, II, or III on the left panel. Higher tiers have bigger prizes.</p>
+          </div>
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-white/70 flex items-center gap-2"><Users className="w-4 h-4" /> Find a Match</h3>
+            <p className="text-white/50 text-xs">Click "Find Match" to enter the queue. You'll be paired with another player at the same tier.</p>
+          </div>
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-white/70 flex items-center gap-2"><Clock className="w-4 h-4" /> Play & Win</h3>
+            <p className="text-white/50 text-xs">Each player has 1 minute with a 3-second increment per move. Checkmate your opponent or win on time to claim the prize.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ===========================================================================
 // Main ChessPlay page
 // ===========================================================================
@@ -479,6 +549,13 @@ export default function ChessPlay() {
 
   const { phase, gameState, gameEndResult, matchmaking } = useChessStore();
   const { hideLoading } = useUILoadingStore();
+
+  // Footer controls state
+  const [isMuted, setIsMuted] = useState(() => !getAppSettings().gameSounds);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const gameShellRef = useRef<HTMLDivElement>(null);
 
   // Layout state
   const [sideMenuOpen, setSideMenuOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false);
@@ -655,6 +732,31 @@ export default function ChessPlay() {
     navigate('/chess');
   }, [clearGameEnd, navigate]);
 
+  // Sound toggle
+  const handleToggleMute = useCallback(() => {
+    const current = getAppSettings();
+    const next = { ...current, gameSounds: isMuted };
+    localStorage.setItem('app_settings', JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent('app-settings-change', { detail: next }));
+    setIsMuted(!isMuted);
+  }, [isMuted]);
+
+  // Fullscreen toggle
+  const handleToggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement && gameShellRef.current) {
+      gameShellRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else if (document.fullscreenElement) {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+
+  // Listen for fullscreen exit (e.g. Escape key)
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
   // Game result modal
   if (phase === 'game_over' && gameEndResult) {
     const tokensChange = gameEndResult.creditsChange ?? 0;
@@ -749,7 +851,11 @@ export default function ChessPlay() {
                 className="w-full bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-3 sm:p-5 md:p-6"
                 style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
-                <div className="w-full bg-black rounded-xl p-4 sm:p-6 md:p-8">
+                <div ref={gameShellRef} className="relative w-full bg-black rounded-xl p-4 sm:p-6 md:p-8">
+                  {/* Settings / Help overlays */}
+                  {showSettings && <SettingsOverlay onClose={() => setShowSettings(false)} />}
+                  {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
+
                   {/* Two-panel layout */}
                   <div className="flex flex-col md:flex-row gap-4 md:gap-6">
                     {/* Left panel: Wager selection */}
@@ -760,45 +866,67 @@ export default function ChessPlay() {
                     </div>
 
                     {/* Right panel: Game area */}
-                    <div className="flex-1 min-w-0 flex flex-col">
-                      <div className="flex-1 flex flex-col items-center justify-center">
-                        {isPlaying ? (
-                          <ActiveGamePanel
-                            gameState={gameState}
-                            playerRank={effectivePlayerRank}
-                            opponentRank={opponentRank}
-                            playerBadges={playerBadges}
-                            opponentBadges={opponentBadges}
-                            playerElo={chessElo ?? 800}
-                            opponentElo={opponentElo}
-                            playerStreak={dailyPlayStreak ?? 0}
-                            opponentStreak={opponentStreak}
-                            opponentSkinColor={opponentSkinColor}
-                            opponentSkinIcon={opponentSkinIcon}
-                            onSendMove={handleSendMove}
-                            onExit={handleExit}
-                            onBack={handleBack}
-                            onTimeLoss={handleTimeLoss}
-                          />
-                        ) : isSearching ? (
-                          <SearchingOverlay />
-                        ) : (
-                          <IdleBoardOverlay />
-                        )}
-                      </div>
+                    <div className="flex-1 min-w-0 flex flex-col items-center justify-center">
+                      {isPlaying ? (
+                        <ActiveGamePanel
+                          gameState={gameState}
+                          playerRank={effectivePlayerRank}
+                          opponentRank={opponentRank}
+                          playerBadges={playerBadges}
+                          opponentBadges={opponentBadges}
+                          playerElo={chessElo ?? 800}
+                          opponentElo={opponentElo}
+                          playerStreak={dailyPlayStreak ?? 0}
+                          opponentStreak={opponentStreak}
+                          opponentSkinColor={opponentSkinColor}
+                          opponentSkinIcon={opponentSkinIcon}
+                          onSendMove={handleSendMove}
+                          onExit={handleExit}
+                          onBack={handleBack}
+                          onTimeLoss={handleTimeLoss}
+                        />
+                      ) : isSearching ? (
+                        <SearchingOverlay />
+                      ) : (
+                        <IdleBoardOverlay />
+                      )}
+                    </div>
+                  </div>
 
-                      {/* Footer */}
-                      <div className="w-full mt-4 pt-4">
-                        <div className="flex items-center justify-between border-t border-white/[0.06] pt-4 px-2">
-                          <div className="w-24" />
-                          <LogoLink className="h-6 sm:h-7 opacity-40" />
-                          <div className="flex items-center gap-3 w-24 justify-end">
-                            <button className="text-white/30 hover:text-white/60 transition-colors" title="Sound"><Volume2 className="w-4 h-4" /></button>
-                            <button className="text-white/30 hover:text-white/60 transition-colors" title="Fullscreen"><Maximize className="w-4 h-4" /></button>
-                            <button className="text-white/30 hover:text-white/60 transition-colors" title="Settings"><Settings className="w-4 h-4" /></button>
-                            <button className="text-white/30 hover:text-white/60 transition-colors" title="Help"><HelpCircle className="w-4 h-4" /></button>
-                          </div>
-                        </div>
+                  {/* Footer — spans both panels */}
+                  <div className="w-full mt-6 pt-4 border-t border-white/[0.06]">
+                    <div className="flex items-center justify-between px-2">
+                      <div className="w-28" />
+                      <LogoLink className="h-6 sm:h-7 opacity-40" />
+                      <div className="flex items-center gap-3 w-28 justify-end">
+                        <button
+                          onClick={handleToggleMute}
+                          className={`transition-colors ${isMuted ? 'text-red-400/60 hover:text-red-400' : 'text-white/30 hover:text-white/60'}`}
+                          title={isMuted ? 'Unmute' : 'Mute'}
+                        >
+                          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={handleToggleFullscreen}
+                          className="text-white/30 hover:text-white/60 transition-colors"
+                          title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                        >
+                          {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => { setShowHelp(false); setShowSettings(!showSettings); }}
+                          className={`transition-colors ${showSettings ? 'text-white/70' : 'text-white/30 hover:text-white/60'}`}
+                          title="Settings"
+                        >
+                          <Settings className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => { setShowSettings(false); setShowHelp(!showHelp); }}
+                          className={`transition-colors ${showHelp ? 'text-white/70' : 'text-white/30 hover:text-white/60'}`}
+                          title="Help"
+                        >
+                          <HelpCircle className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   </div>
