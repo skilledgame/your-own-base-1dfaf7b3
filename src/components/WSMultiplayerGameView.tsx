@@ -526,8 +526,10 @@ export const WSMultiplayerGameView = ({
                 className="w-full bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-5 sm:p-8 md:p-10"
                 style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
-                {/* 4: Game content */}
-                <div className="flex flex-col items-center gap-6">
+                {/* 4: Inner game area */}
+                <div className="w-full bg-black rounded-xl p-5 sm:p-8 md:p-10">
+                  {/* 5: Game content */}
+                  <div className="flex flex-col items-center gap-6">
               {/* Opponent Info Row — compact name box + badges outside + timer + resign */}
               <div className="flex items-center justify-between w-full max-w-md">
                 <div className="flex items-center gap-2">
@@ -671,6 +673,7 @@ export const WSMultiplayerGameView = ({
                   )}
                 </div>
               </div>
+                  </div>
                 </div>
               </div>
             </div>
