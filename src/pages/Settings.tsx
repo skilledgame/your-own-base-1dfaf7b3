@@ -294,8 +294,8 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* Desktop: vertical sticky nav — full height */}
-                <div className="hidden md:flex flex-col gap-px rounded-lg border border-border bg-card/50 p-2 backdrop-blur-sm sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto scrollbar-sidebar">
+                {/* Desktop: vertical nav — in-page, not scrollable */}
+                <div className="hidden md:flex flex-col gap-px rounded-lg border border-border bg-card/50 p-2 backdrop-blur-sm">
                   {SECTIONS.map((section, idx) => (
                     <div key={section.label}>
                       {idx > 0 && <div className="h-px bg-border/60 mx-2 my-2.5" />}

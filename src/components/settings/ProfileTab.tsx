@@ -397,6 +397,14 @@ export function ProfileTab({ onNavigateToAvatar }: ProfileTabProps) {
                 : 'Unknown'}
             </span>
           </div>
+
+          {/* User ID row */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">User ID</span>
+            <span className="text-foreground/70 font-mono text-xs select-all">
+              {user?.id || 'Unknown'}
+            </span>
+          </div>
         </CardContent>
       </Card>
 
