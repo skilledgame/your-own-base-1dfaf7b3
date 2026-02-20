@@ -56,6 +56,7 @@ import { usePresenceStore } from '@/stores/presenceStore';
 import { GameResultModal } from '@/components/GameResultModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { LiveWins } from '@/components/LiveWins';
 
 // ---------------------------------------------------------------------------
 // Idle board overlay (shown when no game is active)
@@ -612,6 +613,36 @@ function GameInfoSection() {
                   Games are played with a 1-minute clock plus 3-second increment per move, creating
                   fast-paced, high-intensity battles that demand quick decisions under pressure.
                 </p>
+
+                <h3 className="text-white/80 font-semibold text-base pt-2">Why Play on Skilled?</h3>
+                <p>
+                  Skilled is purpose-built for competitive gaming. Our matchmaking system pairs you with
+                  opponents of similar skill, ensuring every game is a fair and meaningful challenge.
+                </p>
+                <p>
+                  Every player has an Elo rating that updates in real time. Climb the ranks, track your
+                  progress on the leaderboard, and earn recognition as one of the top players on the platform.
+                </p>
+                <p>
+                  With Skilled Coins on the line, every move carries real weight. The combination of skill-based
+                  competition and tangible rewards makes each game more engaging than casual play.
+                </p>
+
+                <h3 className="text-white/80 font-semibold text-base pt-2">Built for Competitive Players</h3>
+                <p>
+                  Whether you're a seasoned chess player or just getting started, Skilled offers a premium
+                  competitive environment. The clean interface, responsive board, and reliable connection
+                  let you focus entirely on the game.
+                </p>
+                <p>
+                  Our anti-cheat system ensures a level playing field. Engine assistance, external analysis,
+                  and any form of unfair advantage are detected and penalized, so you can trust that every
+                  win is earned.
+                </p>
+                <p>
+                  Join thousands of players competing daily. With 24/7 matchmaking across all wager tiers,
+                  there's always an opponent ready to play.
+                </p>
               </>
             )}
             {activeTab === 'How to Play' && (
@@ -633,6 +664,30 @@ function GameInfoSection() {
                   The winner receives the combined wager pool. Your Elo rating updates after every game,
                   tracking your skill progression over time.
                 </p>
+
+                <h3 className="text-white/80 font-semibold text-base pt-2">Wager Tiers</h3>
+                <p>
+                  <strong className="text-white/70">Tier I — 100 SC:</strong> Perfect for warming up or
+                  practicing new openings without heavy risk. Ideal for newer players building confidence.
+                </p>
+                <p>
+                  <strong className="text-white/70">Tier II — 500 SC:</strong> The mid-stakes tier where
+                  competition gets serious. Most active players prefer this tier for balanced risk and reward.
+                </p>
+                <p>
+                  <strong className="text-white/70">Tier III — 1,000 SC:</strong> High-stakes matches for
+                  experienced players. The biggest rewards come with the toughest opponents.
+                </p>
+
+                <h3 className="text-white/80 font-semibold text-base pt-2">Tips for New Players</h3>
+                <p>
+                  Start with Tier I to learn the platform without risking too many coins. Focus on
+                  controlling the center of the board and developing your pieces early.
+                </p>
+                <p>
+                  Pay attention to the clock — in bullet chess, time management is just as important as
+                  positional play. Pre-move when you can to save precious seconds.
+                </p>
               </>
             )}
             {activeTab === 'Rules' && (
@@ -653,6 +708,32 @@ function GameInfoSection() {
                 <p>
                   Fair play is enforced. The use of chess engines, external analysis tools, or any form
                   of assistance during a match is strictly prohibited and will result in account action.
+                </p>
+
+                <h3 className="text-white/80 font-semibold text-base pt-2">Win Conditions</h3>
+                <p>
+                  A game is won by checkmate (trapping the opponent's king), by the opponent's clock running
+                  out, or by the opponent resigning. Stalemate results in a draw, and the wager is returned
+                  to both players.
+                </p>
+                <p>
+                  Draws can also occur by threefold repetition, the fifty-move rule, or insufficient material
+                  (e.g., king vs. king). In all draw scenarios, both players receive their wager back.
+                </p>
+
+                <h3 className="text-white/80 font-semibold text-base pt-2">Fair Play Policy</h3>
+                <p>
+                  Skilled employs automated detection systems to identify the use of chess engines or
+                  other forms of cheating. Accounts found violating fair play policies will be suspended
+                  and any ill-gotten winnings will be reversed.
+                </p>
+                <p>
+                  Players are expected to conduct themselves respectfully. Intentional stalling, repeated
+                  abandonment, or abusive behavior may result in temporary or permanent restrictions.
+                </p>
+                <p>
+                  If you suspect an opponent of cheating, you can report the game after it concludes. Our
+                  team reviews all reports and takes appropriate action.
                 </p>
               </>
             )}
@@ -982,8 +1063,8 @@ export default function ChessPlay() {
 
         {/* Game layout */}
         <div className="pt-16 sm:pt-[60px]">
-          <div className="w-full min-h-[calc(100vh-64px)] flex items-start justify-center px-3 sm:px-5 md:px-6 py-5 sm:py-8 md:py-10">
-            <div className="w-[1160px] shrink-0">
+          <div className="w-full min-h-[calc(100vh-64px)] flex items-start justify-center px-2 sm:px-3 md:px-4 py-5 sm:py-8 md:py-10">
+            <div className="w-full max-w-[1280px]">
               <div
                 className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-3 sm:p-5 md:p-6"
                 style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
@@ -1071,6 +1152,14 @@ export default function ChessPlay() {
               </div>
 
               <GameInfoSection />
+
+              {/* Recent Wins section */}
+              <div
+                className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-5 sm:p-6 mt-4 overflow-hidden"
+                style={{ boxShadow: '0 0 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03)' }}
+              >
+                <LiveWins />
+              </div>
             </div>
           </div>
         </div>
