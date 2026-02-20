@@ -160,6 +160,7 @@ export function getRankFromDynamicConfig(
  * Returns null if no custom image exists for the tier.
  */
 export const RANK_IMAGES: Record<string, string> = {
+  unranked: '/ranks/noob.png',
   bronze: '/ranks/bronze.png',
   silver: '/ranks/silver.png',
   gold: '/ranks/gold.png',

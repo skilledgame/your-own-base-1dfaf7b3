@@ -417,7 +417,7 @@ export const WSMultiplayerGameView = ({
   // Rank display is handled by the RankBadge component
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden pb-16 md:pb-0">
+    <div className="min-h-screen bg-black overflow-x-hidden pb-16 md:pb-0">
       {/* Desktop Side Menu */}
       <DesktopSideMenu 
         isOpen={sideMenuOpen} 
@@ -445,7 +445,7 @@ export const WSMultiplayerGameView = ({
         {/* Header */}
         <header 
           className={`
-            fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl border-b border-white/5
+            fixed top-0 z-40 bg-[#172c46] border-b-[3px] border-black
             transition-all duration-300 ease-out
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
@@ -515,9 +515,15 @@ export const WSMultiplayerGameView = ({
           </div>
         </header>
 
-        {/* Game Content — pushed down for breathing room between header and game */}
-        <div className="pt-16 p-4 sm:p-8 sm:pt-20">
-          <div className="max-w-4xl mx-auto mt-4 sm:mt-8">
+        {/* Bordered game layout: black border → navy border → black game area */}
+        <div className="pt-16 sm:pt-[60px]">
+          {/* Outer black border */}
+          <div className="bg-black rounded-2xl p-2.5 sm:p-3.5 md:p-4 min-h-[calc(100vh-64px)]">
+            {/* Inner navy border */}
+            <div className="bg-[#172c46] rounded-2xl p-2.5 sm:p-3.5 md:p-4 min-h-[calc(100vh-64px-20px)] sm:min-h-[calc(100vh-60px-28px)] md:min-h-[calc(100vh-60px-32px)]">
+              {/* Game screen area */}
+              <div className="bg-[#0c1220] rounded-xl min-h-[calc(100vh-64px-60px)] sm:min-h-[calc(100vh-60px-84px)] md:min-h-[calc(100vh-60px-96px)] p-4 sm:p-8">
+                <div className="max-w-4xl mx-auto mt-2 sm:mt-6">
             {/* Game Area */}
             <div className="flex flex-col items-center gap-2.5">
               {/* Opponent Info Row — compact name box + badges outside + timer + resign */}
@@ -662,6 +668,9 @@ export const WSMultiplayerGameView = ({
                     </span>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
               </div>
             </div>
           </div>
