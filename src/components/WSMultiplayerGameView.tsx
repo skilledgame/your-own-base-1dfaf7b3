@@ -417,7 +417,7 @@ export const WSMultiplayerGameView = ({
   // Rank display is handled by the RankBadge component
 
   return (
-    <div className="min-h-screen bg-[#0B1220] overflow-x-hidden pb-16 md:pb-0">
+    <div className="min-h-screen bg-black overflow-x-hidden pb-16 md:pb-0">
       {/* Desktop Side Menu */}
       <DesktopSideMenu 
         isOpen={sideMenuOpen} 
@@ -445,7 +445,7 @@ export const WSMultiplayerGameView = ({
         {/* Header */}
         <header 
           className={`
-            fixed top-0 z-40 bg-[#111c2e] border-b border-white/[0.07]
+            fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl border-b border-white/5
             transition-all duration-300 ease-out
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
@@ -518,12 +518,12 @@ export const WSMultiplayerGameView = ({
         {/* Game layout: page bg → centering wrapper → bordered game shell */}
         <div className="pt-16 sm:pt-[60px]">
           {/* 1: Page wrapper — dark navy breathing room */}
-          <div className="w-full min-h-[calc(100vh-64px)] p-4 sm:p-6 md:p-8">
+          <div className="w-full min-h-[calc(100vh-64px)] px-5 sm:px-8 md:px-10 py-8 sm:py-12 md:py-16">
             {/* 2: Centering wrapper — constrains max width */}
             <div className="w-full max-w-[1400px] mx-auto">
               {/* 3: Game shell — the visible bordered container */}
               <div
-                className="w-full bg-[#111c2e] rounded-2xl border border-white/[0.07] p-5 sm:p-8 md:p-10"
+                className="w-full bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-5 sm:p-8 md:p-10"
                 style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
                 {/* 4: Game content */}
