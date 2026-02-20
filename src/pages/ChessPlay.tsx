@@ -1037,7 +1037,7 @@ export default function ChessPlay() {
   const isSearching = phase === 'searching';
 
   return (
-    <div className="min-h-screen bg-black overflow-x-hidden pb-16 md:pb-0">
+    <div className="min-h-screen bg-background overflow-x-hidden pb-16 md:pb-0">
       {/* Desktop Side Menu */}
       <DesktopSideMenu
         isOpen={sideMenuOpen}
@@ -1109,7 +1109,7 @@ export default function ChessPlay() {
                 className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-3 sm:p-5 md:p-6"
                 style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
-                <div ref={gameShellRef} className="relative w-full bg-black rounded-xl p-4 sm:p-6 md:p-8">
+                <div ref={gameShellRef} className="relative w-full bg-background rounded-xl p-4 sm:p-6 md:p-8">
                   {/* Settings / Help overlays */}
                   {showSettings && <SettingsOverlay onClose={() => setShowSettings(false)} />}
                   {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
