@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye, Volume2, VolumeX, Settings, Maximize, Minimize, HelpCircle, Users, Loader2, X, Clock, Gamepad2, Info } from 'lucide-react';
+import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye, Volume2, VolumeX, Settings, Maximize, Minimize, HelpCircle, Users, Loader2, X, Clock, Gamepad2, Info, ChevronDown } from 'lucide-react';
 import { getAppSettings } from '@/components/settings/AppSettingsTab';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { useProfile } from '@/hooks/useProfile';
@@ -57,6 +57,10 @@ import { GameResultModal } from '@/components/GameResultModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { LiveWins } from '@/components/LiveWins';
+import { CryptoSection } from '@/components/CryptoSection';
+import { SiteFooterLinks } from '@/components/SiteFooterLinks';
+import { useLanguage, SUPPORTED_LANGUAGES } from '@/contexts/LanguageContext';
+import skilledLogo from '@/assets/skilled-logo.png';
 
 // ---------------------------------------------------------------------------
 // Idle board overlay (shown when no game is active)
@@ -522,6 +526,42 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
             <p className="text-white/50 text-xs">Each player has 1 minute with a 3-second increment per move. Checkmate your opponent or win on time to claim the prize.</p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+// Language selector (footer)
+// ===========================================================================
+function LanguageSelector() {
+  const { lang, setLanguage } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const current = SUPPORTED_LANGUAGES.find(l => l.code === lang);
+
+  return (
+    <div className="py-8 flex justify-center">
+      <div className="relative">
+        <button
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          {current?.nativeName || 'English'}
+          <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 border border-white/10 rounded-lg overflow-hidden shadow-xl min-w-[140px] z-50">
+            {SUPPORTED_LANGUAGES.map(l => (
+              <button
+                key={l.code}
+                onClick={() => { setLanguage(l.code); setOpen(false); }}
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${l.code === lang ? 'text-white bg-white/5' : 'text-slate-400'}`}
+              >
+                {l.nativeName}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1153,12 +1193,31 @@ export default function ChessPlay() {
 
               <GameInfoSection />
 
-              {/* Recent Wins section */}
-              <div
-                className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-5 sm:p-6 mt-4 overflow-hidden"
-                style={{ boxShadow: '0 0 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03)' }}
-              >
+              {/* Recent Wins */}
+              <div className="mt-6">
                 <LiveWins />
+              </div>
+
+              {/* Crypto Section */}
+              <CryptoSection />
+
+              {/* Site Footer Links + Social Media */}
+              <SiteFooterLinks />
+
+              {/* Language Selector */}
+              <LanguageSelector />
+
+              {/* Legal Disclaimer + Copyright */}
+              <div className="border-t border-white/[0.06] mt-2">
+                <div className="py-8 flex flex-col items-center text-center">
+                  <img src={skilledLogo} alt="Skilled" className="h-7 w-auto opacity-60 mb-4" />
+                  <p className="text-xs text-white/30 leading-relaxed max-w-3xl">
+                    Skilled is a skill-based gaming platform operating in compliance with the laws and regulations of Norway. Skilled is not a gambling site — all game outcomes are determined entirely by player skill, strategy, and performance, not by luck or chance. There is no house edge and no games of chance. Players can earn Skilled Coins through competitive play and withdraw their winnings for real money. Please play responsibly.
+                  </p>
+                  <p className="text-xs text-white/20 mt-6">
+                    &copy; 2025 Skilled. Skill-based competition only.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
