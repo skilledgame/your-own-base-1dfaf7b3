@@ -845,10 +845,10 @@ export default function ChessPlay() {
 
         {/* Game layout */}
         <div className="pt-16 sm:pt-[60px]">
-          <div className="w-full min-h-[calc(100vh-64px)] px-3 sm:px-5 md:px-6 py-5 sm:py-8 md:py-10">
-            <div className="w-full max-w-[1400px] mx-auto">
+          <div className="w-full min-h-[calc(100vh-64px)] flex items-start justify-center px-3 sm:px-5 md:px-6 py-5 sm:py-8 md:py-10">
+            <div className="w-[1200px] shrink-0">
               <div
-                className="w-full bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-3 sm:p-5 md:p-6"
+                className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-3 sm:p-5 md:p-6"
                 style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
                 <div ref={gameShellRef} className="relative w-full bg-black rounded-xl p-4 sm:p-6 md:p-8">
