@@ -56,6 +56,7 @@ import { usePresenceStore } from '@/stores/presenceStore';
 import { GameResultModal } from '@/components/GameResultModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import onlineChessCard from '@/assets/online-chess-card.png';
 
 // ---------------------------------------------------------------------------
 // Idle board overlay (shown when no game is active)
@@ -527,6 +528,134 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 }
 
 // ===========================================================================
+// Game info section (below game area)
+// ===========================================================================
+const INFO_TABS = ['Description', 'How to Play', 'Rules'] as const;
+type InfoTab = typeof INFO_TABS[number];
+
+function GameInfoSection() {
+  const [activeTab, setActiveTab] = useState<InfoTab>('Description');
+
+  return (
+    <div
+      className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-5 sm:p-6 mt-4"
+      style={{ boxShadow: '0 0 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03)' }}
+    >
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Left column: game thumbnail + metadata */}
+        <div className="w-full md:w-[180px] shrink-0 flex flex-col items-center md:items-start gap-3">
+          <div className="w-[160px] h-[200px] rounded-xl overflow-hidden border border-white/[0.08]">
+            <img
+              src={onlineChessCard}
+              alt="Online Chess"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 text-white/40 text-xs">
+            <Crown className="w-3.5 h-3.5" />
+            <span>Skilled Originals</span>
+          </div>
+          <h3 className="text-white font-bold text-lg leading-none">Chess</h3>
+          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-1.5 text-xs text-white/50">
+            <Users className="w-3.5 h-3.5" />
+            <span>Online Players</span>
+          </div>
+        </div>
+
+        {/* Right column: tabs + content */}
+        <div className="flex-1 min-w-0">
+          <h2 className="text-white font-bold text-base sm:text-lg mb-4">Play Chess Online at Skilled</h2>
+
+          {/* Tab bar */}
+          <div className="flex items-center gap-1 bg-white/[0.03] rounded-lg p-1 mb-5 w-fit">
+            {INFO_TABS.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  activeTab === tab
+                    ? 'bg-[#0ea5e9] text-white shadow-md'
+                    : 'text-white/40 hover:text-white/60'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div className="space-y-4 text-white/50 text-sm leading-relaxed">
+            {activeTab === 'Description' && (
+              <>
+                <h3 className="text-white/80 font-semibold text-base">What is Online Chess?</h3>
+                <p>
+                  Online Chess on Skilled is a competitive skill-based game where you wager Skilled Coins
+                  against real opponents. Each match is a test of strategy, calculation, and nerves.
+                </p>
+                <p>
+                  Players choose from three wager tiers — 100, 500, or 1,000 Skilled Coins — and are
+                  matched against opponents at the same stake. The winner takes the pot.
+                </p>
+                <p>
+                  Unlike luck-based games, chess rewards preparation and deep thinking. Every move matters,
+                  and a single blunder can turn the tide of the entire match.
+                </p>
+                <p>
+                  Games are played with a 1-minute clock plus 3-second increment per move, creating
+                  fast-paced, high-intensity battles that demand quick decisions under pressure.
+                </p>
+              </>
+            )}
+            {activeTab === 'How to Play' && (
+              <>
+                <h3 className="text-white/80 font-semibold text-base">Getting Started</h3>
+                <p>
+                  Select a wager tier from the panel on the left, then click "Find Match" to enter the
+                  matchmaking queue. You'll be paired with an opponent wagering the same amount.
+                </p>
+                <p>
+                  Once matched, the game begins immediately. You and your opponent each start with
+                  1 minute on the clock, gaining 3 seconds after every move.
+                </p>
+                <p>
+                  Play standard chess rules — checkmate your opponent, or win on time if their clock
+                  runs out. Draws are possible through stalemate, insufficient material, or threefold repetition.
+                </p>
+                <p>
+                  The winner receives the combined wager pool. Your Elo rating updates after every game,
+                  tracking your skill progression over time.
+                </p>
+              </>
+            )}
+            {activeTab === 'Rules' && (
+              <>
+                <h3 className="text-white/80 font-semibold text-base">Game Rules</h3>
+                <p>
+                  All matches follow standard FIDE chess rules with a bullet time control of
+                  1 minute + 3 seconds increment.
+                </p>
+                <p>
+                  Players must have sufficient Skilled Coins balance to enter a match at their chosen
+                  wager tier. Coins are deducted when the match begins and awarded to the winner upon completion.
+                </p>
+                <p>
+                  Disconnecting from an active game will keep your clock running. If your time expires,
+                  the game is forfeited. Intentional abandonment may affect your account standing.
+                </p>
+                <p>
+                  Fair play is enforced. The use of chess engines, external analysis tools, or any form
+                  of assistance during a match is strictly prohibited and will result in account action.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
 // Main ChessPlay page
 // ===========================================================================
 export default function ChessPlay() {
@@ -846,7 +975,7 @@ export default function ChessPlay() {
         {/* Game layout */}
         <div className="pt-16 sm:pt-[60px]">
           <div className="w-full min-h-[calc(100vh-64px)] flex items-start justify-center px-3 sm:px-5 md:px-6 py-5 sm:py-8 md:py-10">
-            <div className="w-[1060px] shrink-0">
+            <div className="w-[920px] shrink-0">
               <div
                 className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-3 sm:p-5 md:p-6"
                 style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
@@ -932,6 +1061,8 @@ export default function ChessPlay() {
                   </div>
                 </div>
               </div>
+
+              <GameInfoSection />
             </div>
           </div>
         </div>
