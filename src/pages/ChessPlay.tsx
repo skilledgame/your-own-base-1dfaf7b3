@@ -56,7 +56,6 @@ import { usePresenceStore } from '@/stores/presenceStore';
 import { GameResultModal } from '@/components/GameResultModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import onlineChessCard from '@/assets/online-chess-card.png';
 
 // ---------------------------------------------------------------------------
 // Idle board overlay (shown when no game is active)
@@ -544,12 +543,21 @@ function GameInfoSection() {
       <div className="flex flex-col md:flex-row gap-6">
         {/* Left column: game thumbnail + metadata */}
         <div className="w-full md:w-[180px] shrink-0 flex flex-col items-center md:items-start gap-3">
-          <div className="w-[160px] h-[200px] rounded-xl overflow-hidden border border-white/[0.08]">
-            <img
-              src={onlineChessCard}
-              alt="Online Chess"
-              className="w-full h-full object-cover"
-            />
+          <div
+            className="w-[160px] h-[200px] rounded-xl overflow-hidden border border-white/[0.08] relative"
+            style={{ background: 'linear-gradient(135deg, #1e3a5f, #0d1b2a)' }}
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-7xl drop-shadow-2xl">♟️</span>
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-3 text-center">
+              <h4 className="text-white font-bold text-sm uppercase tracking-wide">Chess</h4>
+              <div className="flex items-center justify-center gap-1.5 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400 text-[10px] font-semibold uppercase tracking-wider">Live Now</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-1.5 text-white/40 text-xs">
             <Crown className="w-3.5 h-3.5" />
