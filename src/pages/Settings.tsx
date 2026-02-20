@@ -136,17 +136,17 @@ export default function Settings() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex flex-col md:flex-row gap-8">
           {/* Sidebar */}
-          <nav className="md:w-56 shrink-0">
-            <div className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+          <nav className="md:w-52 shrink-0">
+            <div className="flex md:flex-col gap-0.5 overflow-x-auto pb-2 md:pb-0 scrollbar-hide md:border-r md:border-border md:pr-4">
               {SECTIONS.map((section, idx) => (
                 <div key={section.label} className="contents md:block">
-                  {/* Divider between sections */}
-                  {idx > 0 && <div className="hidden md:block h-px bg-border my-3" />}
+                  {/* Spacer between sections */}
+                  {idx > 0 && <div className="hidden md:block h-5" />}
 
                   {/* Section header */}
-                  <p className="hidden md:block px-4 pb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  <p className="hidden md:block px-3 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 select-none">
                     {section.label}
                   </p>
 
@@ -156,13 +156,23 @@ export default function Settings() {
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
                       className={cn(
-                        'relative px-4 py-2 text-left text-sm font-medium rounded-lg',
-                        'transition-all duration-200 whitespace-nowrap w-full',
+                        'group relative px-3 py-1.5 text-left text-sm rounded-md w-full',
+                        'transition-colors duration-150 ease-out whitespace-nowrap',
                         activeTab === tab.id
-                          ? 'bg-accent/10 text-accent border-l-2 md:border-l-2 border-b-2 md:border-b-0 border-accent'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                          ? 'text-foreground bg-muted/80 font-medium'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal',
                       )}
                     >
+                      {/* Active indicator bar */}
+                      <span
+                        className={cn(
+                          'absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-sm',
+                          'transition-all duration-200 ease-out',
+                          activeTab === tab.id
+                            ? 'h-4 bg-primary opacity-100'
+                            : 'h-0 bg-primary opacity-0 group-hover:h-2 group-hover:opacity-40',
+                        )}
+                      />
                       {tab.label}
                     </button>
                   ))}
@@ -173,7 +183,7 @@ export default function Settings() {
 
           {/* Tab Content */}
           <main className="flex-1 min-w-0">
-            <div className="animate-slide-up">
+            <div key={activeTab} className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
               {renderTabContent()}
             </div>
           </main>
