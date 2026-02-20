@@ -445,7 +445,7 @@ export const WSMultiplayerGameView = ({
         {/* Header */}
         <header 
           className={`
-            fixed top-0 z-40 bg-[#0a0f1a] border-b-[3px] border-black
+            fixed top-0 z-40 bg-[#172c46] border-b-[3px] border-black
             transition-all duration-300 ease-out
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
@@ -518,11 +518,11 @@ export const WSMultiplayerGameView = ({
         {/* Bordered game layout: black border → navy border → black game area */}
         <div className="pt-16 sm:pt-[60px]">
           {/* Outer black border */}
-          <div className="bg-black rounded-2xl p-2 sm:p-3 md:p-[14px] min-h-[calc(100vh-64px)]">
+          <div className="bg-black rounded-2xl p-2.5 sm:p-3.5 md:p-4 min-h-[calc(100vh-64px)]">
             {/* Inner navy border */}
-            <div className="bg-[#0a0f1a] rounded-2xl p-2 sm:p-3 md:p-[14px] min-h-[calc(100vh-64px-16px)] sm:min-h-[calc(100vh-60px-24px)] md:min-h-[calc(100vh-60px-28px)]">
+            <div className="bg-[#172c46] rounded-2xl p-2.5 sm:p-3.5 md:p-4 min-h-[calc(100vh-64px-20px)] sm:min-h-[calc(100vh-60px-28px)] md:min-h-[calc(100vh-60px-32px)]">
               {/* Game screen area */}
-              <div className="bg-black rounded-xl min-h-[calc(100vh-64px-48px)] sm:min-h-[calc(100vh-60px-72px)] md:min-h-[calc(100vh-60px-84px)] p-4 sm:p-8">
+              <div className="bg-[#0c1220] rounded-xl min-h-[calc(100vh-64px-60px)] sm:min-h-[calc(100vh-60px-84px)] md:min-h-[calc(100vh-60px-96px)] p-4 sm:p-8">
                 <div className="max-w-4xl mx-auto mt-2 sm:mt-6">
             {/* Game Area */}
             <div className="flex flex-col items-center gap-2.5">
