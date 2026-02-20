@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye } from 'lucide-react';
+import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye, Volume2, Settings, Maximize, HelpCircle } from 'lucide-react';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { useProfile } from '@/hooks/useProfile';
 import { UserBadges } from '@/components/UserBadge';
@@ -529,7 +529,7 @@ export const WSMultiplayerGameView = ({
                 {/* 4: Inner game area */}
                 <div className="w-full bg-black rounded-xl p-5 sm:p-8 md:p-10">
                   {/* 5: Game content */}
-                  <div className="flex flex-col items-center gap-6">
+                  <div className="flex flex-col items-center gap-2">
               {/* Opponent Info Row — compact name box + badges outside + timer + resign */}
               <div className="flex items-center justify-between w-full max-w-md">
                 <div className="flex items-center gap-2">
@@ -673,6 +673,28 @@ export const WSMultiplayerGameView = ({
                   )}
                 </div>
               </div>
+                  </div>
+
+                  {/* Footer bar */}
+                  <div className="w-full mt-auto pt-6">
+                    <div className="flex items-center justify-between border-t border-white/[0.06] pt-4 px-2">
+                      <div className="w-24" />
+                      <LogoLink className="h-6 sm:h-7 opacity-40" />
+                      <div className="flex items-center gap-3 w-24 justify-end">
+                        <button className="text-white/30 hover:text-white/60 transition-colors" title="Sound">
+                          <Volume2 className="w-4 h-4" />
+                        </button>
+                        <button className="text-white/30 hover:text-white/60 transition-colors" title="Fullscreen">
+                          <Maximize className="w-4 h-4" />
+                        </button>
+                        <button className="text-white/30 hover:text-white/60 transition-colors" title="Settings">
+                          <Settings className="w-4 h-4" />
+                        </button>
+                        <button className="text-white/30 hover:text-white/60 transition-colors" title="Help">
+                          <HelpCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
