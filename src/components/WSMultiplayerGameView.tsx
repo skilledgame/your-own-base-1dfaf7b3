@@ -518,12 +518,12 @@ export const WSMultiplayerGameView = ({
         {/* Game layout: page bg → centering wrapper → bordered game shell */}
         <div className="pt-16 sm:pt-[60px]">
           {/* 1: Page wrapper — dark navy breathing room */}
-          <div className="w-full min-h-[calc(100vh-64px)] px-5 sm:px-8 md:px-10 py-8 sm:py-12 md:py-16">
+          <div className="w-full min-h-[calc(100vh-64px)] px-3 sm:px-5 md:px-6 py-5 sm:py-8 md:py-10">
             {/* 2: Centering wrapper — constrains max width */}
             <div className="w-full max-w-[1400px] mx-auto">
               {/* 3: Game shell — the visible bordered container */}
               <div
-                className="w-full bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-5 sm:p-8 md:p-10"
+                className="w-full bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-3 sm:p-5 md:p-6"
                 style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
                 {/* 4: Inner game area */}
