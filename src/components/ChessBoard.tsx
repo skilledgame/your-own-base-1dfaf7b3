@@ -414,8 +414,8 @@ const ChessBoardComponent = ({
   const isPremoveSelected = premoveSelectedSquare;
 
   return (
-    <div className="relative w-[384px] sm:w-[448px] md:w-[512px] max-w-full">
-      <div className="grid grid-cols-8 gap-0 rounded-lg overflow-hidden shadow-xl border-2 border-border">
+    <div className="relative w-full">
+      <div className="grid grid-cols-8 gap-0 overflow-hidden">
         {displayRanks.map((rank, row) => (
           displayFiles.map((file, col) => {
             const square = getSquareNotation(row, col);

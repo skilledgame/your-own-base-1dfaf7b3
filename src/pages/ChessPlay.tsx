@@ -25,17 +25,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye, Volume2, VolumeX, Settings, Maximize, Minimize, HelpCircle, Users, Loader2, X, Clock, Gamepad2, Info } from 'lucide-react';
+import { LogOut, Crown, Shield, Search, Flame, Eye, Volume2, VolumeX, Settings, Maximize, Minimize, HelpCircle, Users, Loader2, X, Clock, Gamepad2, Info } from 'lucide-react';
 import { getAppSettings } from '@/components/settings/AppSettingsTab';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { useProfile } from '@/hooks/useProfile';
-import { UserBadges } from '@/components/UserBadge';
+import { RankBadge } from '@/components/RankBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
 import { useChessSound } from '@/hooks/useChessSound';
 import { type RankInfo, getRankFromTotalWagered } from '@/lib/rankSystem';
-import { RankBadge } from '@/components/RankBadge';
 import { useChessStore } from '@/stores/chessStore';
 import { wsClient } from '@/lib/wsClient';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
@@ -48,8 +47,6 @@ import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletModal } from '@/contexts/WalletModalContext';
-import { getEloTitle } from '@/lib/eloSystem';
-import { useFriendStore } from '@/stores/friendStore';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useBalance } from '@/hooks/useBalance';
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
@@ -146,8 +143,6 @@ function ActiveGamePanel({
   opponentRank,
   playerBadges,
   opponentBadges,
-  playerElo,
-  opponentElo,
   playerStreak,
   opponentStreak,
   opponentSkinColor,
@@ -162,8 +157,6 @@ function ActiveGamePanel({
   opponentRank?: RankInfo;
   playerBadges: string[];
   opponentBadges: string[];
-  playerElo: number;
-  opponentElo: number;
   playerStreak: number;
   opponentStreak: number;
   opponentSkinColor?: string | null;
@@ -321,53 +314,70 @@ function ActiveGamePanel({
     } catch { return false; }
   }, [chess, isMyTurn, localFen, onSendMove, isGameOver, myColor, whiteTime, blackTime]);
 
+  const opponentColor = isWhite ? 'black' : 'white';
+  const myPieceColor = isWhite ? 'white' : 'black';
+
   return (
-    <div className="flex flex-col items-center gap-2 w-full">
-      {/* Opponent bar */}
-      <div className="w-full max-w-[480px] flex items-center gap-2">
-        <div className="flex-1 flex items-center justify-between bg-[#1a1f2e] rounded-lg px-3 py-2 min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} size="sm" fallbackInitial={opponentName || 'O'} />
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="font-semibold text-sm text-white truncate max-w-[110px]">{opponentName || 'Opponent'}</span>
-              {(() => {
-                const eloInfo = getEloTitle(opponentElo);
-                return (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${eloInfo.bgClass} ${eloInfo.colorClass}`}>
-                    {opponentElo}
+    <div className="flex items-start justify-center w-full">
+      {/* Board column: top bar + board + bottom bar, all same width, no gaps */}
+      <div className="flex flex-col w-[384px] sm:w-[448px] md:w-[512px] max-w-full shrink-0">
+        {/* Opponent bar — rounded top, flat bottom to connect to board */}
+        <div className="flex items-stretch bg-[#0a0f1a] rounded-t-lg overflow-hidden">
+          <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || 'O'} fill className="w-11" />
+          <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-sm text-white truncate max-w-[130px]">{opponentName || 'Opponent'}</span>
+                <RankBadge rank={opponentRank} size="xs" />
+                {opponentStreak > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-400">
+                    <Flame className="w-3 h-3" />{opponentStreak}
                   </span>
-                );
-              })()}
-              <RankBadge rank={opponentRank} size="xs" />
-              {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
-              {opponentStreak > 0 && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 px-1.5 py-0.5 rounded">
-                  <Flame className="w-3 h-3" />{opponentStreak}
-                </span>
-              )}
-              <button
-                className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded transition-colors"
-                title="Add Friend"
-                onClick={async () => {
-                  try {
-                    const opponentUserId = useChessStore.getState().matchmaking.opponentUserId;
-                    if (opponentUserId) {
-                      await useFriendStore.getState().sendRequest(opponentUserId);
-                      toast.success('Friend request sent!');
-                    } else {
-                      toast.error('Could not identify opponent');
-                    }
-                  } catch (error: any) {
-                    toast.error(error.message || 'Failed to send request');
-                  }
-                }}
-              >
-                <UserPlus className="w-3 h-3" />
-              </button>
+                )}
+              </div>
+              <CapturedPieces pieces={opponentCaptured} color={opponentColor} materialAdvantage={opponentMaterialAdvantage > 0 ? opponentMaterialAdvantage : undefined} />
             </div>
+            <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} pieceColor={opponentColor} />
           </div>
-          <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} pieceColor={isWhite ? 'black' : 'white'} />
         </div>
+
+        {/* Board — no rounding, flush with bars */}
+        <ChessBoard
+          game={chess}
+          onMove={handleMove}
+          isPlayerTurn={isMyTurn && !isGameOver}
+          lastMove={opponentLastMove}
+          isCheck={chess.isCheck()}
+          flipped={!isWhite}
+          isGameOver={isGameOver}
+          onMoveSound={playMove}
+          onCaptureSound={playCapture}
+          onCheckSound={playCheck}
+        />
+
+        {/* Player bar — flat top, rounded bottom to connect to board */}
+        <div className="flex items-stretch bg-[#0a0f1a] rounded-b-lg overflow-hidden">
+          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} fill className="w-11" />
+          <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-sm text-white truncate max-w-[130px]">{playerName}</span>
+                <RankBadge rank={playerRank} size="xs" />
+                {playerStreak > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-400">
+                    <Flame className="w-3 h-3" />{playerStreak}
+                  </span>
+                )}
+              </div>
+              <CapturedPieces pieces={myCaptured} color={myPieceColor} materialAdvantage={myMaterialAdvantage > 0 ? myMaterialAdvantage : undefined} />
+            </div>
+            <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} pieceColor={myPieceColor} />
+          </div>
+        </div>
+      </div>
+
+      {/* Right column: resign + spectators, aligned to the right of the board */}
+      <div className="flex flex-col items-center gap-2 ml-2 pt-1">
         <Button
           variant="ghost"
           size="icon"
@@ -377,58 +387,6 @@ function ActiveGamePanel({
         >
           <LogOut className="w-4 h-4" />
         </Button>
-      </div>
-
-      {/* Opponent captured */}
-      <div className="w-full max-w-[480px]">
-        <CapturedPieces pieces={opponentCaptured} color={isWhite ? 'black' : 'white'} materialAdvantage={opponentMaterialAdvantage > 0 ? opponentMaterialAdvantage : undefined} />
-      </div>
-
-      {/* Board */}
-      <ChessBoard
-        game={chess}
-        onMove={handleMove}
-        isPlayerTurn={isMyTurn && !isGameOver}
-        lastMove={opponentLastMove}
-        isCheck={chess.isCheck()}
-        flipped={!isWhite}
-        isGameOver={isGameOver}
-        onMoveSound={playMove}
-        onCaptureSound={playCapture}
-        onCheckSound={playCheck}
-      />
-
-      {/* Player captured */}
-      <div className="w-full max-w-[480px]">
-        <CapturedPieces pieces={myCaptured} color={isWhite ? 'white' : 'black'} materialAdvantage={myMaterialAdvantage > 0 ? myMaterialAdvantage : undefined} />
-      </div>
-
-      {/* Player bar */}
-      <div className="w-full max-w-[480px] flex items-center gap-2">
-        <div className="flex-1 flex items-center justify-between bg-[#1a1f2e] rounded-lg px-3 py-2 min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="sm" fallbackInitial={playerName || 'P'} />
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="font-semibold text-sm text-white truncate max-w-[110px]">{playerName}</span>
-              {(() => {
-                const eloInfo = getEloTitle(playerElo);
-                return (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${eloInfo.bgClass} ${eloInfo.colorClass}`}>
-                    {playerElo}
-                  </span>
-                );
-              })()}
-              <RankBadge rank={playerRank} size="xs" />
-              {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
-              {playerStreak > 0 && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 px-1.5 py-0.5 rounded">
-                  <Flame className="w-3 h-3" />{playerStreak}
-                </span>
-              )}
-            </div>
-          </div>
-          <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} pieceColor={isWhite ? 'white' : 'black'} />
-        </div>
         {spectatorCount > 0 && (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-white/60 bg-white/[0.05] px-2 py-1.5 rounded-lg">
             <Eye className="w-3.5 h-3.5" />{spectatorCount}
@@ -1079,7 +1037,7 @@ export default function ChessPlay() {
                   {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
 
                   {/* Two-panel layout */}
-                  <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+                  <div className="flex flex-col-reverse md:flex-row gap-4 md:gap-6">
                     {/* Left panel: Wager selection */}
                     <div className="w-full md:w-[280px] lg:w-[320px] shrink-0 flex">
                       <div className="w-full bg-[#0a0f1a] rounded-b-xl p-4 flex flex-col overflow-hidden">
@@ -1096,8 +1054,6 @@ export default function ChessPlay() {
                           opponentRank={opponentRank}
                           playerBadges={playerBadges}
                           opponentBadges={opponentBadges}
-                          playerElo={chessElo ?? 800}
-                          opponentElo={opponentElo}
                           playerStreak={dailyPlayStreak ?? 0}
                           opponentStreak={opponentStreak}
                           opponentSkinColor={opponentSkinColor}
