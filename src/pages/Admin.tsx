@@ -159,6 +159,9 @@ export default function Admin() {
   const [newRole, setNewRole] = useState('');
   const [newBadges, setNewBadges] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
   // Site analytics state
   const [dailyPageViews, setDailyPageViews] = useState<DailyPageViews[]>([]);
@@ -1053,6 +1056,55 @@ export default function Admin() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deletingUser || deleteConfirmText !== 'DELETE') return;
+
+    setDeleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `${CURRENT_SUPABASE_URL}/functions/v1/admin-users?action=delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: deletingUser.user_id,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete user');
+      }
+
+      toast({
+        title: 'User deleted',
+        description: result.warnings?.length
+          ? `User removed with ${result.warnings.length} warning(s)`
+          : 'User completely removed from the system',
+      });
+
+      setDeletingUser(null);
+      setDeleteConfirmText('');
+      fetchUsers();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Failed to delete user',
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const term = searchTerm.toLowerCase();
     return (
@@ -1280,14 +1332,26 @@ export default function Admin() {
                           {new Date(user.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditUser(user)}
-                            className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEditUser(user)}
+                              className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => { setDeletingUser(user); setDeleteConfirmText(''); }}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -2594,6 +2658,73 @@ export default function Admin() {
                 <>
                   <Save className="w-4 h-4 mr-2" />
                   Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={!!deletingUser} onOpenChange={() => { setDeletingUser(null); setDeleteConfirmText(''); }}>
+        <DialogContent className="bg-[#0a0f1a] border-red-500/30 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <Trash2 className="w-5 h-5" />
+              Delete User Permanently
+            </DialogTitle>
+            <DialogDescription className="text-red-200/60">
+              This will completely wipe <strong className="text-white">{deletingUser?.display_name || deletingUser?.email}</strong> from existence — auth account, profile, games, transactions, everything. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-red-950/30 border border-red-500/20 rounded-lg p-3 text-sm text-red-200/80">
+              <p className="font-medium text-red-400 mb-1">This will delete:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-xs">
+                <li>Auth account &amp; login credentials</li>
+                <li>Profile, balance, &amp; rank data</li>
+                <li>Game history, wagers, &amp; ledger entries</li>
+                <li>Friends, clan membership, &amp; messages</li>
+                <li>Transactions, withdrawals, &amp; badges</li>
+              </ul>
+            </div>
+
+            <div>
+              <label className="text-sm text-red-200/60 mb-2 block">
+                Type <span className="text-white font-mono font-bold">DELETE</span> to confirm
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="bg-red-950/30 border-red-500/30 text-white placeholder:text-red-200/30 font-mono"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setDeletingUser(null); setDeleteConfirmText(''); }}
+              className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteUser}
+              disabled={deleting || deleteConfirmText !== 'DELETE'}
+              className="bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Forever
                 </>
               )}
             </Button>

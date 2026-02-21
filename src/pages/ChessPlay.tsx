@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { ChessBoard } from '@/components/ChessBoard';
 import { GameTimer } from '@/components/GameTimer';
 import { CapturedPieces } from '@/components/CapturedPieces';
@@ -793,6 +794,7 @@ export default function ChessPlay() {
   const navigate = useNavigate();
   const { isAuthenticated, isPrivileged, user } = useAuth();
   const { openWallet } = useWalletModal();
+  const { openAuthModal } = useAuthModal();
   const { balance } = useBalance();
   const { totalWageredSc, displayName: playerDisplayName, chessElo, dailyPlayStreak } = useProfile();
 
@@ -1090,11 +1092,11 @@ export default function ChessPlay() {
                   <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
                     <Link to="/search"><Search className="w-5 h-5" /></Link>
                   </Button>
-                  <Button variant="ghost" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
-                    <Link to="/auth">Sign In</Link>
+                  <Button variant="ghost" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => openAuthModal('sign-in')}>
+                    Sign In
                   </Button>
-                  <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
-                    <Link to="/auth">Get Started</Link>
+                  <Button className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold" onClick={() => openAuthModal('sign-up')}>
+                    Get Started
                   </Button>
                 </>
               )}

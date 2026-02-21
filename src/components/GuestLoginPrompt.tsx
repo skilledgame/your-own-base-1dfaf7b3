@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 
 export const GuestLoginPrompt = () => {
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const { openAuthModal } = useAuthModal();
 
   const handleSignIn = () => {
     setLoading(true);
-    navigate('/auth');
+    openAuthModal('sign-up');
+    // Reset loading after a brief delay (modal opens instantly)
+    setTimeout(() => setLoading(false), 300);
   };
 
   return (
@@ -44,7 +46,7 @@ export const GuestLoginPrompt = () => {
               />
             </svg>
           )}
-          Sign In
+          Sign Up
         </Button>
       </div>
     </div>

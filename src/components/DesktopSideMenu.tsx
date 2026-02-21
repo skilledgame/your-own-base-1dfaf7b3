@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage, SUPPORTED_LANGUAGES, stripLangPrefix } from '@/contexts/LanguageContext';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DesktopSideMenuProps {
@@ -32,6 +33,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, signOut } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const { t, lang, setLanguage, localePath } = useLanguage();
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -543,7 +545,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                       <Button
                         size="icon"
                         className="w-full bg-primary text-primary-foreground"
-                        onClick={() => { navigate(localePath('/auth')); onToggle(); }}
+                        onClick={() => { openAuthModal('sign-up'); onToggle(); }}
                       >
                         <Crown className="w-5 h-5" />
                       </Button>
@@ -555,7 +557,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                 ) : (
                   <Button
                     className="w-full bg-primary text-primary-foreground"
-                    onClick={() => { navigate(localePath('/auth')); onToggle(); }}
+                    onClick={() => { openAuthModal('sign-up'); onToggle(); }}
                   >
                     {t('nav.get_started')}
                   </Button>

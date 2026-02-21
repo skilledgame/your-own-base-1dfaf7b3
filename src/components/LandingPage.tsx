@@ -17,6 +17,7 @@ import { CryptoSection } from './CryptoSection';
 import { FAQSection } from './FAQSection';
 import { GuestLoginPrompt } from './GuestLoginPrompt';
 import { InviteBanner } from './InviteBanner';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { LiveWins } from './LiveWins';
 import { WeeklyLeaderboard } from './WeeklyLeaderboard';
 import { UserDropdown } from './UserDropdown';
@@ -137,6 +138,7 @@ export const LandingPage = ({
   
   // Use centralized auth context (no duplicate listeners!)
   const { user, isAuthenticated, isPrivileged } = useAuth();
+  const { openAuthModal } = useAuthModal();
   
   // Use centralized balance hook
   const { balance, isLoading: balanceLoading } = useBalance();
@@ -286,11 +288,11 @@ export const LandingPage = ({
                       <Search className="w-5 h-5" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
-                    <Link to={localePath("/auth")}>{t('common.sign_in')}</Link>
+                  <Button variant="ghost" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => openAuthModal('sign-in')}>
+                    {t('common.sign_in')}
                   </Button>
-                  <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
-                    <Link to={localePath("/auth")}>{t('common.get_started')}</Link>
+                  <Button className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold" onClick={() => openAuthModal('sign-up')}>
+                    {t('common.get_started')}
                   </Button>
                 </>
               )}
@@ -338,7 +340,7 @@ export const LandingPage = ({
                   <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4">
                     <Button 
                       size="lg" 
-                      onClick={() => navigate(localePath('/auth'))} 
+                      onClick={() => openAuthModal('sign-up')} 
                       className="h-14 px-8 text-lg font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-full shadow-lg shadow-emerald-500/25 transition-all"
                     >
                       {t('hero.register')}

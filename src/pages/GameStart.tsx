@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -150,6 +151,7 @@ export default function GameStart() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isPrivileged } = useUserRole();
+  const { openAuthModal } = useAuthModal();
   
   // Use Supabase for player data (not for chess matchmaking anymore)
   const {
@@ -268,7 +270,7 @@ export default function GameStart() {
 
   const handlePlayFree = async () => {
     if (!user) {
-      navigate('/auth');
+      openAuthModal('sign-up');
       return;
     }
 
@@ -364,7 +366,7 @@ export default function GameStart() {
 
   const handlePlay = async () => {
     if (!user) {
-      navigate('/auth');
+      openAuthModal('sign-up');
       return;
     }
 
@@ -687,8 +689,8 @@ export default function GameStart() {
 
               {!user && (
                 <div className="text-center">
-                  <Button asChild variant="link" className="text-blue-400 hover:text-blue-300">
-                    <Link to="/auth">Sign in or create an account</Link>
+                  <Button variant="link" className="text-blue-400 hover:text-blue-300" onClick={() => openAuthModal('sign-up')}>
+                    Sign in or create an account
                   </Button>
                 </div>
               )}

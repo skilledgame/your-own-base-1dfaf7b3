@@ -5,17 +5,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { WalletModalProvider } from "@/contexts/WalletModalContext";
+import { AuthModalProvider, useAuthModal } from "@/contexts/AuthModalContext";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GameErrorBoundary } from "@/components/GameErrorBoundary";
 import { WalletModal } from "@/components/WalletModal";
+import { AuthModal } from "@/components/AuthModal";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { FullScreenLoaderOverlay } from "@/components/FullScreenLoaderOverlay";
 import { useUILoadingStore } from "@/stores/uiLoadingStore";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
-import Auth from "./pages/Auth";
 import Deposit from "./pages/Deposit";
 import GameStart from "./pages/GameStart";
 import ChessLobby from "./pages/ChessLobby";
@@ -54,6 +55,29 @@ import { isMfaVerified, setMfaVerified } from "@/lib/mfaStorage";
 import { LanguageProvider, stripLangPrefix } from "@/contexts/LanguageContext";
 import React from "react";
 
+// When someone navigates to /auth (legacy links, other pages), open the modal and redirect
+function AuthRouteRedirect() {
+  const { openAuthModal } = useAuthModal();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Open the sign-up modal by default (or sign-in if ?mode=sign-in)
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode') === 'sign-in' ? 'sign-in' : 'sign-up';
+    openAuthModal(mode);
+    // Go back to the previous page if possible, otherwise go home
+    // Using replace to keep clean history
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [openAuthModal, navigate, location.search]);
+
+  return null;
+}
+
 // Create a stable QueryClient instance outside the component
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +94,7 @@ const queryClient = new QueryClient({
 // Wrapper that handles auth-ready gate, MFA enforcement, and initializations
 function AppWithAuth({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isAuthReady } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const navigate = useNavigate();
   const location = useLocation();
   // Use individual selectors to prevent infinite re-renders
@@ -146,7 +171,7 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
 
         // If user has TOTP MFA factors but hasn't verified yet (aal1 -> aal2 needed)
         if (data.currentLevel === 'aal1' && data.nextLevel === 'aal2') {
-          navigate('/auth', { replace: true });
+          openAuthModal('sign-in');
           return;
         }
 
@@ -210,7 +235,7 @@ function generateRoutes(prefix: string) {
     <React.Fragment key={prefix || 'en'}>
       <Route path={`${prefix}/`} element={<Index />} />
       <Route path={`${prefix}/how-it-works`} element={<HowItWorks />} />
-      <Route path={`${prefix}/auth`} element={<Auth />} />
+      <Route path={`${prefix}/auth`} element={<AuthRouteRedirect />} />
       <Route path={`${prefix}/deposit`} element={<Deposit />} />
       <Route path={`${prefix}/withdraw`} element={<Withdraw />} />
       <Route path={`${prefix}/games/:gameSlug`} element={<GameStart />} />
@@ -257,6 +282,7 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WalletModalProvider>
+          <AuthModalProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -272,6 +298,7 @@ const App = () => (
                       </Routes>
                     </ErrorBoundary>
                     <WalletModal />
+                    <AuthModal />
                     <AuthDebugPanel />
                   </AppWithAuth>
                   <FullScreenLoaderOverlay />
@@ -279,6 +306,7 @@ const App = () => (
               </BrowserRouter>
             </ThemeProvider>
           </TooltipProvider>
+          </AuthModalProvider>
         </WalletModalProvider>
       </AuthProvider>
     </QueryClientProvider>

@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import {
   Settings as SettingsIcon,
   User,
@@ -93,6 +94,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { isAuthenticated, isAuthReady, isPrivileged } = useAuth();
   const { openWallet } = useWalletModal();
+  const { openAuthModal } = useAuthModal();
   const [activeTab, setActiveTab] = useState<SettingsTabType>('profile');
 
   // Layout state — mirrors LandingPage / ChessHome pattern
@@ -238,11 +240,11 @@ export default function Settings() {
                       <Search className="w-5 h-5" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
-                    <Link to="/auth">Sign In</Link>
+                  <Button variant="ghost" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => openAuthModal('sign-in')}>
+                    Sign In
                   </Button>
-                  <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
-                    <Link to="/auth">Get Started</Link>
+                  <Button className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold" onClick={() => openAuthModal('sign-up')}>
+                    Get Started
                   </Button>
                 </>
               )}

@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { useState } from 'react';
 
 interface MobileFullScreenMenuProps {
@@ -38,6 +39,7 @@ export const MobileFullScreenMenu = ({ isOpen, onClose }: MobileFullScreenMenuPr
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, signOut } = useAuth();
+  const { openAuthModal } = useAuthModal();
   
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -223,7 +225,7 @@ export const MobileFullScreenMenu = ({ isOpen, onClose }: MobileFullScreenMenuPr
           ) : (
             <Button 
               className="w-full bg-primary text-primary-foreground"
-              onClick={() => { navigate('/auth'); onClose(); }}
+              onClick={() => { openAuthModal('sign-up'); onClose(); }}
             >
               Get Started
             </Button>

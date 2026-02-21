@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { History, ArrowLeft, Loader2, Trophy, XCircle, Minus, Coins, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LogoLink } from '@/components/LogoLink';
@@ -18,6 +19,7 @@ interface GameHistoryEntry {
 
 const GameHistory = () => {
   const { user } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const [games, setGames] = useState<GameHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -165,8 +167,8 @@ const GameHistory = () => {
               <History className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
               <p className="text-lg font-medium text-foreground mb-2">Sign in to view your history</p>
               <p className="text-sm text-muted-foreground mb-6">Your game history will appear here once you're logged in.</p>
-              <Button asChild>
-                <Link to="/auth">Sign In</Link>
+              <Button onClick={() => openAuthModal('sign-in')}>
+                Sign In
               </Button>
             </div>
           )}

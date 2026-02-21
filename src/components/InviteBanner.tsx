@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gift, Clock, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 
 export const InviteBanner = () => {
   const [timeLeft, setTimeLeft] = useState({ days: 2, hours: 0, minutes: 0, seconds: 0 });
   const [dismissed, setDismissed] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { openAuthModal } = useAuthModal();
 
   useEffect(() => {
     // Set expiry to 2 days from now (or from stored value)
@@ -48,7 +50,7 @@ export const InviteBanner = () => {
     if (isAuthenticated) {
       navigate('/affiliate');
     } else {
-      navigate('/auth');
+      openAuthModal('sign-up');
     }
   };
 

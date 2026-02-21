@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,7 @@ export default function ChessLobby() {
   const [showWagerSelection, setShowWagerSelection] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { openAuthModal } = useAuthModal();
 
   // Pre-fill join code from URL params
   useEffect(() => {
@@ -80,7 +82,7 @@ export default function ChessLobby() {
 
   const handleCreateLobby = async () => {
     if (!user) {
-      navigate('/auth');
+      openAuthModal('sign-up');
       return;
     }
 
@@ -207,7 +209,7 @@ export default function ChessLobby() {
 
   const handleJoinLobby = async () => {
     if (!user) {
-      navigate('/auth');
+      openAuthModal('sign-up');
       return;
     }
 
@@ -487,8 +489,8 @@ export default function ChessLobby() {
 
           {!user && (
             <div className="text-center">
-              <Button asChild variant="link" className="text-blue-400 hover:text-blue-300">
-                <Link to="/auth">Sign in to play with friends</Link>
+              <Button variant="link" className="text-blue-400 hover:text-blue-300" onClick={() => openAuthModal('sign-in')}>
+                Sign in to play with friends
               </Button>
             </div>
           )}

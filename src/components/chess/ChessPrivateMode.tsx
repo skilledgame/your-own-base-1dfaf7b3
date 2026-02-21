@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +55,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
   const { isAuthenticated, isAuthReady, isPrivileged, user } = useAuth();
   const { balance } = useBalance();
   const { openWallet } = useWalletModal();
+  const { openAuthModal } = useAuthModal();
 
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [lobbyCode, setLobbyCode] = useState('');
@@ -91,7 +93,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
 
   const handleCreateLobby = async () => {
     if (!user) {
-      navigate('/auth');
+      openAuthModal('sign-up');
       return;
     }
 
@@ -197,7 +199,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
 
   const handleJoinLobby = async () => {
     if (!user) {
-      navigate('/auth');
+      openAuthModal('sign-up');
       return;
     }
 
@@ -394,11 +396,11 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
                       <Search className="w-5 h-5" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" asChild className="hidden sm:flex text-muted-foreground hover:text-foreground">
-                    <Link to="/auth">Sign In</Link>
+                  <Button variant="ghost" className="hidden sm:flex text-muted-foreground hover:text-foreground" onClick={() => openAuthModal('sign-in')}>
+                    Sign In
                   </Button>
-                  <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold">
-                    <Link to="/auth">Get Started</Link>
+                  <Button className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold" onClick={() => openAuthModal('sign-up')}>
+                    Get Started
                   </Button>
                 </>
               )}
@@ -436,7 +438,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
                   <Button
                     size="lg"
                     className="px-8 bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-400 hover:to-violet-400"
-                    onClick={() => navigate('/auth')}
+                    onClick={() => openAuthModal('sign-in')}
                   >
                     <LogIn className="w-5 h-5 mr-2" />
                     Sign In

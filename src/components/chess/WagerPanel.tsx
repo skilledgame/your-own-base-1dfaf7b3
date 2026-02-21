@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +53,7 @@ export function WagerPanel() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const { openAuthModal } = useAuthModal();
   const { isAuthenticated, user } = useAuth();
   const { balance } = useBalance();
   const { phase, setSelectedWager, queueEstimate } = useChessStore();
@@ -100,7 +102,7 @@ export function WagerPanel() {
   };
 
   const handlePlay = useCallback(async () => {
-    if (!isAuthenticated) { navigate('/auth'); return; }
+    if (!isAuthenticated) { openAuthModal('sign-up'); return; }
     if (!selectedOption) return;
     if (balance < selectedOption) return;
     setIsStarting(true);
@@ -115,7 +117,7 @@ export function WagerPanel() {
   // --- Private handlers ---
 
   const handleCreateLobby = async () => {
-    if (!user) { navigate('/auth'); return; }
+    if (!user) { openAuthModal('sign-up'); return; }
     if (privateWager > balance) {
       toast({ variant: 'destructive', title: 'Insufficient balance', description: "You don't have enough coins for this wager" });
       return;
@@ -169,7 +171,7 @@ export function WagerPanel() {
   };
 
   const handleJoinLobby = async () => {
-    if (!user) { navigate('/auth'); return; }
+    if (!user) { openAuthModal('sign-up'); return; }
     if (!joinCode || joinCode.length < 4) {
       toast({ variant: 'destructive', title: 'Invalid code', description: 'Please enter a valid lobby code.' });
       return;
