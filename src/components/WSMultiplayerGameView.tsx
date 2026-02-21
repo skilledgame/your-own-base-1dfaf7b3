@@ -535,7 +535,7 @@ export const WSMultiplayerGameView = ({
                     <div className="flex flex-col w-[384px] sm:w-[448px] md:w-[512px] max-w-full shrink-0">
                       {/* Opponent bar */}
                       <div className="flex items-stretch bg-[#0a0f1a] rounded-t-lg overflow-hidden">
-                        <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || "O"} fill className="w-[12.5%] shrink-0" />
+                        <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || "O"} fill className="w-11" />
                         <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
                           <div className="flex flex-col gap-0.5 min-w-0">
                             <div className="flex items-center gap-2 min-w-0">
@@ -568,7 +568,7 @@ export const WSMultiplayerGameView = ({
 
                       {/* Player bar */}
                       <div className="flex items-stretch bg-[#0a0f1a] rounded-b-lg overflow-hidden">
-                        <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} fill className="w-[12.5%] shrink-0" />
+                        <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} fill className="w-11" />
                         <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
                           <div className="flex flex-col gap-0.5 min-w-0">
                             <div className="flex items-center gap-2 min-w-0">

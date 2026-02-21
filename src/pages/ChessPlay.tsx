@@ -323,7 +323,7 @@ function ActiveGamePanel({
       <div className="flex flex-col w-[384px] sm:w-[448px] md:w-[512px] max-w-full shrink-0">
         {/* Opponent bar — rounded top, flat bottom to connect to board */}
         <div className="flex items-stretch bg-[#0a0f1a] rounded-t-lg overflow-hidden">
-          <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || 'O'} fill className="w-[12.5%] shrink-0" />
+          <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || 'O'} fill className="w-11" />
           <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
             <div className="flex flex-col gap-0.5 min-w-0">
               <div className="flex items-center gap-2 min-w-0">
@@ -357,7 +357,7 @@ function ActiveGamePanel({
 
         {/* Player bar — flat top, rounded bottom to connect to board */}
         <div className="flex items-stretch bg-[#0a0f1a] rounded-b-lg overflow-hidden">
-          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} fill className="w-[12.5%] shrink-0" />
+          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} fill className="w-11" />
           <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
             <div className="flex flex-col gap-0.5 min-w-0">
               <div className="flex items-center gap-2 min-w-0">
@@ -1037,7 +1037,7 @@ export default function ChessPlay() {
                   {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
 
                   {/* Two-panel layout */}
-                  <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+                  <div className="flex flex-col-reverse md:flex-row gap-4 md:gap-6">
                     {/* Left panel: Wager selection */}
                     <div className="w-full md:w-[280px] lg:w-[320px] shrink-0 flex">
                       <div className="w-full bg-[#0a0f1a] rounded-b-xl p-4 flex flex-col overflow-hidden">
