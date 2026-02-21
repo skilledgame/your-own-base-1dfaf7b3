@@ -70,12 +70,21 @@ export function PlayerAvatar({
         )}
         style={rainbow ? RAINBOW_STYLE : undefined}
       >
-        {useFallback ? (
+        {useImage ? (
+          <img
+            src={avatar.imageSrc}
+            alt={avatar.label}
+            className="w-6 h-6 rounded-full object-cover"
+            draggable={false}
+          />
+        ) : useInitial ? (
           <span className="text-white font-bold text-base">
-            {fallbackInitial.charAt(0).toUpperCase()}
+            {fallbackInitial!.charAt(0).toUpperCase()}
           </span>
         ) : (
-          <IconComponent className="text-white w-6 h-6" />
+          <span className="text-white font-bold text-base">
+            {fallbackInitial ? fallbackInitial.charAt(0).toUpperCase() : '?'}
+          </span>
         )}
       </div>
     );
