@@ -16,7 +16,7 @@ export interface ColorTheme {
   animated?: boolean;
 }
 
-export type AvatarType = 'default' | 'horse';
+export type AvatarType = 'default' | 'horse' | 'goat';
 
 export interface AvatarIcon {
   type: AvatarType;
@@ -163,6 +163,7 @@ export const PREMIUM_THEMES = Object.entries(COLOR_THEMES).filter(
 export const AVATAR_ICONS: Record<string, AvatarIcon> = {
   default: { type: 'default', label: 'Default', icon: User },
   horse:   { type: 'horse',   label: 'Horse',   imageSrc: '/avatars/horse.png' },
+  goat:    { type: 'goat',    label: 'GOAT',    imageSrc: '/avatars/goat.png' },
 };
 
 /** @deprecated Use AVATAR_ICONS instead */
