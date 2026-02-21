@@ -532,75 +532,61 @@ export const WSMultiplayerGameView = ({
                 <div className="w-full bg-black rounded-xl p-5 sm:p-8 md:p-10">
                   {/* 5: Game content */}
                   <div className="flex flex-col items-center gap-2">
-              {/* Opponent Info Row — compact name box + badges outside + timer + resign */}
-              <div className="flex items-center justify-between w-full max-w-md">
-                <div className="flex items-center gap-2">
-                  {/* Compact name box matching timer height */}
-                  <div className="flex items-center gap-2 px-4 py-2.5 bg-secondary border-2 border-border rounded-xl">
-                    <PlayerAvatar
-                      skinColor={opponentSkinColor}
-                      skinIcon={opponentSkinIcon}
-                      size="sm"
-                      fallbackInitial={opponentName || "O"}
-                    />
-                    <span className="font-semibold text-sm truncate max-w-[120px]">{opponentName || "Opponent"}</span>
+              {/* Opponent bar */}
+              <div className="w-full max-w-md flex items-center gap-2">
+                <div className="flex-1 flex items-center justify-between bg-[#1a1f2e] rounded-lg px-3 py-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} size="sm" fallbackInitial={opponentName || "O"} />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-sm text-white truncate max-w-[110px]">{opponentName || "Opponent"}</span>
+                      {(() => {
+                        const eloInfo = getEloTitle(opponentElo);
+                        return (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${eloInfo.bgClass} ${eloInfo.colorClass}`}>
+                            {opponentElo}
+                          </span>
+                        );
+                      })()}
+                      <RankBadge rank={opponentRank} size="xs" />
+                      {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
+                      {opponentStreak > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 px-1.5 py-0.5 rounded">
+                          <Flame className="w-3 h-3" />{opponentStreak}
+                        </span>
+                      )}
+                      <button
+                        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded transition-colors"
+                        title="Add Friend"
+                        onClick={async () => {
+                          try {
+                            const matchmaking = useChessStore.getState().matchmaking;
+                            const opponentUserId = matchmaking.opponentUserId;
+                            if (opponentUserId) {
+                              await useFriendStore.getState().sendRequest(opponentUserId);
+                              toast.success('Friend request sent!');
+                            } else {
+                              toast.error('Could not identify opponent');
+                            }
+                          } catch (error: any) {
+                            toast.error(error.message || 'Failed to send request');
+                          }
+                        }}
+                      >
+                        <UserPlus className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                  {/* Badges outside the name box */}
-                  {(() => {
-                    const eloInfo = getEloTitle(opponentElo);
-                    return (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${eloInfo.bgClass} ${eloInfo.colorClass} ${eloInfo.borderClass}`}>
-                        {opponentElo}
-                      </span>
-                    );
-                  })()}
-                  <RankBadge rank={opponentRank} size="xs" />
-                  {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
-                  {opponentStreak > 0 && (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
-                      <Flame className="w-3 h-3" />
-                      {opponentStreak}
-                    </span>
-                  )}
-                  <button
-                    className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded transition-colors"
-                    title="Add Friend"
-                    onClick={async () => {
-                      try {
-                        const matchmaking = useChessStore.getState().matchmaking;
-                        const opponentUserId = matchmaking.opponentUserId;
-                        if (opponentUserId) {
-                          await useFriendStore.getState().sendRequest(opponentUserId);
-                          toast.success('Friend request sent!');
-                        } else {
-                          toast.error('Could not identify opponent');
-                        }
-                      } catch (error: any) {
-                        toast.error(error.message || 'Failed to send request');
-                      }
-                    }}
-                  >
-                    <UserPlus className="w-3 h-3" />
-                  </button>
+                  <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} pieceColor={isWhite ? 'black' : 'white'} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} />
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => {
-                      if (isGameOver) {
-                        onBack();
-                      } else {
-                        setShowResignDialog(true);
-                      }
-                    }} 
-                    className={`h-9 w-9 shrink-0 ${isGameOver ? '' : 'text-destructive hover:text-destructive border-destructive/30'}`}
-                    title={isGameOver ? 'Leave' : 'Resign'}
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { isGameOver ? onBack() : setShowResignDialog(true); }}
+                  className={`h-9 w-9 shrink-0 rounded-lg ${isGameOver ? 'text-white/50 hover:text-white/70' : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'}`}
+                  title={isGameOver ? 'Leave' : 'Resign'}
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
               </div>
 
               {/* Opponent captured pieces */}
@@ -635,45 +621,37 @@ export const WSMultiplayerGameView = ({
                 />
               </div>
 
-              {/* Player Info Row — compact name box + badges outside + timer + spectators */}
-              <div className="flex items-center justify-between w-full max-w-md">
-                <div className="flex items-center gap-2">
-                  {/* Compact name box matching timer height */}
-                  <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border-2 border-primary/20 rounded-xl">
-                    <PlayerAvatar
-                      skinColor={skinColor}
-                      skinIcon={skinIcon}
-                      size="sm"
-                    />
-                    <span className="font-semibold text-sm truncate max-w-[120px]">{playerName}</span>
+              {/* Player bar */}
+              <div className="w-full max-w-md flex items-center gap-2">
+                <div className="flex-1 flex items-center justify-between bg-[#1a1f2e] rounded-lg px-3 py-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="sm" />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-sm text-white truncate max-w-[110px]">{playerName}</span>
+                      {(() => {
+                        const eloInfo = getEloTitle(playerElo);
+                        return (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${eloInfo.bgClass} ${eloInfo.colorClass}`}>
+                            {playerElo}
+                          </span>
+                        );
+                      })()}
+                      <RankBadge rank={playerRank} size="xs" />
+                      {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
+                      {playerStreak > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 px-1.5 py-0.5 rounded">
+                          <Flame className="w-3 h-3" />{playerStreak}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {/* Badges outside the name box */}
-                  {(() => {
-                    const eloInfo = getEloTitle(playerElo);
-                    return (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${eloInfo.bgClass} ${eloInfo.colorClass} ${eloInfo.borderClass}`}>
-                        {playerElo}
-                      </span>
-                    );
-                  })()}
-                  <RankBadge rank={playerRank} size="xs" />
-                  {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
-                  {playerStreak > 0 && (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded">
-                      <Flame className="w-3 h-3" />
-                      {playerStreak}
-                    </span>
-                  )}
+                  <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} pieceColor={isWhite ? 'white' : 'black'} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} />
-                  {spectatorCount > 0 && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-white/60 bg-white/5 border border-white/10 px-2 py-1 rounded-lg">
-                      <Eye className="w-3.5 h-3.5" />
-                      {spectatorCount}
-                    </span>
-                  )}
-                </div>
+                {spectatorCount > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-white/60 bg-white/[0.05] px-2 py-1.5 rounded-lg">
+                    <Eye className="w-3.5 h-3.5" />{spectatorCount}
+                  </span>
+                )}
               </div>
                   </div>
 
