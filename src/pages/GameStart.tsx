@@ -886,7 +886,7 @@ export default function GameStart() {
         />
       )}
 
-      <header className="border-b border-border p-4 sticky top-0 bg-background/95 backdrop-blur z-50">
+      <header className="p-4 sticky top-0 bg-background/95 backdrop-blur z-50">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />

@@ -104,7 +104,7 @@ export default function VIP() {
       <DesktopSideMenu isOpen={sideMenuOpen} onToggle={() => setSideMenuOpen(!sideMenuOpen)} />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/50">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
@@ -437,9 +437,9 @@ function StreakModal({ currentStreak, onClose }: { currentStreak: number; onClos
         onClick={onClose}
       />
 
-      <div className="relative z-10 w-full max-w-md mx-auto max-h-[90vh] flex flex-col bg-background border border-border/60 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300">
+      <div className="relative z-10 w-full max-w-md mx-auto max-h-[90vh] flex flex-col bg-background rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border/50">
+        <div className="flex items-center justify-between px-6 pt-5 pb-3">
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-orange-500" />
             <h2 className="text-lg font-bold text-foreground">Daily Streak</h2>

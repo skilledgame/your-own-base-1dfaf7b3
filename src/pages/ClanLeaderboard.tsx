@@ -67,7 +67,7 @@ export default function ClanLeaderboard() {
         />
       )}
 
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl">
         <div className="flex items-center justify-between px-4 py-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/clan')}>
             <ArrowLeft className="w-5 h-5" />

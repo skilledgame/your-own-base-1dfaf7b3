@@ -53,7 +53,7 @@ export default function Search() {
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border">
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center gap-4 mb-4">
             <Link to="/">
@@ -94,7 +94,7 @@ export default function Search() {
       </header>
 
       {/* Categories */}
-      <div className="sticky top-[120px] z-20 bg-background/95 backdrop-blur-xl border-b border-border">
+      <div className="sticky top-[120px] z-20 bg-background/95 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {categories.map((category) => (

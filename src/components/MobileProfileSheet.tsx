@@ -99,7 +99,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
         style={{ maxHeight: '85vh' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="md" />
             
