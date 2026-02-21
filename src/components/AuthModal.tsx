@@ -29,7 +29,6 @@ import { ChooseUsername } from '@/components/ChooseUsername';
 import { Loader2, Mail, Lock, ArrowRight, X, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
-import { useSiteContent } from '@/hooks/useSiteContent';
 import { setMfaVerified } from '@/lib/mfaStorage';
 import { useAuthModal, type AuthModalMode } from '@/contexts/AuthModalContext';
 import { useUserDataStore } from '@/stores/userDataStore';
@@ -69,12 +68,36 @@ export function AuthModal() {
   const [hasTotpFactor, setHasTotpFactor] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [legalPopup, setLegalPopup] = useState<'terms' | 'privacy' | null>(null);
+  const [legalContent, setLegalContent] = useState<string | null>(null);
+  const [legalLoading, setLegalLoading] = useState(false);
 
   const { toast } = useToast();
 
-  // Fetch legal content for inline popups
-  const termsContent = useSiteContent('terms-and-conditions');
-  const privacyContent = useSiteContent('privacy-policy');
+  // Fetch legal content lazily — only when the popup is opened
+  useEffect(() => {
+    if (!legalPopup) {
+      setLegalContent(null);
+      return;
+    }
+    let cancelled = false;
+    const slug = legalPopup === 'terms' ? 'terms-and-conditions' : 'privacy-policy';
+    setLegalLoading(true);
+    supabase
+      .from('site_content')
+      .select('content')
+      .eq('slug', slug)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setLegalContent(data?.content || null);
+          setLegalLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLegalLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [legalPopup]);
 
   // Whether the current step is a mandatory MFA step (modal cannot be closed)
   const isMfaStep = MANDATORY_STEPS.includes(step);
@@ -691,16 +714,14 @@ export function AuthModal() {
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
-              {(legalPopup === 'terms' ? termsContent.loading : privacyContent.loading) ? (
+              {legalLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
                 </div>
-              ) : (legalPopup === 'terms' ? termsContent.hasContent : privacyContent.hasContent) ? (
+              ) : legalContent ? (
                 <div
                   className="prose prose-sm prose-invert max-w-none prose-headings:text-slate-200 prose-p:text-slate-400 prose-li:text-slate-400 prose-a:text-blue-400 prose-strong:text-slate-300"
-                  dangerouslySetInnerHTML={{
-                    __html: (legalPopup === 'terms' ? termsContent.data!.content : privacyContent.data!.content),
-                  }}
+                  dangerouslySetInnerHTML={{ __html: legalContent }}
                 />
               ) : (
                 <p className="text-slate-400 text-sm">
