@@ -408,7 +408,7 @@ export function AuthModal() {
           'bg-[#0f1923] border-slate-700/50 text-white p-0 gap-0',
           'w-[95vw] max-w-[440px] max-h-[90vh] rounded-xl',
           'shadow-2xl shadow-black/50',
-          'relative overflow-hidden',
+          'overflow-hidden',
           // Override default dialog close button
           '[&>button]:hidden'
         )}
@@ -416,6 +416,8 @@ export function AuthModal() {
         onInteractOutside={(e) => { if (isMfaStep) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (isMfaStep) e.preventDefault(); }}
       >
+        {/* Wrapper for relative positioning (legal popup overlay needs this) */}
+        <div className="relative">
         {/* Accessible title for screen readers */}
         <DialogTitle className="sr-only">
           {isLogin ? 'Sign In' : 'Create an Account'}
@@ -746,6 +748,7 @@ export function AuthModal() {
             </div>
           </div>
         )}
+        </div>{/* end relative wrapper */}
       </DialogContent>
     </Dialog>
   );
