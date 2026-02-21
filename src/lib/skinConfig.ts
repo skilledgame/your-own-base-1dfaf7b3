@@ -16,7 +16,7 @@ export interface ColorTheme {
   animated?: boolean;
 }
 
-export type AvatarType = 'default' | 'horse' | 'goat';
+export type AvatarType = 'default' | 'horse' | 'goat' | 'lama' | 'zebra' | 'giraffe';
 
 export interface AvatarIcon {
   type: AvatarType;
@@ -161,9 +161,12 @@ export const PREMIUM_THEMES = Object.entries(COLOR_THEMES).filter(
 
 // ─── Avatar Icons ───────────────────────────────────────────────
 export const AVATAR_ICONS: Record<string, AvatarIcon> = {
-  default: { type: 'default', label: 'Default', icon: User },
-  horse:   { type: 'horse',   label: 'Horse',   imageSrc: '/avatars/horse.png' },
-  goat:    { type: 'goat',    label: 'GOAT',    imageSrc: '/avatars/goat.png' },
+  default: { type: 'default', label: 'Default',  icon: User },
+  horse:   { type: 'horse',   label: 'Horse',    imageSrc: '/avatars/horse.png' },
+  goat:    { type: 'goat',    label: 'GOAT',     imageSrc: '/avatars/goat.png' },
+  lama:    { type: 'lama',    label: 'Lama',     imageSrc: '/avatars/lama.png' },
+  zebra:   { type: 'zebra',   label: 'Zebra',    imageSrc: '/avatars/zebra.png' },
+  giraffe: { type: 'giraffe', label: 'Giraffe',  imageSrc: '/avatars/giraffe.png' },
 };
 
 /** @deprecated Use AVATAR_ICONS instead */

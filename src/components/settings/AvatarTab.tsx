@@ -292,7 +292,7 @@ export function AvatarTab() {
           <CardDescription>Choose your avatar icon</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {Object.entries(AVATAR_ICONS).map(([key, avatar]) => {
               const isSelected = selectedIcon === key;
               return (
