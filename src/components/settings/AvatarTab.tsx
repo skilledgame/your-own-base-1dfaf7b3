@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import {
   COLOR_THEMES,
-  ANIMAL_ICONS,
+  AVATAR_ICONS,
   FREE_THEMES,
   RANK_THEMES,
   PREMIUM_THEMES,
@@ -115,6 +115,7 @@ export function AvatarTab() {
               skinColor={selectedColor}
               skinIcon={selectedIcon}
               size="xl"
+              fallbackInitial={displayName ?? 'P'}
             />
             <p className="text-sm font-medium text-muted-foreground">
               {displayName ?? 'Player'}
@@ -284,35 +285,48 @@ export function AvatarTab() {
         </CardContent>
       </Card>
 
-      {/* ─── Animal Icon ──────────────────────────────────────── */}
+      {/* ─── Avatar Style ─────────────────────────────────────── */}
       <Card className="border-border bg-card">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold">Animal Icon</CardTitle>
-          <CardDescription>Pick your avatar icon</CardDescription>
+          <CardTitle className="text-lg font-semibold">Avatar Style</CardTitle>
+          <CardDescription>Choose your avatar icon</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-5 gap-3">
-            {Object.entries(ANIMAL_ICONS).map(([key, animal]) => {
-              const Icon = animal.icon;
+          <div className="grid grid-cols-2 gap-3">
+            {Object.entries(AVATAR_ICONS).map(([key, avatar]) => {
+              const isSelected = selectedIcon === key;
               return (
                 <button
                   key={key}
                   onClick={() => setSelectedIcon(key)}
                   className={cn(
-                    'relative flex flex-col items-center gap-2 p-3 rounded-md border-2 transition-all',
-                    selectedIcon === key
+                    'relative flex flex-col items-center gap-3 p-4 rounded-md border-2 transition-all',
+                    isSelected
                       ? 'border-accent bg-accent/10'
                       : 'border-border hover:border-muted-foreground/50',
                   )}
                 >
-                  <Icon className="w-6 h-6 text-foreground" />
-                  {selectedIcon === key && (
+                  {avatar.imageSrc ? (
+                    <img
+                      src={avatar.imageSrc}
+                      alt={avatar.label}
+                      className="w-10 h-10 rounded-full object-cover"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                      <span className="text-lg font-bold text-foreground">
+                        {(displayName ?? 'P').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  {isSelected && (
                     <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
                       <Check className="w-2.5 h-2.5 text-white" />
                     </div>
                   )}
-                  <span className="text-[10px] font-medium text-muted-foreground">
-                    {animal.label}
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    {avatar.label}
                   </span>
                 </button>
               );

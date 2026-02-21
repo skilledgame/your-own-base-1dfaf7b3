@@ -101,7 +101,7 @@ export const MobileProfileSheet = ({ isOpen, onClose }: MobileProfileSheetProps)
         {/* Header */}
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="md" />
+            <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="md" fallbackInitial={name} />
             
             {/* Username */}
             {loading ? (

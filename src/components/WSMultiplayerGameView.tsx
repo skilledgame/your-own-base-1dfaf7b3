@@ -625,7 +625,7 @@ export const WSMultiplayerGameView = ({
               <div className="w-full max-w-md flex items-center gap-2">
                 <div className="flex-1 flex items-center justify-between bg-[#1a1f2e] rounded-lg px-3 py-2 min-w-0">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="sm" />
+                    <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="sm" fallbackInitial={playerName || 'P'} />
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-semibold text-sm text-white truncate max-w-[110px]">{playerName}</span>
                       {(() => {

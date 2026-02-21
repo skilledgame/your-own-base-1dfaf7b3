@@ -24,7 +24,7 @@ export function useProfile() {
   const chessElo = profile?.chess_elo ?? 800;
   const dailyPlayStreak = profile?.daily_play_streak ?? 0;
   const skinColor = profile?.skin_color ?? 'normal';
-  const skinIcon = profile?.skin_icon ?? 'cat';
+  const skinIcon = profile?.skin_icon ?? 'default';
   
   return {
     profile,

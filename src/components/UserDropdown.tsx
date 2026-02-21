@@ -81,7 +81,7 @@ export const UserDropdown = memo(({ className }: UserDropdownProps) => {
             className,
           )}
         >
-          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="xs" />
+          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="xs" fallbackInitial={name} />
 
           {/* Username */}
           {loading ? (

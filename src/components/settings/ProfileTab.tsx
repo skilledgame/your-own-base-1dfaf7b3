@@ -356,7 +356,7 @@ export function ProfileTab({ onNavigateToAvatar }: ProfileTabProps) {
               className="group relative flex-shrink-0 rounded-full ring-4 ring-card"
               title="Edit Avatar"
             >
-              <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="xl" />
+              <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="xl" fallbackInitial={displayName || 'P'} />
               <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                 <Pencil className="w-6 h-6 text-white" />
               </div>

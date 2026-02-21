@@ -26,10 +26,10 @@ import { MFAVerify } from '@/components/MFAVerify';
 import { EmailVerify } from '@/components/EmailVerify';
 import { EmailMFAVerify } from '@/components/EmailMFAVerify';
 import { ChooseUsername } from '@/components/ChooseUsername';
-import { Loader2, Mail, Lock, ArrowRight, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Loader2, Mail, Lock, ArrowRight, X, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
+import { useSiteContent } from '@/hooks/useSiteContent';
 import { setMfaVerified } from '@/lib/mfaStorage';
 import { useAuthModal, type AuthModalMode } from '@/contexts/AuthModalContext';
 import { useUserDataStore } from '@/stores/userDataStore';
@@ -68,8 +68,13 @@ export function AuthModal() {
   const [userId, setUserId] = useState<string | null>(null);
   const [hasTotpFactor, setHasTotpFactor] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [legalPopup, setLegalPopup] = useState<'terms' | 'privacy' | null>(null);
 
   const { toast } = useToast();
+
+  // Fetch legal content for inline popups
+  const termsContent = useSiteContent('terms-and-conditions');
+  const privacyContent = useSiteContent('privacy-policy');
 
   // Whether the current step is a mandatory MFA step (modal cannot be closed)
   const isMfaStep = MANDATORY_STEPS.includes(step);
@@ -104,6 +109,7 @@ export function AuthModal() {
     setAcceptedTerms(false);
     setUserId(null);
     setHasTotpFactor(false);
+    setLegalPopup(null);
   }, [isOpen, mode, user?.email]);
 
   const validateEmail = () => {
@@ -377,8 +383,9 @@ export function AuthModal() {
       <DialogContent
         className={cn(
           'bg-[#0f1923] border-slate-700/50 text-white p-0 gap-0',
-          'w-[95vw] max-w-[440px] rounded-xl',
+          'w-[95vw] max-w-[440px] max-h-[90vh] rounded-xl',
           'shadow-2xl shadow-black/50',
+          'relative overflow-hidden',
           // Override default dialog close button
           '[&>button]:hidden'
         )}
@@ -412,7 +419,15 @@ export function AuthModal() {
               >
                 Login
                 {isLogin && (
-                  <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-blue-500 rounded-full" />
+                  <div className="absolute bottom-0 left-1/4 right-1/4 h-[3px] rounded-full overflow-hidden">
+                    <div
+                      className="w-full h-full animate-rainbow-slide"
+                      style={{
+                        backgroundSize: '200% 100%',
+                        backgroundImage: 'linear-gradient(90deg, #ff0000, #ff5500, #ffaa00, #ffff00, #00ff00, #00ffcc, #00aaff, #0044ff, #8800ff, #cc00ff, #ff0066, #ff0000)',
+                      }}
+                    />
+                  </div>
                 )}
               </button>
               <button
@@ -421,7 +436,15 @@ export function AuthModal() {
               >
                 Register
                 {!isLogin && (
-                  <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-blue-500 rounded-full" />
+                  <div className="absolute bottom-0 left-1/4 right-1/4 h-[3px] rounded-full overflow-hidden">
+                    <div
+                      className="w-full h-full animate-rainbow-slide"
+                      style={{
+                        backgroundSize: '200% 100%',
+                        backgroundImage: 'linear-gradient(90deg, #ff0000, #ff5500, #ffaa00, #ffff00, #00ff00, #00ffcc, #00aaff, #0044ff, #8800ff, #cc00ff, #ff0066, #ff0000)',
+                      }}
+                    />
+                  </div>
                 )}
               </button>
             </div>
@@ -498,22 +521,22 @@ export function AuthModal() {
                       className="mt-0.5 border-slate-500 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                     />
                     <span className="text-xs text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors">
-                      I am over the age of 18 and agree to the{' '}
-                      <Link
-                        to="/terms"
+                      I have read and agree to the{' '}
+                      <button
+                        type="button"
                         className="text-blue-400 underline hover:text-blue-300"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLegalPopup('terms'); }}
                       >
                         Terms of Service
-                      </Link>
+                      </button>
                       {' '}and{' '}
-                      <Link
-                        to="/privacy"
+                      <button
+                        type="button"
                         className="text-blue-400 underline hover:text-blue-300"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLegalPopup('privacy'); }}
                       >
                         Privacy Policy
-                      </Link>
+                      </button>
                     </span>
                   </label>
                 )}
@@ -521,7 +544,7 @@ export function AuthModal() {
                 {/* Continue button */}
                 <Button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold h-11"
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold h-11"
                   disabled={loading || (!isLogin && !acceptedTerms)}
                 >
                   {loading ? (
@@ -649,6 +672,59 @@ export function AuthModal() {
             />
           )}
         </div>
+
+        {/* ── Inline legal popup (Terms / Privacy) ── */}
+        {legalPopup && (
+          <div className="absolute inset-0 z-20 bg-[#0f1923] rounded-xl flex flex-col">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-700/50 shrink-0">
+              <button
+                onClick={() => setLegalPopup(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <h3 className="text-lg font-semibold text-white">
+                {legalPopup === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+              </h3>
+            </div>
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
+              {(legalPopup === 'terms' ? termsContent.loading : privacyContent.loading) ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                </div>
+              ) : (legalPopup === 'terms' ? termsContent.hasContent : privacyContent.hasContent) ? (
+                <div
+                  className="prose prose-sm prose-invert max-w-none prose-headings:text-slate-200 prose-p:text-slate-400 prose-li:text-slate-400 prose-a:text-blue-400 prose-strong:text-slate-300"
+                  dangerouslySetInnerHTML={{
+                    __html: (legalPopup === 'terms' ? termsContent.data!.content : privacyContent.data!.content),
+                  }}
+                />
+              ) : (
+                <p className="text-slate-400 text-sm">
+                  {legalPopup === 'terms'
+                    ? 'Terms of Service content is not available at this time. Please check back later.'
+                    : 'Privacy Policy content is not available at this time. Please check back later.'}
+                </p>
+              )}
+            </div>
+
+            {/* Back button */}
+            <div className="px-5 py-3 border-t border-slate-700/50 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full bg-[#1a2634] border-slate-600/50 text-white hover:bg-[#243445] hover:text-white"
+                onClick={() => setLegalPopup(null)}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Register
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

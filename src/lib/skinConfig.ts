@@ -1,16 +1,4 @@
-import {
-  Cat,
-  Dog,
-  Bird,
-  Fish,
-  Rabbit,
-  Turtle,
-  Squirrel,
-  Bug,
-  Rat,
-  Snail,
-  type LucideIcon,
-} from 'lucide-react';
+import { User, type LucideIcon } from 'lucide-react';
 
 export type ColorCategory = 'free' | 'rank' | 'premium';
 
@@ -28,6 +16,18 @@ export interface ColorTheme {
   animated?: boolean;
 }
 
+export type AvatarType = 'default' | 'horse';
+
+export interface AvatarIcon {
+  type: AvatarType;
+  label: string;
+  /** Lucide icon for 'default' type */
+  icon?: LucideIcon;
+  /** Image path for image-based avatars */
+  imageSrc?: string;
+}
+
+/** @deprecated Use AvatarIcon instead */
 export interface AnimalIcon {
   icon: LucideIcon;
   label: string;
@@ -159,22 +159,19 @@ export const PREMIUM_THEMES = Object.entries(COLOR_THEMES).filter(
   ([, t]) => t.category === 'premium',
 );
 
-// ─── Animal Icons ──────────────────────────────────────────────
+// ─── Avatar Icons ───────────────────────────────────────────────
+export const AVATAR_ICONS: Record<string, AvatarIcon> = {
+  default: { type: 'default', label: 'Default', icon: User },
+  horse:   { type: 'horse',   label: 'Horse',   imageSrc: '/avatars/horse.png' },
+};
+
+/** @deprecated Use AVATAR_ICONS instead */
 export const ANIMAL_ICONS: Record<string, AnimalIcon> = {
-  cat: { icon: Cat, label: 'Cat' },
-  dog: { icon: Dog, label: 'Dog' },
-  bird: { icon: Bird, label: 'Bird' },
-  fish: { icon: Fish, label: 'Fish' },
-  rabbit: { icon: Rabbit, label: 'Rabbit' },
-  turtle: { icon: Turtle, label: 'Turtle' },
-  squirrel: { icon: Squirrel, label: 'Squirrel' },
-  bug: { icon: Bug, label: 'Bug' },
-  rat: { icon: Rat, label: 'Rat' },
-  snail: { icon: Snail, label: 'Snail' },
+  default: { icon: User, label: 'Default' },
 };
 
 const DEFAULT_COLOR = 'normal';
-const DEFAULT_ICON = 'cat';
+const DEFAULT_ICON = 'default';
 
 /** Maps legacy color keys (from before the rank/free restructure) to new keys */
 const LEGACY_COLOR_MAP: Record<string, string> = {
@@ -184,13 +181,33 @@ const LEGACY_COLOR_MAP: Record<string, string> = {
   slate: 'normal',
 };
 
+/** Maps legacy animal icon keys to new avatar keys */
+const LEGACY_ICON_MAP: Record<string, string> = {
+  cat: 'default',
+  dog: 'default',
+  bird: 'default',
+  fish: 'default',
+  rabbit: 'default',
+  turtle: 'default',
+  squirrel: 'default',
+  bug: 'default',
+  rat: 'default',
+  snail: 'default',
+};
+
 export function getColorTheme(key: string | null | undefined): ColorTheme {
   const resolved = LEGACY_COLOR_MAP[key ?? ''] ?? key ?? DEFAULT_COLOR;
   return COLOR_THEMES[resolved] ?? COLOR_THEMES[DEFAULT_COLOR];
 }
 
+export function getAvatarIcon(key: string | null | undefined): AvatarIcon {
+  const resolved = LEGACY_ICON_MAP[key ?? ''] ?? key ?? DEFAULT_ICON;
+  return AVATAR_ICONS[resolved] ?? AVATAR_ICONS[DEFAULT_ICON];
+}
+
+/** @deprecated Use getAvatarIcon instead */
 export function getAnimalIcon(key: string | null | undefined): AnimalIcon {
-  return ANIMAL_ICONS[key ?? DEFAULT_ICON] ?? ANIMAL_ICONS[DEFAULT_ICON];
+  return ANIMAL_ICONS[DEFAULT_ICON];
 }
 
 export function getSkinGradientClass(colorKey: string | null | undefined): string {
