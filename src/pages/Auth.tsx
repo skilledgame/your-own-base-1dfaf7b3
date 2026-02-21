@@ -372,7 +372,7 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20 md:pb-0">
       {/* Header */}
-      <header className="border-b border-border p-4">
+      <header className="p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />

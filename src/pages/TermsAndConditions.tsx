@@ -10,7 +10,7 @@ const TermsAndConditions = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-50">
+      <header className="bg-background/95 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="cursor-pointer">
             <img src={skilledLogo} alt="Skilled" className="h-8 w-auto" />

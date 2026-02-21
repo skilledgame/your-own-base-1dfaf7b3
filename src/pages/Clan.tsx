@@ -77,7 +77,7 @@ export default function Clan() {
         />
       )}
 
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl">
         <div className="flex items-center justify-between px-4 py-3">
           <img src={skilledLogo} alt="Skilled" className="h-8 w-auto" />
           <div className="flex items-center gap-2">

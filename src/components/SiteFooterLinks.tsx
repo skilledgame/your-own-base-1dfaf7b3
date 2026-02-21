@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useState } from 'react';
+import { ChevronDown, Mail } from 'lucide-react';
+import { useLanguage, SUPPORTED_LANGUAGES } from '@/contexts/LanguageContext';
+import skilledLogo from '@/assets/skilled-logo.png';
 
 const XIcon = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" aria-label="X">
@@ -19,8 +22,19 @@ const TikTokIcon = () => (
   </svg>
 );
 
+const cryptoIcons = [
+  { name: 'Bitcoin', logo: 'https://cryptologos.cc/logos/bitcoin-btc-logo.svg' },
+  { name: 'Ethereum', logo: 'https://cryptologos.cc/logos/ethereum-eth-logo.svg' },
+  { name: 'Litecoin', logo: 'https://cryptologos.cc/logos/litecoin-ltc-logo.svg' },
+  { name: 'Solana', logo: 'https://cryptologos.cc/logos/solana-sol-logo.svg' },
+  { name: 'USDT', logo: 'https://cryptologos.cc/logos/tether-usdt-logo.svg' },
+  { name: 'USDC', logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.svg' },
+];
+
 export const SiteFooterLinks = () => {
-  const { t, localePath } = useLanguage();
+  const { t, lang, setLanguage, localePath } = useLanguage();
+  const [langOpen, setLangOpen] = useState(false);
+  const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === lang);
 
   const columns = [
     {
@@ -60,36 +74,99 @@ export const SiteFooterLinks = () => {
   ];
 
   return (
-    <section className="border-t border-border/50 bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-12">
-          {columns.map((col) => (
-            <div key={col.title}>
-              <h4 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">
-                {col.title}
-              </h4>
-              <ul className="space-y-2.5">
-                {col.links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.path}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+    <footer className="mt-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Top section: logo/description + link columns */}
+        <div className="py-12 sm:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-12 lg:gap-16">
+            {/* Left: logo, description, contact, socials */}
+            <div className="max-w-sm">
+              <img src={skilledLogo} alt="Skilled" className="h-14 w-auto mb-5" />
+              <p className="text-sm text-white/40 leading-relaxed mb-6">
+                Skilled is a skill-based competitive gaming platform. Compete against real players in chess and other strategy games to earn rewards based on your performance.
+              </p>
+              <a
+                href="mailto:support@playskilled.com"
+                className="flex items-center gap-2 text-sm text-white/50 hover:text-white/70 transition-colors mb-6"
+              >
+                <Mail className="w-4 h-4" />
+                support@playskilled.com
+              </a>
             </div>
-          ))}
+
+            {/* Right: link columns */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-12">
+              {columns.map((col) => (
+                <div key={col.title}>
+                  <h4 className="font-semibold text-white/70 mb-4 text-xs uppercase tracking-wider">
+                    {col.title}
+                  </h4>
+                  <ul className="space-y-2.5">
+                    {col.links.map((link) => (
+                      <li key={link.label}>
+                        <Link
+                          to={link.path}
+                          className="text-sm text-white/40 hover:text-white/70 transition-colors"
+                        >
+                          {link.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Community / Social */}
-        <div className="mt-10 pt-8 border-t border-border/30 flex flex-col items-center text-center">
-          <h4 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">
-            {t('footer.community')}
-          </h4>
-          <div className="flex items-center gap-4">
+        {/* Crypto icons row */}
+        <div className="py-8">
+          <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8">
+            {cryptoIcons.map((crypto, index) => (
+              <div
+                key={index}
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/[0.06] p-2 hover:bg-white/[0.1] transition-colors"
+                title={crypto.name}
+              >
+                <img
+                  src={crypto.logo}
+                  alt={crypto.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            ))}
+            <span className="text-xs text-white/30 font-medium">&amp; more...</span>
+          </div>
+        </div>
+
+        {/* Language selector, social icons, copyright — all centered */}
+        <div className="py-8 flex flex-col items-center gap-5">
+          {/* Language Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setLangOpen(!langOpen)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.05] text-sm text-white/40 hover:bg-white/[0.08] hover:text-white/60 transition-colors"
+            >
+              {currentLang?.nativeName || 'English'}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${langOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {langOpen && (
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#141b2d] rounded-lg overflow-hidden shadow-xl min-w-[140px] z-50">
+                {SUPPORTED_LANGUAGES.map(l => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLanguage(l.code); setLangOpen(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/[0.08] transition-colors ${l.code === lang ? 'text-white bg-white/[0.05]' : 'text-white/40'}`}
+                  >
+                    {l.nativeName}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Social icons */}
+          <div className="flex items-center gap-3">
             {socialLinks.map((social) => {
               const Icon = social.icon;
               return (
@@ -98,7 +175,7 @@ export const SiteFooterLinks = () => {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-lg bg-muted/50 hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center text-white/40 hover:text-white/70 transition-colors"
                   aria-label={social.label}
                 >
                   <Icon />
@@ -106,8 +183,13 @@ export const SiteFooterLinks = () => {
               );
             })}
           </div>
+
+          {/* Copyright */}
+          <p className="text-xs text-white/25">
+            Copyright &copy; 2026 Skilled. All Rights Reserved.
+          </p>
         </div>
       </div>
-    </section>
+    </footer>
   );
 };

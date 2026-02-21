@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye, Volume2, VolumeX, Settings, Maximize, Minimize, HelpCircle, Users, Loader2, X, Clock, Gamepad2, Info, ChevronDown } from 'lucide-react';
+import { LogOut, Crown, Shield, Search, Flame, UserPlus, Eye, Volume2, VolumeX, Settings, Maximize, Minimize, HelpCircle, Users, Loader2, X, Clock, Gamepad2, Info } from 'lucide-react';
 import { getAppSettings } from '@/components/settings/AppSettingsTab';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { useProfile } from '@/hooks/useProfile';
@@ -57,10 +57,7 @@ import { GameResultModal } from '@/components/GameResultModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { LiveWins } from '@/components/LiveWins';
-import { CryptoSection } from '@/components/CryptoSection';
 import { SiteFooterLinks } from '@/components/SiteFooterLinks';
-import { useLanguage, SUPPORTED_LANGUAGES } from '@/contexts/LanguageContext';
-import skilledLogo from '@/assets/skilled-logo.png';
 import skilledMascot from '@/assets/skilled-mascot.png';
 
 // ---------------------------------------------------------------------------
@@ -533,42 +530,6 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 }
 
 // ===========================================================================
-// Language selector (footer)
-// ===========================================================================
-function LanguageSelector() {
-  const { lang, setLanguage } = useLanguage();
-  const [open, setOpen] = useState(false);
-  const current = SUPPORTED_LANGUAGES.find(l => l.code === lang);
-
-  return (
-    <div className="py-8 flex justify-center">
-      <div className="relative">
-        <button
-          onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
-        >
-          {current?.nativeName || 'English'}
-          <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
-        {open && (
-          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 border border-white/10 rounded-lg overflow-hidden shadow-xl min-w-[140px] z-50">
-            {SUPPORTED_LANGUAGES.map(l => (
-              <button
-                key={l.code}
-                onClick={() => { setLanguage(l.code); setOpen(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${l.code === lang ? 'text-white bg-white/5' : 'text-slate-400'}`}
-              >
-                {l.nativeName}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ===========================================================================
 // Game info section (below game area)
 // ===========================================================================
 const INFO_TABS = ['Description', 'How to Play', 'Rules'] as const;
@@ -579,14 +540,14 @@ function GameInfoSection() {
 
   return (
     <div
-      className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-5 sm:p-6 mt-4"
-      style={{ boxShadow: '0 0 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03)' }}
+      className="bg-[#0a0f1a] rounded-2xl p-5 sm:p-6 mt-4"
+      style={{ boxShadow: '0 0 40px rgba(0,0,0,0.3)' }}
     >
       <div className="flex flex-col md:flex-row gap-6">
         {/* Left column: game thumbnail + metadata */}
         <div className="w-full md:w-[180px] shrink-0 flex flex-col items-center md:items-start gap-3">
           <div
-            className="w-[160px] h-[200px] rounded-xl overflow-hidden border border-white/[0.08] relative"
+            className="w-[160px] h-[200px] rounded-xl overflow-hidden relative"
             style={{ background: 'linear-gradient(135deg, #1e3a5f, #0d1b2a)' }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
@@ -606,7 +567,7 @@ function GameInfoSection() {
             <span>Skilled Originals</span>
           </div>
           <h3 className="text-white font-bold text-lg leading-none">Chess</h3>
-          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-1.5 text-xs text-white/50">
+          <div className="flex items-center gap-2 bg-white/[0.04] rounded-lg px-3 py-1.5 text-xs text-white/50">
             <Users className="w-3.5 h-3.5" />
             <span>Online Players</span>
           </div>
@@ -1055,7 +1016,7 @@ export default function ChessPlay() {
       {/* Main content wrapper */}
       <div className={`transition-all duration-300 ease-out ${sideMenuOpen ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-72') : 'md:ml-0'}`}>
         {/* Header */}
-        <header className={`fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl border-b border-white/5 transition-all duration-300 ease-out ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}`}>
+        <header className={`fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl transition-all duration-300 ease-out ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}`}>
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
             <div className="flex items-center">
               <LogoLink className="h-12 sm:h-14" />
@@ -1107,10 +1068,10 @@ export default function ChessPlay() {
           <div className="w-full min-h-[calc(100vh-64px)] flex items-start justify-center px-2 sm:px-3 md:px-4 py-5 sm:py-8 md:py-10">
             <div className="w-full max-w-[1280px]">
               <div
-                className="bg-[#0a0f1a] rounded-2xl border border-white/[0.07] p-3 sm:p-5 md:p-6"
-                style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
+                className="bg-[#0a0f1a] rounded-2xl p-3 sm:p-5 md:p-6"
+                style={{ boxShadow: '0 0 60px rgba(0,0,0,0.4)' }}
               >
-                <div ref={gameShellRef} className="relative w-full bg-background rounded-xl border border-white/[0.07] p-4 sm:p-6 md:p-8">
+                <div ref={gameShellRef} className="relative w-full bg-background rounded-xl p-4 sm:p-6 md:p-8">
                   {/* Settings / Help overlays */}
                   {showSettings && <SettingsOverlay onClose={() => setShowSettings(false)} />}
                   {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
@@ -1119,7 +1080,7 @@ export default function ChessPlay() {
                   <div className="flex flex-col md:flex-row gap-4 md:gap-6">
                     {/* Left panel: Wager selection */}
                     <div className="w-full md:w-[280px] lg:w-[320px] shrink-0 flex">
-                      <div className="w-full bg-[#0a0f1a] border border-white/[0.06] rounded-xl p-4 flex flex-col">
+                      <div className="w-full bg-[#0a0f1a] rounded-b-xl p-4 flex flex-col overflow-hidden">
                         <WagerPanel />
                       </div>
                     </div>
@@ -1153,7 +1114,7 @@ export default function ChessPlay() {
                   </div>
 
                   {/* Footer — spans both panels */}
-                  <div className="w-full mt-6 pt-4 border-t border-white/[0.06]">
+                  <div className="w-full mt-6 pt-4">
                     <div className="flex items-center justify-between px-2">
                       <div className="w-28" />
                       <LogoLink className="h-6 sm:h-7 opacity-40" />
@@ -1199,27 +1160,8 @@ export default function ChessPlay() {
                 <LiveWins />
               </div>
 
-              {/* Crypto Section */}
-              <CryptoSection />
-
-              {/* Site Footer Links + Social Media */}
+              {/* Unified Footer */}
               <SiteFooterLinks />
-
-              {/* Language Selector */}
-              <LanguageSelector />
-
-              {/* Legal Disclaimer + Copyright */}
-              <div className="border-t border-white/[0.06] mt-2">
-                <div className="py-8 flex flex-col items-center text-center">
-                  <img src={skilledLogo} alt="Skilled" className="h-7 w-auto opacity-60 mb-4" />
-                  <p className="text-xs text-white/30 leading-relaxed max-w-3xl">
-                    Skilled is a skill-based gaming platform operating in compliance with the laws and regulations of Norway. Skilled is not a gambling site — all game outcomes are determined entirely by player skill, strategy, and performance, not by luck or chance. There is no house edge and no games of chance. Players can earn Skilled Coins through competitive play and withdraw their winnings for real money. Please play responsibly.
-                  </p>
-                  <p className="text-xs text-white/20 mt-6">
-                    &copy; 2025 Skilled. Skill-based competition only.
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         </div>

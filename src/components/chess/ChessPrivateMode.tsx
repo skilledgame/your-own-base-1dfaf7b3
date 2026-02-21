@@ -336,7 +336,7 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
         {/* Header */}
         <header 
           className={`
-            fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl border-b border-white/5
+            fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl
             transition-all duration-300 ease-out
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}

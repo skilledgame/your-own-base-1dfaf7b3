@@ -83,7 +83,7 @@ export function AuthDebugPanel() {
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-2 border-b border-border bg-muted/50 rounded-t-lg">
+      <div className="flex items-center justify-between p-2 bg-muted/50 rounded-t-lg">
         <div className="flex items-center gap-2">
           <Bug className="w-3 h-3 text-yellow-500" />
           <span className="font-semibold text-foreground">Auth Debug</span>

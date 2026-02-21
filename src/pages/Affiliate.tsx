@@ -105,7 +105,7 @@ export default function Affiliate() {
       <DesktopSideMenu isOpen={sideMenuOpen} onToggle={() => setSideMenuOpen(!sideMenuOpen)} />
 
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border">
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-5 h-5" />

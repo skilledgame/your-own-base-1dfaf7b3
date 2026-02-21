@@ -308,7 +308,7 @@ export default function PrivateGameLobby() {
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header */}
-        <header className="border-b border-white/10 p-4 backdrop-blur-sm bg-black/20">
+        <header className="p-4 backdrop-blur-sm bg-black/20">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <button
               onClick={handleLeave}

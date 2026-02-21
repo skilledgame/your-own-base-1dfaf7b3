@@ -241,13 +241,13 @@ export function WagerPanel() {
           <button
             key={option.amount}
             className={`
-              relative w-full rounded-xl border transition-all duration-200
+              relative w-full rounded-xl transition-all duration-200
               ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
               ${isSelected
-                ? 'border-white/20 bg-white/[0.06]'
+                ? 'bg-white/[0.06]'
                 : isHovered
-                  ? 'border-white/10 bg-white/[0.03]'
-                  : 'border-white/[0.06] bg-white/[0.02]'
+                  ? 'bg-white/[0.03]'
+                  : 'bg-white/[0.02]'
               }
             `}
             onMouseEnter={() => !isDisabled && setHoveredOption(option.amount)}
@@ -284,30 +284,32 @@ export function WagerPanel() {
 
   return (
     <div className="w-full flex flex-col gap-4">
-      {/* Mode toggle */}
-      <div className="flex items-center gap-1 bg-white/[0.03] rounded-lg p-1">
-        <button
-          onClick={() => setPanelMode('online')}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
-            panelMode === 'online'
-              ? 'bg-white/[0.08] text-white'
-              : 'text-white/40 hover:text-white/60'
-          }`}
-        >
-          <Globe className="w-3.5 h-3.5" />
-          Online
-        </button>
-        <button
-          onClick={() => setPanelMode('private')}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
-            panelMode === 'private'
-              ? 'bg-white/[0.08] text-white'
-              : 'text-white/40 hover:text-white/60'
-          }`}
-        >
-          <Lock className="w-3.5 h-3.5" />
-          Private
-        </button>
+      {/* Mode toggle — underline style, blends with game board bg */}
+      <div className="bg-background -mx-4 -mt-4 px-4 pt-4">
+        <div className="flex">
+          <button
+            onClick={() => setPanelMode('online')}
+            className={`flex-1 flex items-center justify-center gap-1.5 pb-2.5 text-sm font-semibold transition-all relative ${
+              panelMode === 'online' ? 'text-white' : 'text-white/35 hover:text-white/55'
+            }`}
+          >
+            Online
+            {panelMode === 'online' && (
+              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0ea5e9] rounded-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setPanelMode('private')}
+            className={`flex-1 flex items-center justify-center gap-1.5 pb-2.5 text-sm font-semibold transition-all relative ${
+              panelMode === 'private' ? 'text-white' : 'text-white/35 hover:text-white/55'
+            }`}
+          >
+            Private
+            {panelMode === 'private' && (
+              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0ea5e9] rounded-full" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ====================== ONLINE MODE ====================== */}
@@ -370,7 +372,7 @@ export function WagerPanel() {
               <p className="text-white/40 text-xs px-1">Play with friends using room codes</p>
               <button
                 onClick={() => setPrivateSubMode('create')}
-                className="w-full p-4 rounded-xl border border-purple-500/20 bg-purple-950/20 hover:border-purple-400/40 hover:bg-purple-950/30 transition-all text-left"
+                className="w-full p-4 rounded-xl bg-purple-950/20 hover:bg-purple-950/30 transition-all text-left"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shrink-0">
@@ -384,7 +386,7 @@ export function WagerPanel() {
               </button>
               <button
                 onClick={() => setPrivateSubMode('join')}
-                className="w-full p-4 rounded-xl border border-violet-500/20 bg-violet-950/20 hover:border-violet-400/40 hover:bg-violet-950/30 transition-all text-left"
+                className="w-full p-4 rounded-xl bg-violet-950/20 hover:bg-violet-950/30 transition-all text-left"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shrink-0">
@@ -442,7 +444,7 @@ export function WagerPanel() {
                 </div>
               </div>
 
-              <div className="w-full bg-purple-950/30 border border-purple-500/15 rounded-xl p-3 space-y-2 text-xs">
+              <div className="w-full bg-purple-950/30 rounded-xl p-3 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-purple-200/50">Entry Wager</span>
                   <span className="font-bold text-white flex items-center gap-1">
@@ -506,7 +508,7 @@ export function WagerPanel() {
                 placeholder="e.g. ABC123"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                className="bg-black/30 border-violet-500/20 text-white placeholder:text-violet-200/30 text-center text-lg tracking-[0.15em] font-mono h-12"
+                className="bg-black/30 border-transparent text-white placeholder:text-violet-200/30 text-center text-lg tracking-[0.15em] font-mono h-12"
                 maxLength={6}
               />
 

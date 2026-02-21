@@ -165,18 +165,16 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
     { icon: Mail, label: t('nav.contact'), path: '/contact' },
   ];
 
-  const borderClass = variant === 'dark' || variant === 'black' ? 'border-white/5' : 'border-border';
-
   return (
     <TooltipProvider>
       <div
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
           ${variant === 'dark'
-            ? 'bg-[#0a0f1a]/80 backdrop-blur-xl border-r border-white/5'
+            ? 'bg-[#0a0f1a]/80 backdrop-blur-xl'
             : variant === 'black'
-              ? 'bg-background border-r border-white/5'
-              : 'bg-card border-r border-border'}
+              ? 'bg-background'
+              : 'bg-card'}
           transition-all duration-300 ease-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           ${collapsed ? 'w-16' : 'w-72'}
@@ -185,7 +183,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
       >
         <div className={`flex flex-col h-full transition-all duration-300 ease-out ${collapsed ? 'w-16' : 'w-72'} overflow-hidden`}>
           {/* Header */}
-          <div className={`flex items-center justify-start p-4 border-b ${borderClass}`}>
+          <div className={`flex items-center justify-start p-4`}>
             <Button
               variant="ghost"
               size="icon"
@@ -349,7 +347,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                   </button>
 
                   {langDropdownOpen && (
-                    <div className="mt-1 w-full rounded-xl bg-card border border-border shadow-lg overflow-hidden z-50">
+                    <div className="mt-1 w-full rounded-xl bg-card shadow-lg overflow-hidden z-50">
                       {SUPPORTED_LANGUAGES.map((l) => (
                         <button
                           key={l.code}
@@ -372,7 +370,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
                 </div>
 
                 {/* Total SC Earned */}
-                <div className="rounded-xl bg-[#0d0f1a] border border-white/5 px-4 py-3">
+                <div className="rounded-xl bg-[#0d0f1a] px-4 py-3">
                   <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider mb-1">
                     {t('nav.total_sc_earned')}
                   </p>
@@ -507,7 +505,7 @@ export const DesktopSideMenu = ({ isOpen, onToggle, isCollapsed = false, onColla
           </div>
 
           {/* Footer: Sign Out only */}
-          <div className={`border-t ${borderClass}`}>
+          <div>
             <div className="p-4">
               {isAuthenticated ? (
                 collapsed ? (

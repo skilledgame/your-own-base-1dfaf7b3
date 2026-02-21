@@ -113,7 +113,7 @@ export const MobileFullScreenMenu = ({ isOpen, onClose }: MobileFullScreenMenuPr
         `}
       >
         {/* Header with close button */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4">
           <span className="text-lg font-semibold text-foreground">Menu</span>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />

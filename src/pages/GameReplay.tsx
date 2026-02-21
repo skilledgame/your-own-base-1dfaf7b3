@@ -335,7 +335,7 @@ const GameReplay = () => {
   if (error || !gameData) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/50">
+        <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" asChild>
@@ -364,7 +364,7 @@ const GameReplay = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/50">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>
@@ -546,8 +546,8 @@ const GameReplay = () => {
               </div>
 
               {/* Move list */}
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="px-4 py-2.5 bg-secondary/50 border-b border-border">
+              <div className="bg-card rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-secondary/50">
                   <h3 className="text-sm font-semibold text-foreground">Moves</h3>
                 </div>
                 <div

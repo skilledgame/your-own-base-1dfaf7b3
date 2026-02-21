@@ -32,9 +32,9 @@ export function ChatPanel({ channelType, channelId, title, className }: ChatPane
   }, [messages.length]);
 
   return (
-    <div className={`flex flex-col bg-card border border-border rounded-xl overflow-hidden ${className || ''}`}>
+    <div className={`flex flex-col bg-card rounded-xl overflow-hidden ${className || ''}`}>
       {title && (
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-secondary/30">
+        <div className="flex items-center gap-2 px-4 py-3 bg-secondary/30">
           <MessageCircle className="w-4 h-4 text-primary" />
           <h3 className="font-semibold text-sm text-foreground">{title}</h3>
         </div>
