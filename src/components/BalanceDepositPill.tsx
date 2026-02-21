@@ -27,7 +27,7 @@ export const BalanceDepositPill = memo(({
   return (
     <div
       className={cn(
-        "flex items-center",
+        "flex items-center h-10",
         "bg-slate-800/80 backdrop-blur-sm",
         "border border-slate-600/40",
         "rounded-xl overflow-hidden",
@@ -38,16 +38,16 @@ export const BalanceDepositPill = memo(({
       {/* Balance Section - Left side */}
       <button 
         onClick={() => openWallet('deposit')}
-        className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-white/5 transition-colors"
+        className="flex items-center gap-2.5 px-4 h-full min-w-[90px] hover:bg-white/5 transition-colors"
       >
         {/* Coin icon - simple colored icon */}
-        <Coins className="w-5 h-5 text-yellow-400" />
+        <Coins className="w-5 h-5 text-yellow-400 shrink-0" />
         
         {/* Balance amount */}
         {isLoading && !isReady ? (
-          <Skeleton className="h-4 w-14 bg-slate-600" />
+          <Skeleton className="h-5 w-12 bg-slate-600" />
         ) : (
-          <span className="font-semibold text-white">
+          <span className="font-semibold text-white whitespace-nowrap">
             {balance.toLocaleString()}
           </span>
         )}
@@ -56,7 +56,7 @@ export const BalanceDepositPill = memo(({
       {/* Deposit Button - Right side */}
       <button
         onClick={() => openWallet('deposit')}
-        className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 transition-all font-semibold text-white text-sm"
+        className="flex items-center shrink-0 gap-1.5 px-4 h-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 transition-all font-semibold text-white text-sm whitespace-nowrap"
       >
         Deposit
       </button>

@@ -8,6 +8,9 @@
  * - Terms of Service checkbox (sign-up only)
  * - Auto-enables email 2FA on signup (skips MFA choice)
  * - Inline email verification, username selection, and MFA flows
+ * - Uncloseable during MFA verification steps (prevents half-logged-in state)
+ * - Respects primary 2FA method (email vs TOTP) preference
+ * - Skips 2FA entirely if disabled (mfa_method === 'none')
  */
 
 import { useState, useEffect } from 'react';
@@ -17,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { MFAEnroll } from '@/components/MFAEnroll';
 import { MFAVerify } from '@/components/MFAVerify';
 import { EmailVerify } from '@/components/EmailVerify';
@@ -26,8 +30,9 @@ import { Loader2, Mail, Lock, ArrowRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
-import { isMfaVerified, setMfaVerified } from '@/lib/mfaStorage';
+import { setMfaVerified } from '@/lib/mfaStorage';
 import { useAuthModal, type AuthModalMode } from '@/contexts/AuthModalContext';
+import { useUserDataStore } from '@/stores/userDataStore';
 import {
   Dialog,
   DialogContent,
@@ -47,8 +52,12 @@ type AuthStep =
   | 'email-2fa-verify' // Email-based 2FA challenge on login
   | 'complete';
 
+/** Steps where the modal MUST NOT be closeable */
+const MANDATORY_STEPS: AuthStep[] = ['mfa-verify', 'email-2fa-verify'];
+
 export function AuthModal() {
-  const { isOpen, mode, openAuthModal, closeAuthModal } = useAuthModal();
+  const { isOpen, mode, closeAuthModal } = useAuthModal();
+  const { user } = useAuth();
   const [isLogin, setIsLogin] = useState(mode === 'sign-in');
   const [step, setStep] = useState<AuthStep>('email');
   const [email, setEmail] = useState('');
@@ -62,19 +71,40 @@ export function AuthModal() {
 
   const { toast } = useToast();
 
-  // Sync isLogin with mode when modal opens
+  // Whether the current step is a mandatory MFA step (modal cannot be closed)
+  const isMfaStep = MANDATORY_STEPS.includes(step);
+
+  // Sync state with mode when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setIsLogin(mode === 'sign-in');
-      setStep('email');
-      setEmail('');
-      setPassword('');
-      setErrors({});
-      setAcceptedTerms(false);
-      setUserId(null);
-      setHasTotpFactor(false);
+    if (!isOpen) return;
+
+    // If opened directly to a forced-MFA mode (e.g. from App.tsx enforcement)
+    if (mode === 'mfa-verify') {
+      setStep('mfa-verify');
+      setHasTotpFactor(true);
+      setEmail(user?.email || '');
+      setIsLogin(true);
+      return;
     }
-  }, [isOpen, mode]);
+
+    if (mode === 'email-2fa-verify') {
+      setStep('email-2fa-verify');
+      setEmail(user?.email || '');
+      setIsLogin(true);
+      setHasTotpFactor(false);
+      return;
+    }
+
+    // Normal sign-in / sign-up mode
+    setIsLogin(mode === 'sign-in');
+    setStep('email');
+    setEmail('');
+    setPassword('');
+    setErrors({});
+    setAcceptedTerms(false);
+    setUserId(null);
+    setHasTotpFactor(false);
+  }, [isOpen, mode, user?.email]);
 
   const validateEmail = () => {
     try {
@@ -140,26 +170,55 @@ export function AuthModal() {
           throw error;
         }
 
-        // Check if user has TOTP MFA enrolled
-        const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        // Check user's MFA preference and Supabase AAL level
+        const loginMfaMethod = signInData.user?.user_metadata?.mfa_method as string | undefined;
+
+        const { data: aalData, error: aalError } =
+          await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
         if (aalError) {
+          // Can't determine MFA status — let them in
           toast({ title: 'Welcome back!', description: 'You have successfully signed in.' });
           closeAuthModal();
           return;
         }
 
-        const loginMfaMethod = signInData.user?.user_metadata?.mfa_method;
+        const needsTotpVerify =
+          aalData.nextLevel === 'aal2' && aalData.currentLevel === 'aal1';
 
-        if (aalData.nextLevel === 'aal2' && aalData.currentLevel === 'aal1') {
+        // ── MFA routing based on user's primary method ──
+
+        // 1) If MFA is explicitly disabled, skip it (unless Supabase forces TOTP)
+        if (!loginMfaMethod || loginMfaMethod === 'none') {
+          if (needsTotpVerify) {
+            // Edge case: TOTP factors exist but mfa_method is 'none'.
+            // Supabase still requires aal2 — must verify TOTP.
+            setHasTotpFactor(true);
+            setStep('mfa-verify');
+          } else {
+            toast({ title: 'Welcome back!', description: 'You have successfully signed in.' });
+            closeAuthModal();
+          }
+          return;
+        }
+
+        // 2) Primary method is EMAIL → show email 2FA first
+        if (loginMfaMethod === 'email') {
+          setHasTotpFactor(needsTotpVerify);
+          setStep('email-2fa-verify');
+          return;
+        }
+
+        // 3) Primary method is TOTP (or anything else) → show TOTP if needed
+        if (needsTotpVerify) {
           setHasTotpFactor(true);
           setStep('mfa-verify');
-        } else if (loginMfaMethod === 'email') {
-          setStep('email-2fa-verify');
-        } else {
-          toast({ title: 'Welcome back!', description: 'You have successfully signed in.' });
-          closeAuthModal();
+          return;
         }
+
+        // 4) mfa_method is set but no TOTP factors (inconsistent state) — let them in
+        toast({ title: 'Welcome back!', description: 'You have successfully signed in.' });
+        closeAuthModal();
       } else {
         // ── Signup flow ──
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -234,6 +293,23 @@ export function AuthModal() {
       console.warn('Failed to auto-enable email 2FA metadata');
     }
 
+    // Force the user data store to refresh so the username appears immediately
+    // Optimistically update the display_name, then do a full re-fetch
+    const store = useUserDataStore.getState();
+    if (store.profile) {
+      useUserDataStore.setState({
+        profile: { ...store.profile, display_name: _username },
+        lastFetchTime: 0, // Reset throttle so refresh() works immediately
+      });
+    }
+    // Trigger a background refresh to get the full profile from DB
+    setTimeout(() => {
+      const s = useUserDataStore.getState();
+      if (s.userId) {
+        s.initialize(s.userId);
+      }
+    }, 500);
+
     toast({
       title: "You're all set!",
       description: 'Your account is ready. Email 2FA has been enabled.',
@@ -265,11 +341,19 @@ export function AuthModal() {
     closeAuthModal();
   };
 
-  // Go back to email step
+  // Go back to email step — ALWAYS signs out first to prevent half-authenticated state
   const goBackToEmail = () => {
+    supabase.auth.signOut({ scope: 'local' });
+
+    // If this was a forced MFA mode (from App.tsx enforcement), close the modal entirely
+    if (mode === 'mfa-verify' || mode === 'email-2fa-verify') {
+      closeAuthModal();
+      return;
+    }
+
+    // Otherwise (login flow), show the login form again so user can retry
     setStep('email');
     setErrors({});
-    supabase.auth.signOut({ scope: 'local' });
   };
 
   // Tab style helper
@@ -282,7 +366,14 @@ export function AuthModal() {
     );
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && closeAuthModal()}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        // During mandatory MFA steps, prevent any close attempt
+        if (!open && isMfaStep) return;
+        if (!open) closeAuthModal();
+      }}
+    >
       <DialogContent
         className={cn(
           'bg-[#0f1923] border-slate-700/50 text-white p-0 gap-0',
@@ -291,6 +382,9 @@ export function AuthModal() {
           // Override default dialog close button
           '[&>button]:hidden'
         )}
+        // Prevent closing by clicking outside or pressing Escape during MFA
+        onInteractOutside={(e) => { if (isMfaStep) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (isMfaStep) e.preventDefault(); }}
       >
         {/* Accessible title for screen readers */}
         <DialogTitle className="sr-only">
@@ -299,13 +393,15 @@ export function AuthModal() {
 
         {/* Header with tabs and close button */}
         <div className="relative">
-          {/* Close button */}
-          <button
-            onClick={closeAuthModal}
-            className="absolute right-3 top-3 z-10 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Close button — hidden during mandatory MFA steps */}
+          {!isMfaStep && (
+            <button
+              onClick={closeAuthModal}
+              className="absolute right-3 top-3 z-10 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
 
           {/* Tabs - only show on email step */}
           {step === 'email' && (
@@ -546,7 +642,7 @@ export function AuthModal() {
           {/* Step: Email 2FA Verify (login with email code) */}
           {step === 'email-2fa-verify' && (
             <EmailMFAVerify
-              email={email}
+              email={email || user?.email || ''}
               onVerified={handleEmail2FAVerified}
               onBack={goBackToEmail}
               onSwitchToAuthenticator={hasTotpFactor ? () => setStep('mfa-verify') : undefined}

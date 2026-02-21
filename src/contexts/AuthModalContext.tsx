@@ -7,7 +7,7 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
-export type AuthModalMode = 'sign-in' | 'sign-up';
+export type AuthModalMode = 'sign-in' | 'sign-up' | 'mfa-verify' | 'email-2fa-verify';
 
 interface AuthModalContextType {
   isOpen: boolean;

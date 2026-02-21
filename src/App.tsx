@@ -171,7 +171,9 @@ function AppWithAuth({ children }: { children: React.ReactNode }) {
 
         // If user has TOTP MFA factors but hasn't verified yet (aal1 -> aal2 needed)
         if (data.currentLevel === 'aal1' && data.nextLevel === 'aal2') {
-          openAuthModal('sign-in');
+          // Open directly to TOTP MFA verification step — no need to show login form
+          // since the user already has a session (aal1)
+          openAuthModal('mfa-verify');
           return;
         }
 
