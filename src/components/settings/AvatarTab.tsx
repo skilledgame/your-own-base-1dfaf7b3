@@ -194,7 +194,20 @@ export function AvatarTab() {
                   )}
                 >
                   <div className="relative">
-                    <div className={cn('w-10 h-10 rounded-full', theme.preview)} />
+                    <div className={cn('w-10 h-10 rounded-full overflow-hidden relative', theme.preview)}>
+                      {/* Animated shine sweep */}
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%)',
+                          width: '50%',
+                          height: '200%',
+                          top: '-50%',
+                          animation: 'rank-shine 2.5s ease-in-out infinite',
+                          animationDelay: `${RANK_THEMES.findIndex(([k]) => k === key) * 0.35}s`,
+                        }}
+                      />
+                    </div>
                     {!isUnlocked && (
                       <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
                         <Lock className="w-4 h-4 text-white/80" />

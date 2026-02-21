@@ -445,6 +445,16 @@
   }
 }
 
+/* Rank color swatch shine sweep */
+@keyframes rank-shine {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(25deg);
+  }
+}
+
 /* Avatar rainbow rotation animation */
 @keyframes avatar-rainbow {
   0% {
