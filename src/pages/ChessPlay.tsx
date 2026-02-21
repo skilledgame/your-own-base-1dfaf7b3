@@ -29,7 +29,7 @@ import { LogOut, Crown, Shield, Search, Flame, Eye, Volume2, VolumeX, Settings, 
 import { getAppSettings } from '@/components/settings/AppSettingsTab';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { useProfile } from '@/hooks/useProfile';
-import { UserBadges } from '@/components/UserBadge';
+import { RankBadge } from '@/components/RankBadge';
 import { Chess } from 'chess.js';
 import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
@@ -322,13 +322,13 @@ function ActiveGamePanel({
       {/* Board column: top bar + board + bottom bar, all same width, no gaps */}
       <div className="flex flex-col w-[384px] sm:w-[448px] md:w-[512px] max-w-full shrink-0">
         {/* Opponent bar — rounded top, flat bottom to connect to board */}
-        <div className="flex items-stretch bg-[#1a1f2e] rounded-t-lg overflow-hidden">
-          <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || 'O'} fill className="w-11" />
+        <div className="flex items-stretch bg-[#0a0f1a] rounded-t-lg overflow-hidden">
+          <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || 'O'} fill className="w-[12.5%] shrink-0" />
           <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
             <div className="flex flex-col gap-0.5 min-w-0">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="font-semibold text-sm text-white truncate max-w-[130px]">{opponentName || 'Opponent'}</span>
-                {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
+                <RankBadge rank={opponentRank} size="xs" />
                 {opponentStreak > 0 && (
                   <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-400">
                     <Flame className="w-3 h-3" />{opponentStreak}
@@ -356,13 +356,13 @@ function ActiveGamePanel({
         />
 
         {/* Player bar — flat top, rounded bottom to connect to board */}
-        <div className="flex items-stretch bg-[#1a1f2e] rounded-b-lg overflow-hidden">
-          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} fill className="w-11" />
+        <div className="flex items-stretch bg-[#0a0f1a] rounded-b-lg overflow-hidden">
+          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} fill className="w-[12.5%] shrink-0" />
           <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
             <div className="flex flex-col gap-0.5 min-w-0">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="font-semibold text-sm text-white truncate max-w-[130px]">{playerName}</span>
-                {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
+                <RankBadge rank={playerRank} size="xs" />
                 {playerStreak > 0 && (
                   <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-400">
                     <Flame className="w-3 h-3" />{playerStreak}
