@@ -4,36 +4,25 @@
  * Global overlay that renders on top of the entire app.
  * Two modes:
  *   - "spinner" (default): site background + centered spinning loader
- *   - "versus": the dramatic Player VS Opponent animation
+ *   - "versus": handled inside the game panel (ActiveGamePanel) — skipped here
  *
  * Controlled by the global uiLoadingStore.
  */
 
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
-import { VersusScreen } from '@/components/VersusScreen';
 import { Loader2 } from 'lucide-react';
 
 export function FullScreenLoaderOverlay() {
   const isLoading = useUILoadingStore((s) => s.isLoading);
   const mode = useUILoadingStore((s) => s.mode);
-  const versusData = useUILoadingStore((s) => s.versusData);
-  const hideLoading = useUILoadingStore((s) => s.hideLoading);
 
   if (!isLoading) return null;
 
   // ── Versus mode ──
-  if (mode === "versus" && versusData) {
-    return (
-      <VersusScreen
-        playerName={versusData.playerName}
-        opponentName={versusData.opponentName}
-        playerColor={versusData.playerColor}
-        wager={versusData.wager}
-        playerRank={versusData.playerRank}
-        opponentRank={versusData.opponentRank}
-        onComplete={hideLoading}
-      />
-    );
+  // VersusScreen is now rendered inside the game panel (ActiveGamePanel)
+  // so it overlays exactly the chess board, not the entire screen.
+  if (mode === "versus") {
+    return null;
   }
 
   // ── Spinner mode (default) ──

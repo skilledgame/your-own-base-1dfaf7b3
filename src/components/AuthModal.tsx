@@ -6,14 +6,15 @@
  * - Email + Password form
  * - Google OAuth under Continue (like Stake)
  * - Terms of Service checkbox (sign-up only)
+ * - Username field inline on the sign-up form (no separate popup)
  * - Auto-enables email 2FA on signup (skips MFA choice)
- * - Inline email verification, username selection, and MFA flows
+ * - Inline email verification and MFA flows
  * - Uncloseable during MFA verification steps (prevents half-logged-in state)
  * - Respects primary 2FA method (email vs TOTP) preference
  * - Skips 2FA entirely if disabled (mfa_method === 'none')
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,8 +26,7 @@ import { MFAEnroll } from '@/components/MFAEnroll';
 import { MFAVerify } from '@/components/MFAVerify';
 import { EmailVerify } from '@/components/EmailVerify';
 import { EmailMFAVerify } from '@/components/EmailMFAVerify';
-import { ChooseUsername } from '@/components/ChooseUsername';
-import { Loader2, Mail, Lock, ArrowRight, X, ArrowLeft } from 'lucide-react';
+import { Loader2, Mail, Lock, ArrowRight, X, ArrowLeft, User, Check } from 'lucide-react';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import { setMfaVerified } from '@/lib/mfaStorage';
@@ -41,11 +41,15 @@ import {
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const usernameSchema = z
+  .string()
+  .min(3, 'Username must be at least 3 characters')
+  .max(20, 'Username must be at most 20 characters')
+  .regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers, and underscores allowed');
 
 type AuthStep =
-  | 'email'            // Login/signup form
+  | 'email'            // Login/signup form (includes username on register)
   | 'email-verify'     // Signup email confirmation (OTP)
-  | 'choose-username'  // Choose unique username after signup
   | 'mfa-verify'       // TOTP challenge on login
   | 'mfa-enroll'       // TOTP authenticator enrollment (optional)
   | 'email-2fa-verify' // Email-based 2FA challenge on login
@@ -67,11 +71,55 @@ export function AuthModal() {
   const [userId, setUserId] = useState<string | null>(null);
   const [hasTotpFactor, setHasTotpFactor] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [username, setUsername] = useState('');
+  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [legalPopup, setLegalPopup] = useState<'terms' | 'privacy' | null>(null);
   const [legalContent, setLegalContent] = useState<string | null>(null);
   const [legalLoading, setLegalLoading] = useState(false);
 
   const { toast } = useToast();
+
+  // ── Debounced username availability check (sign-up only) ──
+  const checkUsernameAvailability = useCallback(async (name: string) => {
+    if (!name || name.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+    try {
+      usernameSchema.parse(name);
+      setUsernameError(null);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        setUsernameError(err.errors[0].message);
+        setUsernameAvailable(null);
+        return;
+      }
+    }
+    setUsernameChecking(true);
+    try {
+      const { data, error } = await supabase.rpc('check_username_available', {
+        desired_name: name,
+        // New user — no existing profile to exclude
+        for_user_id: '00000000-0000-0000-0000-000000000000',
+      });
+      if (error) { setUsernameAvailable(null); return; }
+      setUsernameAvailable(data === true);
+    } catch {
+      setUsernameAvailable(null);
+    } finally {
+      setUsernameChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLogin) return;
+    const trimmed = username.trim();
+    if (!trimmed) { setUsernameAvailable(null); setUsernameError(null); return; }
+    const timer = setTimeout(() => checkUsernameAvailability(trimmed), 400);
+    return () => clearTimeout(timer);
+  }, [username, isLogin, checkUsernameAvailability]);
 
   // Fetch legal content lazily — only when the popup is opened
   useEffect(() => {
@@ -128,6 +176,9 @@ export function AuthModal() {
     setStep('email');
     setEmail('');
     setPassword('');
+    setUsername('');
+    setUsernameAvailable(null);
+    setUsernameError(null);
     setErrors({});
     setAcceptedTerms(false);
     setUserId(null);
@@ -250,6 +301,31 @@ export function AuthModal() {
         closeAuthModal();
       } else {
         // ── Signup flow ──
+        const trimmedUsername = username.trim();
+
+        // Validate username format
+        try {
+          usernameSchema.parse(trimmedUsername);
+        } catch (err) {
+          if (err instanceof z.ZodError) {
+            setUsernameError(err.errors[0].message);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Check availability one more time before signup
+        const { data: available } = await supabase.rpc('check_username_available', {
+          desired_name: trimmedUsername,
+          for_user_id: '00000000-0000-0000-0000-000000000000',
+        });
+        if (!available) {
+          setUsernameAvailable(false);
+          toast({ variant: 'destructive', title: 'Username taken', description: 'Please choose a different username.' });
+          setLoading(false);
+          return;
+        }
+
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -269,10 +345,12 @@ export function AuthModal() {
         }
 
         if (signUpData?.session) {
-          setUserId(signUpData.session.user.id);
-          toast({ title: 'Account created!', description: 'Now choose your username.' });
-          setStep('choose-username');
+          // Immediate session — save username right away
+          const uid = signUpData.session.user.id;
+          setUserId(uid);
+          await saveUsernameAndFinish(uid, trimmedUsername);
         } else {
+          // Email verification required — username will be saved after OTP verify
           toast({ title: 'Check your email!', description: 'We sent a verification code to your email.' });
           setStep('email-verify');
         }
@@ -305,45 +383,82 @@ export function AuthModal() {
 
   // ── Step handlers ──
 
-  const handleEmailVerified = (verifiedUserId: string) => {
-    setUserId(verifiedUserId);
-    toast({ title: 'Email verified!', description: 'Now choose your username.' });
-    setStep('choose-username');
-  };
+  /** Save the chosen username to profiles + players, enable email 2FA, refresh store */
+  const saveUsernameAndFinish = async (targetUserId: string, chosenUsername: string) => {
+    // Double-check availability right before saving (prevent race conditions)
+    const { data: stillAvailable } = await supabase.rpc('check_username_available', {
+      desired_name: chosenUsername,
+      for_user_id: targetUserId,
+    });
 
-  // Username chosen → auto-enable email 2FA, skip MFA choice, go home
-  const handleUsernameChosen = async (_username: string) => {
-    try {
-      await supabase.auth.updateUser({
-        data: { mfa_method: 'email' },
+    if (!stillAvailable) {
+      toast({
+        variant: 'destructive',
+        title: 'Username taken',
+        description: 'That username was just taken! Please go back and try another.',
       });
+      return;
+    }
+
+    // Update profile — use upsert to handle race with ensure-user trigger
+    const { error } = await supabase
+      .from('profiles')
+      .upsert(
+        { user_id: targetUserId, display_name: chosenUsername, display_name_changed_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+
+    if (error) {
+      if (error.message.includes('idx_profiles_display_name_unique') || error.message.includes('duplicate')) {
+        toast({ variant: 'destructive', title: 'Username taken', description: 'That username was just taken! Please try another.' });
+        return;
+      }
+      throw error;
+    }
+
+    // Also update players table for consistency
+    await supabase.from('players').update({ name: chosenUsername }).eq('user_id', targetUserId);
+
+    // Auto-enable email 2FA
+    try {
+      await supabase.auth.updateUser({ data: { mfa_method: 'email' } });
       setMfaVerified('email');
     } catch {
       console.warn('Failed to auto-enable email 2FA metadata');
     }
 
     // Force the user data store to refresh so the username appears immediately
-    // Optimistically update the display_name, then do a full re-fetch
     const store = useUserDataStore.getState();
     if (store.profile) {
       useUserDataStore.setState({
-        profile: { ...store.profile, display_name: _username },
-        lastFetchTime: 0, // Reset throttle so refresh() works immediately
+        profile: { ...store.profile, display_name: chosenUsername },
+        lastFetchTime: 0,
       });
     }
-    // Trigger a background refresh to get the full profile from DB
     setTimeout(() => {
       const s = useUserDataStore.getState();
-      if (s.userId) {
-        s.initialize(s.userId);
-      }
+      if (s.userId) s.initialize(s.userId);
     }, 500);
 
-    toast({
-      title: "You're all set!",
-      description: 'Your account is ready. Email 2FA has been enabled.',
-    });
+    toast({ title: "You're all set!", description: 'Your account is ready. Email 2FA has been enabled.' });
     closeAuthModal();
+  };
+
+  const handleEmailVerified = async (verifiedUserId: string) => {
+    setUserId(verifiedUserId);
+    const trimmedUsername = username.trim();
+    if (trimmedUsername) {
+      try {
+        await saveUsernameAndFinish(verifiedUserId, trimmedUsername);
+      } catch (err) {
+        console.error('Error saving username after email verify:', err);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to save username. Please try again.' });
+      }
+    } else {
+      // Fallback — shouldn't happen since username is required during signup
+      toast({ title: 'Email verified!', description: 'Welcome!' });
+      closeAuthModal();
+    }
   };
 
   // TOTP MFA verify success (login)
@@ -440,7 +555,7 @@ export function AuthModal() {
             <div className="flex border-b border-slate-700/50">
               <button
                 className={tabClass(isLogin)}
-                onClick={() => { setIsLogin(true); setErrors({}); setPassword(''); }}
+                onClick={() => { setIsLogin(true); setErrors({}); setPassword(''); setUsername(''); setUsernameAvailable(null); setUsernameError(null); }}
               >
                 Login
                 {isLogin && (
@@ -457,7 +572,7 @@ export function AuthModal() {
               </button>
               <button
                 className={tabClass(!isLogin)}
-                onClick={() => { setIsLogin(false); setErrors({}); setPassword(''); }}
+                onClick={() => { setIsLogin(false); setErrors({}); setPassword(''); setUsername(''); setUsernameAvailable(null); setUsernameError(null); }}
               >
                 Register
                 {!isLogin && (
@@ -476,8 +591,8 @@ export function AuthModal() {
           )}
         </div>
 
-        {/* Content */}
-        <div className="p-6">
+        {/* Content — scrollable so extra fields don't overflow on small screens */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-60px)]">
           {/* Step: Email/Password */}
           {step === 'email' && (
             <>
@@ -537,6 +652,57 @@ export function AuthModal() {
                   )}
                 </div>
 
+                {/* Username field (sign-up only) */}
+                {!isLogin && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="modal-username" className="text-slate-300 text-sm">Username</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Input
+                        id="modal-username"
+                        type="text"
+                        placeholder="Pick a gaming name"
+                        value={username}
+                        onChange={(e) => {
+                          setUsername(e.target.value);
+                          setUsernameError(null);
+                        }}
+                        className={cn(
+                          'pl-10 pr-10 bg-[#1a2634] border-slate-600/50 text-white placeholder:text-slate-500 focus:border-blue-500/50',
+                          usernameError && 'border-red-500/50',
+                          !usernameError && usernameAvailable === true && 'border-emerald-500/50',
+                          !usernameError && usernameAvailable === false && 'border-red-500/50'
+                        )}
+                        maxLength={20}
+                        autoComplete="off"
+                        disabled={loading}
+                      />
+                      {/* Status indicator */}
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {usernameChecking && (
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                        )}
+                        {!usernameChecking && usernameAvailable === true && !usernameError && (
+                          <Check className="w-4 h-4 text-emerald-500" />
+                        )}
+                        {!usernameChecking && (usernameAvailable === false || usernameError) && username.trim().length >= 3 && (
+                          <X className="w-4 h-4 text-red-400" />
+                        )}
+                      </div>
+                    </div>
+                    {usernameError && (
+                      <p className="text-xs text-red-400">{usernameError}</p>
+                    )}
+                    {!usernameError && usernameAvailable === false && (
+                      <p className="text-xs text-red-400">Username is already taken</p>
+                    )}
+                    {!usernameError && usernameAvailable === true && (
+                      <p className="text-xs text-emerald-400">Username is available!</p>
+                    )}
+                    <p className="text-[11px] text-slate-500">3-20 characters. Letters, numbers, and underscores only.</p>
+                  </div>
+                )}
+
                 {/* Terms of Service checkbox (sign-up only) */}
                 {!isLogin && (
                   <label className="flex items-start gap-2.5 cursor-pointer group">
@@ -570,7 +736,7 @@ export function AuthModal() {
                 <Button
                   type="submit"
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white border-0 font-semibold h-11"
-                  disabled={loading || (!isLogin && !acceptedTerms)}
+                  disabled={loading || (!isLogin && (!acceptedTerms || usernameAvailable !== true || usernameChecking || !!usernameError))}
                 >
                   {loading ? (
                     <>
@@ -637,6 +803,9 @@ export function AuthModal() {
                     setIsLogin(!isLogin);
                     setErrors({});
                     setPassword('');
+                    setUsername('');
+                    setUsernameAvailable(null);
+                    setUsernameError(null);
                     setAcceptedTerms(false);
                   }}
                   className="text-sm text-slate-400 hover:text-white transition-colors"
@@ -662,11 +831,6 @@ export function AuthModal() {
                 setErrors({});
               }}
             />
-          )}
-
-          {/* Step: Choose Username (after signup email verify) */}
-          {step === 'choose-username' && userId && (
-            <ChooseUsername userId={userId} onComplete={handleUsernameChosen} />
           )}
 
           {/* Step: TOTP MFA Verify (login with existing factor) */}

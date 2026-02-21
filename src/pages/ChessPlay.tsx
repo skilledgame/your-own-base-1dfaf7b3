@@ -52,6 +52,7 @@ import { useBalance } from '@/hooks/useBalance';
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
 import { usePresenceStore } from '@/stores/presenceStore';
 import { GameResultModal } from '@/components/GameResultModal';
+import { VersusScreen } from '@/components/VersusScreen';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { LiveWins } from '@/components/LiveWins';
@@ -170,6 +171,13 @@ function ActiveGamePanel({
   const timerSnapshot = useChessStore((s) => s.timerSnapshot);
   const spectatorCount = useChessStore((s) => s.spectatorCount);
   const { playMove, playCapture, playCheck, playGameEnd } = useChessSound();
+
+  // Versus overlay state — rendered over the board
+  const versusMode = useUILoadingStore((s) => s.mode);
+  const versusData = useUILoadingStore((s) => s.versusData);
+  const versusIsLoading = useUILoadingStore((s) => s.isLoading);
+  const hideVersus = useUILoadingStore((s) => s.hideLoading);
+  const showVersus = versusIsLoading && versusMode === 'versus' && !!versusData;
 
   const playerColor = gameState.color === 'w' ? 'white' as const : 'black' as const;
   const isWhite = playerColor === 'white';
@@ -320,7 +328,19 @@ function ActiveGamePanel({
   return (
     <div className="flex items-start justify-center w-full">
       {/* Board column: top bar + board + bottom bar, all same width, no gaps */}
-      <div className="flex flex-col w-[384px] sm:w-[448px] md:w-[512px] max-w-full shrink-0">
+      <div className="relative flex flex-col w-[384px] sm:w-[448px] md:w-[512px] max-w-full shrink-0">
+        {/* Versus overlay — covers exactly the board column */}
+        {showVersus && versusData && (
+          <VersusScreen
+            playerName={versusData.playerName}
+            opponentName={versusData.opponentName}
+            playerColor={versusData.playerColor}
+            wager={versusData.wager}
+            playerRank={versusData.playerRank}
+            opponentRank={versusData.opponentRank}
+            onComplete={hideVersus}
+          />
+        )}
         {/* Opponent bar — rounded top, flat bottom to connect to board */}
         <div className="flex items-stretch bg-[#0a0f1a] rounded-t-lg overflow-hidden">
           <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || 'O'} fill className="w-11" />
