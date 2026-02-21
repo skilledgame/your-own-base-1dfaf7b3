@@ -11,6 +11,8 @@ interface PlayerAvatarProps {
   status?: UserStatus;
   fallbackInitial?: string;
   className?: string;
+  /** Fill parent container as a square with no rounding */
+  fill?: boolean;
 }
 
 const SIZE_CONFIG: Record<AvatarSize, { dim: string; icon: string; text: string; dot: string }> = {
@@ -44,6 +46,7 @@ export function PlayerAvatar({
   status,
   fallbackInitial,
   className,
+  fill,
 }: PlayerAvatarProps) {
   const config = SIZE_CONFIG[size];
   const theme: ColorTheme = getColorTheme(skinColor);
@@ -52,6 +55,29 @@ export function PlayerAvatar({
   const rainbow = isRainbow(skinColor);
 
   const useFallback = !skinIcon && fallbackInitial;
+
+  if (fill) {
+    return (
+      <div
+        className={cn(
+          'flex items-center justify-center flex-shrink-0',
+          !rainbow && 'bg-gradient-to-br',
+          !rainbow && theme.from,
+          !rainbow && theme.to,
+          className,
+        )}
+        style={rainbow ? RAINBOW_STYLE : undefined}
+      >
+        {useFallback ? (
+          <span className="text-white font-bold text-base">
+            {fallbackInitial.charAt(0).toUpperCase()}
+          </span>
+        ) : (
+          <IconComponent className="text-white w-6 h-6" />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={cn('relative flex-shrink-0', className)}>

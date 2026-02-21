@@ -35,7 +35,6 @@ import { CHESS_TIME_CONTROL } from '@/lib/chessConstants';
 import { calculateCapturedPieces, calculateMaterialAdvantage } from '@/lib/chessMaterial';
 import { useChessSound } from '@/hooks/useChessSound';
 import { type RankInfo, getRankFromTotalWagered } from '@/lib/rankSystem';
-import { RankBadge } from '@/components/RankBadge';
 import { useChessStore } from '@/stores/chessStore';
 import { wsClient } from '@/lib/wsClient';
 import { DesktopSideMenu } from '@/components/DesktopSideMenu';
@@ -323,24 +322,23 @@ function ActiveGamePanel({
       {/* Board column: top bar + board + bottom bar, all same width, no gaps */}
       <div className="flex flex-col w-[384px] sm:w-[448px] md:w-[512px] max-w-full shrink-0">
         {/* Opponent bar — rounded top, flat bottom to connect to board */}
-        <div className="flex items-center justify-between bg-[#1a1f2e] rounded-t-lg px-3 py-2">
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} size="sm" fallbackInitial={opponentName || 'O'} />
-              <span className="font-semibold text-sm text-white truncate max-w-[130px]">{opponentName || 'Opponent'}</span>
-              <RankBadge rank={opponentRank} size="xs" />
-              {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
-              {opponentStreak > 0 && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-400">
-                  <Flame className="w-3 h-3" />{opponentStreak}
-                </span>
-              )}
-            </div>
-            <div className="pl-8">
+        <div className="flex items-stretch bg-[#1a1f2e] rounded-t-lg overflow-hidden">
+          <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || 'O'} fill className="w-11" />
+          <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-sm text-white truncate max-w-[130px]">{opponentName || 'Opponent'}</span>
+                {opponentBadges.length > 0 && <UserBadges badges={opponentBadges} size="sm" />}
+                {opponentStreak > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-400">
+                    <Flame className="w-3 h-3" />{opponentStreak}
+                  </span>
+                )}
+              </div>
               <CapturedPieces pieces={opponentCaptured} color={opponentColor} materialAdvantage={opponentMaterialAdvantage > 0 ? opponentMaterialAdvantage : undefined} />
             </div>
+            <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} pieceColor={opponentColor} />
           </div>
-          <GameTimer timeLeft={opponentTime} isActive={isOpponentTurnForTimer && !isGameOver} pieceColor={opponentColor} />
         </div>
 
         {/* Board — no rounding, flush with bars */}
@@ -358,24 +356,23 @@ function ActiveGamePanel({
         />
 
         {/* Player bar — flat top, rounded bottom to connect to board */}
-        <div className="flex items-center justify-between bg-[#1a1f2e] rounded-b-lg px-3 py-2">
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} size="sm" />
-              <span className="font-semibold text-sm text-white truncate max-w-[130px]">{playerName}</span>
-              <RankBadge rank={playerRank} size="xs" />
-              {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
-              {playerStreak > 0 && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-400">
-                  <Flame className="w-3 h-3" />{playerStreak}
-                </span>
-              )}
-            </div>
-            <div className="pl-8">
+        <div className="flex items-stretch bg-[#1a1f2e] rounded-b-lg overflow-hidden">
+          <PlayerAvatar skinColor={skinColor} skinIcon={skinIcon} fill className="w-11" />
+          <div className="flex-1 flex items-center justify-between px-3 py-2 min-w-0">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-sm text-white truncate max-w-[130px]">{playerName}</span>
+                {playerBadges.length > 0 && <UserBadges badges={playerBadges} size="sm" />}
+                {playerStreak > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-400">
+                    <Flame className="w-3 h-3" />{playerStreak}
+                  </span>
+                )}
+              </div>
               <CapturedPieces pieces={myCaptured} color={myPieceColor} materialAdvantage={myMaterialAdvantage > 0 ? myMaterialAdvantage : undefined} />
             </div>
+            <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} pieceColor={myPieceColor} />
           </div>
-          <GameTimer timeLeft={myTime} isActive={isMyTurnForTimer && !isGameOver} pieceColor={myPieceColor} />
         </div>
       </div>
 
