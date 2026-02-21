@@ -215,7 +215,11 @@ function generateRoutes(prefix: string) {
       <Route path={`${prefix}/withdraw`} element={<Withdraw />} />
       <Route path={`${prefix}/games/:gameSlug`} element={<GameStart />} />
       <Route path={`${prefix}/chess-lobby`} element={<ChessLobby />} />
-      <Route path={`${prefix}/chess`} element={<ChessHome />} />
+      <Route path={`${prefix}/chess`} element={
+        <GameErrorBoundary>
+          <ChessPlay />
+        </GameErrorBoundary>
+      } />
       <Route path={`${prefix}/chess/play/:gameId?`} element={
         <GameErrorBoundary>
           <ChessPlay />
