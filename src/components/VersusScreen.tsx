@@ -16,9 +16,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PIECE_SYMBOLS } from '@/lib/chessConstants';
 import type { RankInfo } from '@/lib/rankSystem';
 import { RankBadge } from '@/components/RankBadge';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 interface VersusScreenProps {
   playerName: string;
@@ -27,6 +27,10 @@ interface VersusScreenProps {
   wager: number;
   playerRank?: RankInfo;
   opponentRank?: RankInfo;
+  playerSkinColor?: string | null;
+  playerSkinIcon?: string | null;
+  opponentSkinColor?: string | null;
+  opponentSkinIcon?: string | null;
   onComplete: () => void;
 }
 
@@ -37,6 +41,10 @@ export function VersusScreen({
   wager,
   playerRank,
   opponentRank,
+  playerSkinColor,
+  playerSkinIcon,
+  opponentSkinColor,
+  opponentSkinIcon,
   onComplete,
 }: VersusScreenProps) {
   // Animation phase: 0→hidden  1→slide-in  2→VS flash  3→fade-out
@@ -55,10 +63,6 @@ export function VersusScreen({
   }, []); // no deps — runs exactly once on mount
 
   const isWhite = playerColor === 'white';
-
-  // King piece symbols for each side
-  const playerKing  = isWhite ? PIECE_SYMBOLS['wk'] : PIECE_SYMBOLS['bk'];
-  const opponentKing = isWhite ? PIECE_SYMBOLS['bk'] : PIECE_SYMBOLS['wk'];
 
   return (
     /* Absolute overlay — sized by the parent's relative container (the board column) */
@@ -105,25 +109,18 @@ export function VersusScreen({
       {/* ── PLAYER (top — slides down from above) ── */}
       <div
         className={cn(
-          'absolute top-0 left-0 right-0 flex flex-col items-center gap-1 py-3 px-4 transition-all duration-700 ease-out',
+          'absolute top-0 left-0 right-0 flex flex-col items-center gap-1.5 py-4 px-4 transition-all duration-700 ease-out',
           phase >= 1 ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0',
         )}
       >
-        {/* King piece */}
-        <span
-          className="text-5xl sm:text-6xl md:text-7xl drop-shadow-2xl"
-          style={{
-            color: isWhite ? '#FFFFFF' : '#1a1a1a',
-            textShadow: isWhite
-              ? '0 0 20px rgba(255,255,255,0.4), 2px 2px 4px rgba(0,0,0,0.8)'
-              : '0 0 20px rgba(80,80,255,0.3), 2px 2px 4px rgba(0,0,0,0.8)',
-            filter: !isWhite ? 'brightness(1.5)' : undefined,
-            fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif',
-            fontVariantEmoji: 'text' as never,
-          }}
-        >
-          {playerKing}
-        </span>
+        {/* Avatar */}
+        <PlayerAvatar
+          skinColor={playerSkinColor}
+          skinIcon={playerSkinIcon}
+          fallbackInitial={playerName}
+          size="xl"
+          className="drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+        />
         {/* Name */}
         <span className="text-sm sm:text-base md:text-lg font-bold text-white truncate max-w-full text-center">
           {playerName}
@@ -178,25 +175,18 @@ export function VersusScreen({
       {/* ── OPPONENT (bottom — slides up from below) ── */}
       <div
         className={cn(
-          'absolute bottom-0 left-0 right-0 flex flex-col items-center gap-1 py-3 px-4 transition-all duration-700 ease-out',
+          'absolute bottom-0 left-0 right-0 flex flex-col items-center gap-1.5 py-4 px-4 transition-all duration-700 ease-out',
           phase >= 1 ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0',
         )}
       >
-        {/* King piece */}
-        <span
-          className="text-5xl sm:text-6xl md:text-7xl drop-shadow-2xl"
-          style={{
-            color: isWhite ? '#1a1a1a' : '#FFFFFF',
-            textShadow: isWhite
-              ? '0 0 20px rgba(80,80,255,0.3), 2px 2px 4px rgba(0,0,0,0.8)'
-              : '0 0 20px rgba(255,255,255,0.4), 2px 2px 4px rgba(0,0,0,0.8)',
-            filter: isWhite ? 'brightness(1.5)' : undefined,
-            fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif',
-            fontVariantEmoji: 'text' as never,
-          }}
-        >
-          {opponentKing}
-        </span>
+        {/* Avatar */}
+        <PlayerAvatar
+          skinColor={opponentSkinColor}
+          skinIcon={opponentSkinIcon}
+          fallbackInitial={opponentName}
+          size="xl"
+          className="drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+        />
         {/* Name */}
         <span className="text-sm sm:text-base md:text-lg font-bold text-white truncate max-w-full text-center">
           {opponentName}

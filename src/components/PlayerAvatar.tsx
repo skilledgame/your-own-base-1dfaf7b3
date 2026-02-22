@@ -62,7 +62,7 @@ export function PlayerAvatar({
     return (
       <div
         className={cn(
-          'flex items-center justify-center flex-shrink-0',
+          'flex items-end justify-center flex-shrink-0 overflow-hidden',
           !rainbow && 'bg-gradient-to-br',
           !rainbow && theme.from,
           !rainbow && theme.to,
@@ -74,15 +74,15 @@ export function PlayerAvatar({
           <img
             src={avatar.imageSrc}
             alt={avatar.label}
-            className="w-6 h-6 rounded-full object-cover"
+            className="w-[85%] h-auto object-contain"
             draggable={false}
           />
         ) : useInitial ? (
-          <span className="text-white font-bold text-base">
+          <span className="text-white font-bold text-lg pb-1">
             {fallbackInitial!.charAt(0).toUpperCase()}
           </span>
         ) : (
-          <span className="text-white font-bold text-base">
+          <span className="text-white font-bold text-lg pb-1">
             {fallbackInitial ? fallbackInitial.charAt(0).toUpperCase() : '?'}
           </span>
         )}

@@ -94,7 +94,7 @@ const Confetti = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-50 rounded-lg">
       {particles.map((p) => (
         <div
           key={p.id}
@@ -116,7 +116,7 @@ const Confetti = () => {
             opacity: 1; 
           }
           100% { 
-            transform: translateY(100vh) rotate(720deg) scale(0.5); 
+            transform: translateY(500px) rotate(720deg) scale(0.5); 
             opacity: 0; 
           }
         }
@@ -219,12 +219,12 @@ export const GameResultModal = memo(({
     <>
       {safeIsWin && <Confetti />}
       
-      {/* Backdrop with radial glow */}
-      <div className="fixed inset-0 bg-background/90 backdrop-blur-md flex items-center justify-center z-40 p-4">
+      {/* Backdrop — overlays the board column (parent must be relative) */}
+      <div className="absolute inset-0 bg-background/90 backdrop-blur-md flex items-center justify-center z-50 p-3 rounded-lg overflow-hidden">
         {/* Radial glow effect behind card */}
         <div 
           className={cn(
-            "absolute w-[500px] h-[500px] rounded-full blur-3xl opacity-30 pointer-events-none",
+            "absolute w-[400px] h-[400px] rounded-full blur-3xl opacity-30 pointer-events-none",
             isWin 
               ? "bg-gradient-radial from-emerald-500/50 to-transparent" 
               : "bg-gradient-radial from-slate-500/30 to-transparent"
@@ -239,7 +239,7 @@ export const GameResultModal = memo(({
         {/* Main card */}
         <div
           className={cn(
-            "relative border rounded-2xl max-w-[420px] w-full animate-scale-in overflow-hidden",
+            "relative border rounded-2xl w-full animate-scale-in overflow-hidden overflow-y-auto max-h-full",
             isWin 
               ? "border-emerald-500/40 shadow-[0_0_60px_rgba(34,197,94,0.2)]" 
               : "border-slate-500/30 shadow-[0_0_60px_rgba(148,163,184,0.1)]"
@@ -273,9 +273,9 @@ export const GameResultModal = memo(({
           {isWin && <VictorySparkles />}
 
           {/* Content */}
-          <div className="relative z-10 p-6 sm:p-8">
+          <div className="relative z-10 p-4 sm:p-5">
             {/* Badge tag */}
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-2">
               <span 
                 className={cn(
                   "px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full border",
@@ -289,10 +289,10 @@ export const GameResultModal = memo(({
             </div>
 
             {/* Icon with glow */}
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-2">
               <div
                 className={cn(
-                  "relative w-24 h-24 rounded-full flex items-center justify-center",
+                  "relative w-16 h-16 rounded-full flex items-center justify-center",
                   safeIsWin 
                     ? "bg-emerald-500/10" 
                     : "bg-slate-500/10"
@@ -310,9 +310,9 @@ export const GameResultModal = memo(({
                 />
                 
                 {safeIsWin ? (
-                  <Trophy className="w-12 h-12 text-emerald-400 animate-float drop-shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+                  <Trophy className="w-8 h-8 text-emerald-400 animate-float drop-shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
                 ) : (
-                  <Skull className="w-12 h-12 text-slate-400 drop-shadow-[0_0_10px_rgba(148,163,184,0.3)]" />
+                  <Skull className="w-8 h-8 text-slate-400 drop-shadow-[0_0_10px_rgba(148,163,184,0.3)]" />
                 )}
               </div>
             </div>
@@ -320,7 +320,7 @@ export const GameResultModal = memo(({
             {/* Headline */}
             <h2
               className={cn(
-                "text-4xl sm:text-5xl font-bold text-center mb-2 tracking-tight",
+                "text-3xl sm:text-4xl font-bold text-center mb-1 tracking-tight",
                 isAbort
                   ? "text-amber-300"
                   : safeIsWin 
@@ -334,7 +334,7 @@ export const GameResultModal = memo(({
 
             {/* Subtext */}
             <p className={cn(
-              "text-center mb-6 text-sm",
+              "text-center mb-3 text-sm",
               isAbort
                 ? "text-amber-200/70"
                 : safeIsWin ? "text-emerald-300/70" : "text-slate-400"
@@ -343,7 +343,7 @@ export const GameResultModal = memo(({
             </p>
 
             {/* Stats chips */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-3 gap-2 mb-3">
               <StatChip 
                 label="Wager" 
                 value={isFreePlay ? "Free" : `${Math.abs(safeCoinsChange)}`}
@@ -366,7 +366,7 @@ export const GameResultModal = memo(({
 
             {/* New Balance */}
             <div className={cn(
-              "flex items-center justify-center gap-2 py-3 px-4 rounded-xl mb-6 border",
+              "flex items-center justify-center gap-2 py-2 px-3 rounded-xl mb-3 border",
               safeIsWin 
                 ? "bg-emerald-500/5 border-emerald-500/20" 
                 : "bg-slate-500/5 border-slate-500/20"
@@ -385,7 +385,7 @@ export const GameResultModal = memo(({
             </div>
 
             {/* Auto-redirect countdown */}
-            <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="flex items-center justify-center gap-2 mb-3">
               <Timer className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">
                 Returning home in <span className={cn(

@@ -152,6 +152,7 @@ function ActiveGamePanel({
   onExit,
   onBack,
   onTimeLoss,
+  gameResultProps,
 }: {
   gameState: NonNullable<ReturnType<typeof useChessStore.getState>['gameState']>;
   playerRank?: RankInfo;
@@ -166,6 +167,14 @@ function ActiveGamePanel({
   onExit: () => void;
   onBack: () => void;
   onTimeLoss?: (loserColor: 'w' | 'b') => void;
+  gameResultProps?: {
+    isWin: boolean;
+    coinsChange: number;
+    newBalance: number;
+    reason: string;
+    onPlayAgain: () => void;
+    onGoHome: () => void;
+  } | null;
 }) {
   const { skinColor, skinIcon } = useProfile();
   const timerSnapshot = useChessStore((s) => s.timerSnapshot);
@@ -338,9 +347,26 @@ function ActiveGamePanel({
             wager={versusData.wager}
             playerRank={versusData.playerRank}
             opponentRank={versusData.opponentRank}
+            playerSkinColor={skinColor}
+            playerSkinIcon={skinIcon}
+            opponentSkinColor={opponentSkinColor}
+            opponentSkinIcon={opponentSkinIcon}
             onComplete={hideVersus}
           />
         )}
+
+        {/* Game result overlay — covers exactly the board column */}
+        {gameResultProps && (
+          <GameResultModal
+            isWin={gameResultProps.isWin}
+            coinsChange={gameResultProps.coinsChange}
+            newBalance={gameResultProps.newBalance}
+            reason={gameResultProps.reason}
+            onPlayAgain={gameResultProps.onPlayAgain}
+            onGoHome={gameResultProps.onGoHome}
+          />
+        )}
+
         {/* Opponent bar — rounded top, flat bottom to connect to board */}
         <div className="flex items-stretch bg-[#0a0f1a] rounded-t-lg overflow-hidden">
           <PlayerAvatar skinColor={opponentSkinColor} skinIcon={opponentSkinIcon} fallbackInitial={opponentName || 'O'} fill className="w-11" />
@@ -957,25 +983,19 @@ export default function ChessPlay() {
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
 
-  // Game result modal
-  if (phase === 'game_over' && gameEndResult) {
-    const tokensChange = gameEndResult.creditsChange ?? 0;
-    const isWin = gameEndResult.isWin ?? false;
-    const reason = gameEndResult.message || gameEndResult.reason || 'Game ended';
-    return (
-      <GameResultModal
-        isWin={isWin}
-        coinsChange={tokensChange}
-        newBalance={balance}
-        reason={reason}
-        onPlayAgain={handlePlayAgain}
-        onGoHome={handleGoHome}
-      />
-    );
-  }
+  // Game result data (rendered as overlay on the board, not a full-page replacement)
+  const showGameResult = phase === 'game_over' && gameEndResult;
+  const gameResultProps = showGameResult ? {
+    isWin: gameEndResult.isWin ?? false,
+    coinsChange: gameEndResult.creditsChange ?? 0,
+    newBalance: balance,
+    reason: gameEndResult.message || gameEndResult.reason || 'Game ended',
+    onPlayAgain: handlePlayAgain,
+    onGoHome: handleGoHome,
+  } : null;
 
   // Determine right panel content
-  const isPlaying = phase === 'in_game' && gameState;
+  const isPlaying = (phase === 'in_game' || phase === 'game_over') && gameState;
   const isSearching = phase === 'searching';
 
   return (
@@ -1082,6 +1102,7 @@ export default function ChessPlay() {
                           onExit={handleExit}
                           onBack={handleBack}
                           onTimeLoss={handleTimeLoss}
+                          gameResultProps={gameResultProps}
                         />
                       ) : isSearching ? (
                         <SearchingOverlay />
