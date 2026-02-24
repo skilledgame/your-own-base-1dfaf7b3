@@ -180,10 +180,10 @@ export default function Settings() {
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
         >
-          <div className="max-w-7xl mx-auto relative flex items-center justify-center md:justify-between px-4 sm:px-6 py-3">
+          <div className="max-w-7xl mx-auto relative flex items-center justify-center md:justify-between px-4 sm:px-6 py-4 sm:py-3">
             {/* Left: Logo */}
-            <div className="flex items-center absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
-              <LogoLink className="h-14" />
+            <div className="flex items-center absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:static md:top-auto md:translate-x-0 md:translate-y-0">
+              <LogoLink className="h-16 md:h-14" />
             </div>
 
             {/* Center: Balance + Deposit (only when authenticated) */}
