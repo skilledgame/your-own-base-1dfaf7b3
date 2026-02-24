@@ -1014,9 +1014,9 @@ export default function ChessPlay() {
       <div className={`transition-all duration-300 ease-out ${sideMenuOpen ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-72') : 'md:ml-0'}`}>
         {/* Header */}
         <header className={`fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl transition-all duration-300 ease-out ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}`}>
-          <div className="max-w-7xl mx-auto relative flex items-center justify-center md:justify-between px-4 sm:px-6 py-6 sm:py-3">
-            <div className="flex items-center absolute left-1/2 top-[56%] -translate-x-1/2 -translate-y-1/2 md:static md:top-auto md:translate-x-0 md:translate-y-0">
-              <LogoLink className="h-[4.5rem] md:h-14" />
+          <div className="max-w-7xl mx-auto relative flex items-center justify-center md:justify-between px-4 sm:px-6 pt-9 pb-6 sm:py-3">
+            <div className="flex items-center absolute left-1/2 top-[62%] -translate-x-1/2 -translate-y-1/2 md:static md:top-auto md:translate-x-0 md:translate-y-0">
+              <LogoLink className="h-[5rem] md:h-14" />
             </div>
             {isAuthenticated && (
               <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2">
@@ -1056,7 +1056,7 @@ export default function ChessPlay() {
         </header>
 
         {/* Game layout */}
-        <div className="pt-24 sm:pt-[60px]">
+        <div className="pt-32 sm:pt-[60px]">
           <div className="w-full min-h-[calc(100vh-64px)] flex items-start justify-center px-2 sm:px-3 md:px-4 py-5 sm:py-8 md:py-10">
             <div className="w-full max-w-[1280px]">
               <div
