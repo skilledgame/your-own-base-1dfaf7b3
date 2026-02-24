@@ -21,8 +21,6 @@ import { UserDropdown } from '@/components/UserDropdown';
 import { FriendsButton } from '@/components/FriendsButton';
 import { BalanceDepositPill } from '@/components/BalanceDepositPill';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
-import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
-import { useWalletModal } from '@/contexts/WalletModalContext';
 import {
   Copy,
   Users,
@@ -54,7 +52,6 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
   const { toast } = useToast();
   const { isAuthenticated, isAuthReady, isPrivileged, user } = useAuth();
   const { balance } = useBalance();
-  const { openWallet } = useWalletModal();
   const { openAuthModal } = useAuthModal();
 
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
@@ -343,10 +340,10 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
         >
-          <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
+          <div className="max-w-7xl mx-auto relative flex items-center justify-center md:justify-between px-4 sm:px-6 py-3">
             {/* Left: Logo */}
-            <div className="flex items-center">
-              <LogoLink className="h-12 sm:h-14" />
+            <div className="flex items-center absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
+              <LogoLink className="h-14" />
             </div>
 
             {/* Center: Balance + Deposit (only when authenticated) */}
@@ -382,11 +379,6 @@ export function ChessPrivateMode({ onBack }: ChessPrivateModeProps) {
                   {/* Friends button */}
                   <div className="hidden sm:flex">
                     <FriendsButton />
-                  </div>
-                  <div className="sm:hidden">
-                    <button onClick={() => openWallet('deposit')}>
-                      <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
-                    </button>
                   </div>
                 </>
               ) : (

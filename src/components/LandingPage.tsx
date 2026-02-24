@@ -6,7 +6,6 @@ import { Trophy, Loader2, Shield, Lock, Zap, Crown, ArrowRight, Gamepad2, Coins,
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBalance } from '@/hooks/useBalance';
-import { useWalletModal } from '@/contexts/WalletModalContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LogoLink } from './LogoLink';
 import { GameCategory } from './GameCategory';
@@ -20,7 +19,6 @@ import { LiveWins } from './LiveWins';
 import { WeeklyLeaderboard } from './WeeklyLeaderboard';
 import { UserDropdown } from './UserDropdown';
 import { FriendsButton } from './FriendsButton';
-import { SkilledCoinsDisplay } from './SkilledCoinsDisplay';
 import { BalanceDepositPill } from './BalanceDepositPill';
 import { NotificationDropdown } from './NotificationDropdown';
 import { SiteFooterLinks } from './SiteFooterLinks';
@@ -62,19 +60,6 @@ const skilledOriginals = [{
   comingSoon: true,
   showName: false
 }];
-
-// Mobile balance pill that opens wallet modal
-const MobileBalancePill = ({ isPrivileged }: { isPrivileged: boolean }) => {
-  const { openWallet } = useWalletModal();
-  
-  return (
-    <div className="sm:hidden">
-      <button onClick={() => openWallet('deposit')}>
-        <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
-      </button>
-    </div>
-  );
-};
 
 export const LandingPage = ({
   onJoinGame,
@@ -200,10 +185,10 @@ export const LandingPage = ({
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
         >
-          <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
+          <div className="max-w-7xl mx-auto relative flex items-center justify-center md:justify-between px-4 sm:px-6 py-3">
             {/* Left: Logo */}
-            <div className="flex items-center">
-              <LogoLink className="h-12 sm:h-14" />
+            <div className="flex items-center absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
+              <LogoLink className="h-14" />
             </div>
 
             {/* Center: Balance + Deposit (only when authenticated) */}
@@ -243,8 +228,6 @@ export const LandingPage = ({
                   <div className="hidden sm:flex">
                     <FriendsButton />
                   </div>
-                  {/* Mobile: Show balance pill */}
-                  <MobileBalancePill isPrivileged={isPrivileged} />
                 </>
               ) : (
                 <>

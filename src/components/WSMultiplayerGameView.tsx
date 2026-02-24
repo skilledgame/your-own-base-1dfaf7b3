@@ -41,9 +41,7 @@ import { UserDropdown } from '@/components/UserDropdown';
 import { FriendsButton } from '@/components/FriendsButton';
 import { BalanceDepositPill } from '@/components/BalanceDepositPill';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
-import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWalletModal } from '@/contexts/WalletModalContext';
 import { getEloTitle } from '@/lib/eloSystem';
 import { useFriendStore } from '@/stores/friendStore';
 import { toast } from 'sonner';
@@ -134,7 +132,6 @@ export const WSMultiplayerGameView = ({
     return true;
   });
   const { isAuthenticated, isPrivileged } = useAuth();
-  const { openWallet } = useWalletModal();
   const { openAuthModal } = useAuthModal();
   const { skinColor, skinIcon } = useProfile();
 
@@ -451,10 +448,10 @@ export const WSMultiplayerGameView = ({
             ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}
           `}
         >
-          <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
+          <div className="max-w-7xl mx-auto relative flex items-center justify-center md:justify-between px-4 sm:px-6 py-3">
             {/* Left: Logo */}
-            <div className="flex items-center">
-              <LogoLink className="h-12 sm:h-14" />
+            <div className="flex items-center absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
+              <LogoLink className="h-14" />
             </div>
 
             {/* Center: Balance + Deposit (only when authenticated) */}
@@ -490,11 +487,6 @@ export const WSMultiplayerGameView = ({
                   {/* Friends button */}
                   <div className="hidden sm:flex">
                     <FriendsButton />
-                  </div>
-                  <div className="sm:hidden">
-                    <button onClick={() => openWallet('deposit')}>
-                      <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
-                    </button>
                   </div>
                 </>
               ) : (

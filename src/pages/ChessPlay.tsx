@@ -44,9 +44,7 @@ import { UserDropdown } from '@/components/UserDropdown';
 import { FriendsButton } from '@/components/FriendsButton';
 import { BalanceDepositPill } from '@/components/BalanceDepositPill';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
-import { SkilledCoinsDisplay } from '@/components/SkilledCoinsDisplay';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWalletModal } from '@/contexts/WalletModalContext';
 import { useChessWebSocket } from '@/hooks/useChessWebSocket';
 import { useBalance } from '@/hooks/useBalance';
 import { useUILoadingStore } from '@/stores/uiLoadingStore';
@@ -758,7 +756,6 @@ export default function ChessPlay() {
   const { gameId: urlGameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, isPrivileged, user } = useAuth();
-  const { openWallet } = useWalletModal();
   const { openAuthModal } = useAuthModal();
   const { balance } = useBalance();
   const { totalWageredSc, displayName: playerDisplayName, chessElo, dailyPlayStreak } = useProfile();
@@ -1017,9 +1014,9 @@ export default function ChessPlay() {
       <div className={`transition-all duration-300 ease-out ${sideMenuOpen ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-72') : 'md:ml-0'}`}>
         {/* Header */}
         <header className={`fixed top-0 z-40 bg-[#0a0f1a]/80 backdrop-blur-xl transition-all duration-300 ease-out ${sideMenuOpen ? (sidebarCollapsed ? 'md:left-16 left-0 right-0' : 'md:left-72 left-0 right-0') : 'left-0 right-0'}`}>
-          <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
-            <div className="flex items-center">
-              <LogoLink className="h-12 sm:h-14" />
+          <div className="max-w-7xl mx-auto relative flex items-center justify-center md:justify-between px-4 sm:px-6 py-3">
+            <div className="flex items-center absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
+              <LogoLink className="h-14" />
             </div>
             {isAuthenticated && (
               <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2">
@@ -1040,11 +1037,6 @@ export default function ChessPlay() {
                   <div className="hidden sm:flex"><NotificationDropdown /></div>
                   <div className="hidden sm:flex items-center"><UserDropdown /></div>
                   <div className="hidden sm:flex"><FriendsButton /></div>
-                  <div className="sm:hidden">
-                    <button onClick={() => openWallet('deposit')}>
-                      <SkilledCoinsDisplay size="sm" isPrivileged={isPrivileged} />
-                    </button>
-                  </div>
                 </>
               ) : (
                 <>
