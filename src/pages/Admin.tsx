@@ -205,6 +205,8 @@ export default function Admin() {
   const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistSearch, setWaitlistSearch] = useState('');
+  const [waitlistEmailSet, setWaitlistEmailSet] = useState<Set<string>>(new Set());
+  const [waitlistActionUserId, setWaitlistActionUserId] = useState<string | null>(null);
   // Waitlist email state
   const [showEmailCompose, setShowEmailCompose] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
@@ -319,11 +321,28 @@ export default function Admin() {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch waitlist entries' });
       } else {
         setWaitlistEntries(data || []);
+        setWaitlistEmailSet(new Set((data || []).map(entry => entry.email.toLowerCase())));
       }
     } catch (error) {
       console.error('Error fetching waitlist:', error);
     } finally {
       setWaitlistLoading(false);
+    }
+  };
+
+  const fetchWaitlistEmails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('waitlist')
+        .select('email');
+
+      if (error) {
+        throw error;
+      }
+
+      setWaitlistEmailSet(new Set((data || []).map(entry => entry.email.toLowerCase())));
+    } catch (error) {
+      console.error('Error fetching waitlist email list:', error);
     }
   };
 
@@ -428,6 +447,7 @@ export default function Admin() {
       }
 
       setUsers(result.users || []);
+      await fetchWaitlistEmails();
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -1105,6 +1125,100 @@ export default function Admin() {
     }
   };
 
+  const handleAddUserToWaitlist = async (userProfile: UserProfile) => {
+    const normalizedEmail = userProfile.email?.trim().toLowerCase();
+    if (!normalizedEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'No email',
+        description: 'This user has no email to add to waitlist.',
+      });
+      return;
+    }
+
+    setWaitlistActionUserId(userProfile.user_id);
+    try {
+      const { error } = await supabase.rpc('join_waitlist', {
+        user_email: normalizedEmail,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setWaitlistEmailSet(prev => {
+        const next = new Set(prev);
+        next.add(normalizedEmail);
+        return next;
+      });
+
+      if (activeTab === 'waitlist') {
+        fetchWaitlist();
+      }
+
+      toast({
+        title: 'Added to waitlist',
+        description: `${normalizedEmail} is now on the waitlist.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to add',
+        description: error instanceof Error ? error.message : 'Could not add user to waitlist',
+      });
+    } finally {
+      setWaitlistActionUserId(null);
+    }
+  };
+
+  const handleRemoveUserFromWaitlist = async (userProfile: UserProfile) => {
+    const normalizedEmail = userProfile.email?.trim().toLowerCase();
+    if (!normalizedEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'No email',
+        description: 'This user has no email to remove from waitlist.',
+      });
+      return;
+    }
+
+    const shouldRemove = window.confirm(`Remove ${normalizedEmail} from the waitlist?`);
+    if (!shouldRemove) return;
+
+    setWaitlistActionUserId(userProfile.user_id);
+    try {
+      const { error } = await supabase
+        .from('waitlist')
+        .delete()
+        .eq('email', normalizedEmail);
+
+      if (error) {
+        throw error;
+      }
+
+      setWaitlistEmailSet(prev => {
+        const next = new Set(prev);
+        next.delete(normalizedEmail);
+        return next;
+      });
+
+      setWaitlistEntries(prev => prev.filter(entry => entry.email.toLowerCase() !== normalizedEmail));
+
+      toast({
+        title: 'Removed from waitlist',
+        description: `${normalizedEmail} was removed from the waitlist.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to remove',
+        description: error instanceof Error ? error.message : 'Could not remove user from waitlist',
+      });
+    } finally {
+      setWaitlistActionUserId(null);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const term = searchTerm.toLowerCase();
     return (
@@ -1301,6 +1415,12 @@ export default function Admin() {
                   <TableBody>
                     {filteredUsers.map((user) => (
                       <TableRow key={user.id} className="border-purple-500/10 hover:bg-purple-500/5">
+                        {(() => {
+                          const normalizedEmail = user.email?.trim().toLowerCase() || '';
+                          const isOnWaitlist = normalizedEmail ? waitlistEmailSet.has(normalizedEmail) : false;
+                          const isWaitlistActionLoading = waitlistActionUserId === user.user_id;
+                          return (
+                            <>
                         <TableCell>
                           <div>
                             <p className="font-medium text-white">
@@ -1336,6 +1456,38 @@ export default function Admin() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              disabled={!user.email || isWaitlistActionLoading}
+                              onClick={() => {
+                                if (isOnWaitlist) {
+                                  handleRemoveUserFromWaitlist(user);
+                                } else {
+                                  handleAddUserToWaitlist(user);
+                                }
+                              }}
+                              className={
+                                isOnWaitlist
+                                  ? 'text-orange-400 hover:text-orange-300 hover:bg-orange-500/10'
+                                  : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                              }
+                              title={
+                                !user.email
+                                  ? 'User has no email'
+                                  : isOnWaitlist
+                                    ? 'Remove from waitlist'
+                                    : 'Add to waitlist'
+                              }
+                            >
+                              {isWaitlistActionLoading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : isOnWaitlist ? (
+                                <XCircle className="w-4 h-4" />
+                              ) : (
+                                <Plus className="w-4 h-4" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => handleEditUser(user)}
                               className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
                             >
@@ -1353,6 +1505,9 @@ export default function Admin() {
                             )}
                           </div>
                         </TableCell>
+                            </>
+                          );
+                        })()}
                       </TableRow>
                     ))}
                     {filteredUsers.length === 0 && (
