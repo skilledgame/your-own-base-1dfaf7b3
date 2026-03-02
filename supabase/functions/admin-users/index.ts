@@ -15,31 +15,41 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.log('No authorization header');
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     // Create admin client with service role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!token) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    let callerUserId: string | null = null;
+    let callerEmail: string | null = null;
+
+    // Preferred path: Supabase injects verified JWT claims when verify_jwt=true.
+    const jwtClaimsHeader = req.headers.get('x-jwt-claims');
+    if (jwtClaimsHeader) {
+      try {
+        const claims = JSON.parse(jwtClaimsHeader);
+        callerUserId = typeof claims?.sub === 'string' ? claims.sub : null;
+        callerEmail = typeof claims?.email === 'string' ? claims.email : null;
+      } catch (err) {
+        console.error('Failed to parse x-jwt-claims:', err);
+      }
     }
 
-    // Validate caller identity from the provided JWT
-    const { data: { user }, error: userError } = await adminClient.auth.getUser(token);
-    if (userError || !user) {
-      console.log('User authentication failed:', userError);
+    // Fallback path: validate bearer token explicitly.
+    if (!callerUserId) {
+      const authHeader = req.headers.get('Authorization');
+      const token = authHeader?.replace(/^Bearer\s+/i, '').trim();
+
+      if (token) {
+        const { data: { user }, error: userError } = await adminClient.auth.getUser(token);
+        if (!userError && user) {
+          callerUserId = user.id;
+          callerEmail = user.email ?? null;
+        } else {
+          console.log('Bearer token auth failed:', userError);
+        }
+      }
+    }
+
+    if (!callerUserId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -48,7 +58,7 @@ Deno.serve(async (req) => {
 
     // Check if user is admin using the database function
     const { data: isPrivileged, error: roleError } = await adminClient.rpc('is_privileged_user', {
-      _user_id: user.id,
+      _user_id: callerUserId,
     });
 
     if (roleError || !isPrivileged) {
@@ -62,7 +72,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
 
-    console.log(`Admin action: ${action} by user: ${user.email}`);
+    console.log(`Admin action: ${action} by user: ${callerEmail || callerUserId}`);
 
     if (req.method === 'GET' && action === 'list-users') {
       // Fetch all profiles with their roles
