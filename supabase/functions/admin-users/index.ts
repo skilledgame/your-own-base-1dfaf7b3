@@ -14,7 +14,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
@@ -26,12 +25,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create client with user's token to verify they're admin
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Create admin client with service role
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate caller identity from the provided JWT
+    const { data: { user }, error: userError } = await adminClient.auth.getUser(token);
     if (userError || !user) {
       console.log('User authentication failed:', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -41,7 +47,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if user is admin using the database function
-    const { data: isPrivileged, error: roleError } = await userClient.rpc('is_privileged_user', {
+    const { data: isPrivileged, error: roleError } = await adminClient.rpc('is_privileged_user', {
       _user_id: user.id,
     });
 
@@ -52,9 +58,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    // Create admin client with service role
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
