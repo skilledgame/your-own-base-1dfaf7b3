@@ -70,11 +70,26 @@ Deno.serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    let parsedBody: any = null;
+    let action = url.searchParams.get('action');
+    if (!action && req.method === 'POST') {
+      try {
+        parsedBody = await req.json();
+        action = parsedBody?.action || null;
+      } catch {
+        // Ignore body parse errors for actions that don't require JSON
+      }
+    }
+
+    const getBody = async () => {
+      if (parsedBody !== null) return parsedBody;
+      parsedBody = await req.json();
+      return parsedBody;
+    };
 
     console.log(`Admin action: ${action} by user: ${callerEmail || callerUserId}`);
 
-    if (req.method === 'GET' && action === 'list-users') {
+    if ((req.method === 'GET' || req.method === 'POST') && action === 'list-users') {
       // Fetch all profiles with their roles
       const { data: profiles, error: profilesError } = await adminClient
         .from('profiles')
@@ -132,7 +147,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST' && action === 'update-balance') {
-      const { userId, newBalance } = await req.json();
+      const { userId, newBalance } = await getBody();
 
       if (!userId || typeof newBalance !== 'number') {
         return new Response(JSON.stringify({ error: 'Invalid request body' }), {
@@ -172,7 +187,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST' && action === 'update-role') {
-      const { userId, newRole } = await req.json();
+      const { userId, newRole } = await getBody();
 
       if (!userId || !['admin', 'moderator', 'user'].includes(newRole)) {
         return new Response(JSON.stringify({ error: 'Invalid request body' }), {
@@ -210,7 +225,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST' && action === 'update-badges') {
-      const { userId, badges } = await req.json();
+      const { userId, badges } = await getBody();
 
       if (!userId || !Array.isArray(badges)) {
         return new Response(JSON.stringify({ error: 'Invalid request body' }), {
@@ -265,7 +280,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST' && action === 'add-waitlist') {
-      const { email } = await req.json();
+      const { email } = await getBody();
       const normalizedEmail = String(email || '').trim().toLowerCase();
 
       if (!normalizedEmail || !normalizedEmail.includes('@')) {
@@ -293,7 +308,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST' && action === 'remove-waitlist') {
-      const { email } = await req.json();
+      const { email } = await getBody();
       const normalizedEmail = String(email || '').trim().toLowerCase();
 
       if (!normalizedEmail || !normalizedEmail.includes('@')) {

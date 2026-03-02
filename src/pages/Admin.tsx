@@ -430,23 +430,16 @@ export default function Admin() {
         return;
       }
 
-      const response = await fetch(
-        `${CURRENT_SUPABASE_URL}/functions/v1/admin-users?action=list-users`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { action: 'list-users' },
+      });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch users');
+      if (error) {
+        throw new Error(error.message || 'Failed to fetch users');
       }
 
-      setUsers(result.users || []);
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      setUsers(result?.users || []);
       await fetchWaitlistEmails();
     } catch (error) {
       toast({
