@@ -1138,12 +1138,24 @@ export default function Admin() {
 
     setWaitlistActionUserId(userProfile.user_id);
     try {
-      const { error } = await supabase.rpc('join_waitlist', {
-        user_email: normalizedEmail,
-      });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-      if (error) {
-        throw error;
+      const response = await fetch(
+        `${CURRENT_SUPABASE_URL}/functions/v1/admin-users?action=add-waitlist`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: normalizedEmail }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not add user to waitlist');
       }
 
       setWaitlistEmailSet(prev => {
@@ -1187,13 +1199,27 @@ export default function Admin() {
 
     setWaitlistActionUserId(userProfile.user_id);
     try {
-      const { error } = await supabase
-        .from('waitlist')
-        .delete()
-        .eq('email', normalizedEmail);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-      if (error) {
-        throw error;
+      const response = await fetch(
+        `${CURRENT_SUPABASE_URL}/functions/v1/admin-users?action=remove-waitlist`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: normalizedEmail }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not remove user from waitlist');
+      }
+      if (!result.deletedCount) {
+        throw new Error('No matching waitlist entry found');
       }
 
       setWaitlistEmailSet(prev => {

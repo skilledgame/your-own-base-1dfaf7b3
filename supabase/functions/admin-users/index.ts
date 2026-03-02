@@ -251,6 +251,68 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (req.method === 'POST' && action === 'add-waitlist') {
+      const { email } = await req.json();
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+
+      if (!normalizedEmail || !normalizedEmail.includes('@')) {
+        return new Response(JSON.stringify({ error: 'Invalid email' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { error } = await adminClient.rpc('join_waitlist', {
+        user_email: normalizedEmail,
+      });
+
+      if (error) {
+        console.error('Error adding waitlist entry:', error);
+        return new Response(JSON.stringify({ error: error.message || 'Failed to add waitlist entry' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, email: normalizedEmail }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (req.method === 'POST' && action === 'remove-waitlist') {
+      const { email } = await req.json();
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+
+      if (!normalizedEmail || !normalizedEmail.includes('@')) {
+        return new Response(JSON.stringify({ error: 'Invalid email' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data, error } = await adminClient
+        .from('waitlist')
+        .delete()
+        .ilike('email', normalizedEmail)
+        .select('id');
+
+      if (error) {
+        console.error('Error removing waitlist entry:', error);
+        return new Response(JSON.stringify({ error: error.message || 'Failed to remove waitlist entry' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        email: normalizedEmail,
+        deletedCount: data?.length || 0,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
